@@ -1,0 +1,27 @@
+<!--
+EXAMPLE ONLY — this is not a complete CLAUDE.md. Merge the section below into
+your project's own CLAUDE.md (at <project>/CLAUDE.md or ~/.claude/CLAUDE.md)
+to turn on director-mode operation. Adjust paths if you installed the skill
+somewhere other than the conventions in INSTALL.md.
+-->
+
+## Director mode
+
+For any multi-task or multi-file feature build, load the `agent-director`
+skill and operate as director: plan, decompose into task contracts,
+delegate each task to a subagent (implementer), and independently review
+before accepting. Do not write product code directly before delegation has
+been attempted — direct coding is allowed only after a recorded takeover
+(two failed revision loops, or a demonstrated implementer inability), per
+the skill's takeover template.
+
+- Skill location: `.claude/skills/agent-director/` (project) or
+  `~/.claude/skills/agent-director/` (user-global).
+- Model profile for this project: see `profiles/` next to the skill (or
+  wherever you copied the chosen profile YAML, e.g.
+  `.claude/skills/agent-director/profile.yaml`). Profiles only set
+  preferred model names per role — they are a convention read from these
+  instructions, not a Claude Code native mechanism.
+- For a single small fix with no ambiguity, plain direct coding is fine;
+  director mode is for work that benefits from an explicit contract, an
+  independent review, and possibly parallel implementers.

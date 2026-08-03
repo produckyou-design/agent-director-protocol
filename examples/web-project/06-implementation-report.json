@@ -1,0 +1,64 @@
+{
+  "task_id": "T-201",
+  "status": "complete",
+  "summary": "Wired ExportButton into OrdersPage's toolbar, passing the page's current filter state as props, and replaced the isolated component test with an integration test that renders the full OrdersPage.",
+  "files_changed": [
+    {
+      "path": "client/src/pages/OrdersPage.jsx",
+      "change_type": "modified",
+      "description": "Imported ExportButton and rendered it inside the existing toolbar div, next to the filter controls, passing { status, dateFrom, dateTo } from the page's filter state as props."
+    },
+    {
+      "path": "client/src/pages/OrdersPage.test.jsx",
+      "change_type": "modified",
+      "description": "Replaced the isolated ExportButton-only test with a test that renders <OrdersPage />, sets a status filter, clicks the Export CSV button, and asserts exportOrdersCsv was called with the matching filter."
+    }
+  ],
+  "tests_added": [
+    "client/src/pages/OrdersPage.test.jsx::renders Export CSV button in the toolbar",
+    "client/src/pages/OrdersPage.test.jsx::clicking Export CSV calls exportOrdersCsv with active filters"
+  ],
+  "test_executions": [
+    {
+      "command": "npm test --prefix server -- orders.test.js",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "skipped": 0,
+      "output_excerpt": "PASS server/tests/orders.test.js\nTests: 9 passed, 9 total"
+    },
+    {
+      "command": "npm test --prefix client -- OrdersPage.test.jsx",
+      "exit_code": 0,
+      "passed": 7,
+      "failed": 0,
+      "skipped": 0,
+      "output_excerpt": "PASS client/src/pages/OrdersPage.test.jsx\n  OrdersPage\n    ✓ renders Export CSV button in the toolbar (16 ms)\n    ✓ clicking Export CSV calls exportOrdersCsv with active filters (19 ms)\nTests: 7 passed, 7 total"
+    }
+  ],
+  "completion_criteria_status": [
+    {
+      "criterion": "Clicking the 'Export CSV' button in the running dashboard downloads a CSV file containing the currently visible orders.",
+      "met": true,
+      "evidence": "Loaded the dashboard in the client dev server: Export CSV button is now visible in the toolbar; clicking it triggers a file download of orders.csv. Also covered by the new 'clicking Export CSV calls exportOrdersCsv with active filters' test."
+    },
+    {
+      "criterion": "GET /api/orders/export returns a well-formed CSV with the correct header row and columns when called directly.",
+      "met": true,
+      "evidence": "Unchanged from loop 1; orders.test.js 'returns CSV header row' still passes."
+    },
+    {
+      "criterion": "Existing orders dashboard and API tests continue to pass unchanged.",
+      "met": true,
+      "evidence": "Server suite: 9 passed. Client suite: 7 passed (up from 6 — one test replaced with two more thorough ones, net addition)."
+    },
+    {
+      "criterion": "New tests cover the export endpoint's filtering and the button's presence and click behavior inside OrdersPage.",
+      "met": true,
+      "evidence": "OrdersPage.test.jsx now asserts both the button's presence in the rendered page and its click behavior with active filters, addressing the loop 1 revision instruction directly."
+    }
+  ],
+  "out_of_scope_issues": [],
+  "deviations": [],
+  "notes": "Addressed both loop 1 revision instructions: OrdersPage now renders ExportButton, and the test suite verifies it through the actual page component rather than in isolation."
+}

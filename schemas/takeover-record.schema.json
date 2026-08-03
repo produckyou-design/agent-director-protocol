@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/takeover-record.schema.json",
+  "title": "Takeover Record",
+  "description": "Mandatory record the director must write BEFORE writing product code directly. Takeover is allowed only after two failed revision loops, or when the implementer demonstrably cannot perform the task. 'The task is small or simple' is never a valid justification.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "original_requirement",
+    "first_failure_evidence",
+    "first_revision_instruction",
+    "second_failure_evidence",
+    "second_revision_instruction",
+    "repeated_failure_cause",
+    "takeover_justification",
+    "files_to_modify",
+    "modification_scope"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "original_requirement": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The requirement as originally delegated."
+    },
+    "first_failure_evidence": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Concrete evidence of the first failure: test output, error message, or reviewed diff."
+    },
+    "first_revision_instruction": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The evidence-based revision instruction given after the first failure."
+    },
+    "second_failure_evidence": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Concrete evidence of the second failure after the revision loop was fully executed."
+    },
+    "second_revision_instruction": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The evidence-based revision instruction given after the second failure."
+    },
+    "repeated_failure_cause": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The director's analysis of why the loops kept failing."
+    },
+    "takeover_justification": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Why direct intervention is required now. Must not be 'the task is small/simple'."
+    },
+    "files_to_modify": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "The exact files the director will change directly."
+    },
+    "modification_scope": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The bounded scope of the direct changes. Anything beyond this scope goes back through delegation."
+    },
+    "notes": { "type": "string" }
+  }
+}

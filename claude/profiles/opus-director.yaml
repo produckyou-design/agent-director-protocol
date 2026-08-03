@@ -1,0 +1,8 @@
+# Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
+director:
+  preferred_models: [opus-5]
+  effort: high        # optional hint; adapters map to platform mechanism or omit
+implementer:
+  preferred_models: [sonnet-5]
+reviewer:
+  inherit: director   # default: reviewer == director

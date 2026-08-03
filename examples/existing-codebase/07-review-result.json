@@ -1,0 +1,52 @@
+{
+  "task_id": "T-301",
+  "loop_number": 2,
+  "verdict": "rejected",
+  "checks": {
+    "code_actually_changed": {
+      "result": "pass",
+      "evidence": "Diff shows the ValueError guard added and the single string-match branch replaced with two explicit date checks."
+    },
+    "feature_wired_into_flow": {
+      "result": "pass",
+      "evidence": "_week_start() remains the function called by weekly_totals(); reachable from the existing entry point."
+    },
+    "tests_actually_executed": {
+      "result": "pass",
+      "evidence": "Re-ran pytest tests/reports/test_aggregator.py -v independently: 8 passed, matching the report."
+    },
+    "test_results_match_report": {
+      "result": "fail",
+      "evidence": "Added a third independent regression date (2026-09-14T00:00:00Z, an unrelated week boundary not covered by either hardcoded check) and re-ran: fails, event lands in the wrong week. The committed and reported tests only exercise the two dates the implementer has now hardcoded."
+    },
+    "no_fake_or_placeholder_success": {
+      "result": "fail",
+      "evidence": "Read _week_start() again: it now contains two literal date-equality branches instead of one. This is the same anti-pattern as loop 1 — enumerating specific reported dates rather than implementing the general UTC week-boundary rule requested in both the original task contract and the loop 1 revision instruction."
+    },
+    "no_regressions": {
+      "result": "pass",
+      "evidence": "All 8 tests, including pre-existing ones, still pass."
+    },
+    "interfaces_preserved": {
+      "result": "pass",
+      "evidence": "weekly_totals() signature and SaleEvent fields unchanged."
+    },
+    "no_out_of_scope_changes": {
+      "result": "pass",
+      "evidence": "Only aggregator.py and its test file were modified."
+    },
+    "error_handling_present": {
+      "result": "pass",
+      "evidence": "Manually passed a naive datetime into weekly_totals(): ValueError is now raised as required. This part of loop 1's revision instruction was applied."
+    },
+    "completion_criteria_met": {
+      "result": "fail",
+      "evidence": "A third valid boundary date outside the two hardcoded checks still lands in the wrong week, so the general requirement ('every week boundary handled correctly regardless of date') remains unmet."
+    }
+  },
+  "failure_reasons": [
+    "repeated_same_error",
+    "instruction_not_applied"
+  ],
+  "notes": "Loop 1's explicit instruction was to remove the special-casing and implement a general UTC-based rule. Loop 2 instead added a second special case using the same pattern, reproducing the identical class of defect against any date not already special-cased. Two full revision loops have now failed on the same root cause."
+}

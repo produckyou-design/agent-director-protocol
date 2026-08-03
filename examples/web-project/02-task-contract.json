@@ -1,0 +1,52 @@
+{
+  "task_id": "T-201",
+  "title": "Add CSV export to the orders dashboard",
+  "objective": "Let dashboard users download the currently filtered order list as a CSV file, so they can analyze orders in a spreadsheet without direct database access.",
+  "current_state": "GET /api/orders returns paginated, filterable JSON consumed by client/src/pages/OrdersPage.jsx, which renders a table with a filter toolbar above it. No export functionality exists.",
+  "target_behavior": "An 'Export CSV' button appears in the OrdersPage toolbar, next to the existing filter controls. Clicking it calls a new GET /api/orders/export endpoint using the currently active filters and triggers a browser download of orders.csv.",
+  "must_read_files": [
+    "server/routes/orders.js",
+    "client/src/pages/OrdersPage.jsx",
+    "client/src/api/ordersClient.js"
+  ],
+  "editable_files": [
+    "server/routes/orders.js",
+    "server/services/csvExport.js",
+    "client/src/pages/OrdersPage.jsx",
+    "client/src/api/ordersClient.js",
+    "server/tests/orders.test.js",
+    "client/src/pages/OrdersPage.test.jsx"
+  ],
+  "forbidden_files": [
+    "server/routes/auth.js",
+    "client/src/pages/InventoryPage.jsx"
+  ],
+  "interfaces_to_preserve": [
+    "GET /api/orders response shape and pagination behavior",
+    "OrdersPage default export component signature (used by client/src/App.jsx)"
+  ],
+  "input_format": "GET /api/orders/export accepts the same query parameters as GET /api/orders: status, dateFrom, dateTo.",
+  "output_format": "GET /api/orders/export responds with Content-Type: text/csv and Content-Disposition: attachment; filename=orders.csv. Columns in order: id, customer, status, total, createdAt.",
+  "error_handling": [
+    "If the filtered query matches zero orders, return a CSV containing only the header row, not an error response.",
+    "If the underlying database query throws, return HTTP 500 with a JSON error body ({\"error\": \"...\"}) rather than an unhandled stack trace."
+  ],
+  "preservation_conditions": [
+    "Existing GET /api/orders behavior (pagination, filtering, response shape) must not change.",
+    "Existing OrdersPage table rendering and filter controls must not change."
+  ],
+  "completion_criteria": [
+    "Clicking the 'Export CSV' button in the running dashboard downloads a CSV file containing the currently visible orders.",
+    "GET /api/orders/export returns a well-formed CSV with the correct header row and columns when called directly.",
+    "Existing orders dashboard and API tests continue to pass unchanged.",
+    "New tests cover the export endpoint's filtering and the button's presence and click behavior inside OrdersPage."
+  ],
+  "test_commands": [
+    "npm test --prefix server -- orders.test.js",
+    "npm test --prefix client -- OrdersPage.test.jsx"
+  ],
+  "manual_verification": [
+    "Open the dashboard in a browser, apply a status filter, click 'Export CSV', and confirm the downloaded file contains only orders matching that filter."
+  ],
+  "report_format": "implementation-report.schema.json"
+}

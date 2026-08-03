@@ -1,0 +1,14 @@
+{
+  "task_id": "T-301",
+  "loop_number": 1,
+  "instruction": "Fix timezone and off-by-one bug in weekly report aggregator per task contract T-301: compute week boundaries in UTC, inclusive of the full 7-day week, regardless of server locale.",
+  "implementation_summary": "Implementer changed the boundary comparison operator and added a literal string-match special case in _week_start() that reassigns exactly one hardcoded timestamp ('2026-08-03T00:00:00+00:00') to the following week. The general UTC-conversion defect and the naive-datetime handling described in current_state were left unchanged.",
+  "test_evidence": "Committed fixture suite: 6 passed. Director-added regression case with a different week boundary date (2026-08-10T00:00:00Z): event assigned to the wrong week, reproducing the original defect. Naive-datetime input: no ValueError raised, contrary to the error_handling requirement.",
+  "review_verdict": "revision_required",
+  "failure_reasons": [
+    "test_failure",
+    "placeholder_implementation"
+  ],
+  "counted_as_failure": true,
+  "notes": "Full loop: instruction delegated, implementation produced, tests run, director review with independent regression evidence, evidence-based revision instructions issued."
+}

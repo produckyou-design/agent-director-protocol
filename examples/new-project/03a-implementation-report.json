@@ -1,0 +1,51 @@
+{
+  "task_id": "T-401",
+  "status": "complete",
+  "summary": "Implemented internal/health with RegisterRoutes(mux) registering GET /health, returning a JSON {\"status\":\"ok\"} body, and 405 for any other method.",
+  "files_changed": [
+    {
+      "path": "internal/health/handler.go",
+      "change_type": "added",
+      "description": "RegisterRoutes(mux *http.ServeMux) registers a handler on /health that checks r.Method == http.MethodGet, writes Content-Type: application/json and body {\"status\":\"ok\"} on GET, and calls http.Error with 405 for any other method."
+    },
+    {
+      "path": "internal/health/handler_test.go",
+      "change_type": "added",
+      "description": "Table-driven test covering GET (expects 200 + JSON body) and POST (expects 405), using httptest.NewRecorder against a mux built via RegisterRoutes."
+    }
+  ],
+  "tests_added": [
+    "internal/health/handler_test.go::TestHealth_Get_ReturnsOk",
+    "internal/health/handler_test.go::TestHealth_Post_ReturnsMethodNotAllowed"
+  ],
+  "test_executions": [
+    {
+      "command": "go test ./internal/health/... -v",
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "output_excerpt": "=== RUN   TestHealth_Get_ReturnsOk\n--- PASS: TestHealth_Get_ReturnsOk (0.00s)\n=== RUN   TestHealth_Post_ReturnsMethodNotAllowed\n--- PASS: TestHealth_Post_ReturnsMethodNotAllowed (0.00s)\nPASS\nok  \texample.com/newapi/internal/health\t0.240s"
+    }
+  ],
+  "completion_criteria_status": [
+    {
+      "criterion": "GET /health returns HTTP 200 with body {\"status\":\"ok\"} and Content-Type: application/json.",
+      "met": true,
+      "evidence": "TestHealth_Get_ReturnsOk asserts status 200, body {\"status\":\"ok\"}, and the Content-Type header."
+    },
+    {
+      "criterion": "POST /health returns HTTP 405.",
+      "met": true,
+      "evidence": "TestHealth_Post_ReturnsMethodNotAllowed asserts status 405."
+    },
+    {
+      "criterion": "go test ./internal/health/... passes with zero failures.",
+      "met": true,
+      "evidence": "2 passed, 0 failed, exit code 0."
+    }
+  ],
+  "out_of_scope_issues": [],
+  "deviations": [],
+  "notes": "Package builds and tests in isolation; cmd/server will not build until T-402 also lands, as expected."
+}

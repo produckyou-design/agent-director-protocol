@@ -1,0 +1,13 @@
+{
+  "task_id": "T-201",
+  "loop_number": 1,
+  "instruction": "Add CSV export to the orders dashboard per task contract T-201: new GET /api/orders/export endpoint plus an 'Export CSV' button in the OrdersPage toolbar that downloads the currently filtered orders.",
+  "implementation_summary": "Implementer added a working GET /api/orders/export endpoint and a standalone ExportButton.jsx component with a correct click handler, but never imported or rendered ExportButton inside OrdersPage.jsx, so the button never appears on the actual dashboard page.",
+  "test_evidence": "Server: 9 passed, 0 failed. Client: 6 passed, 0 failed (but the client test mounted ExportButton in isolation, not OrdersPage, so it did not catch the missing integration). Manual load of the dashboard confirmed no Export CSV button rendered.",
+  "review_verdict": "revision_required",
+  "failure_reasons": [
+    "not_wired_into_flow"
+  ],
+  "counted_as_failure": true,
+  "notes": "Counted as a full loop: instruction was delegated, implementer produced a report claiming completion, director reviewed with concrete evidence (manual page load) and issued evidence-based revision instructions."
+}

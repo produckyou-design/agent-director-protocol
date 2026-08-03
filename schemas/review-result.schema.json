@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/review-result.schema.json",
+  "title": "Review Result",
+  "description": "The director's review of an implementation report. All ten review checks are mandatory; the director must verify evidence, not trust the implementer's report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["task_id", "loop_number", "verdict", "checks"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "loop_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Which revision loop this review belongs to (1 = first implementation)."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["approved", "revision_required", "rejected"]
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code_actually_changed",
+        "feature_wired_into_flow",
+        "tests_actually_executed",
+        "test_results_match_report",
+        "no_fake_or_placeholder_success",
+        "no_regressions",
+        "interfaces_preserved",
+        "no_out_of_scope_changes",
+        "error_handling_present",
+        "completion_criteria_met"
+      ],
+      "properties": {
+        "code_actually_changed": { "$ref": "#/definitions/check" },
+        "feature_wired_into_flow": { "$ref": "#/definitions/check" },
+        "tests_actually_executed": { "$ref": "#/definitions/check" },
+        "test_results_match_report": { "$ref": "#/definitions/check" },
+        "no_fake_or_placeholder_success": { "$ref": "#/definitions/check" },
+        "no_regressions": { "$ref": "#/definitions/check" },
+        "interfaces_preserved": { "$ref": "#/definitions/check" },
+        "no_out_of_scope_changes": { "$ref": "#/definitions/check" },
+        "error_handling_present": { "$ref": "#/definitions/check" },
+        "completion_criteria_met": { "$ref": "#/definitions/check" }
+      }
+    },
+    "failure_reasons": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/failure_reason" },
+      "description": "Objective failure classifications. Required when verdict is not 'approved'. Style or taste disagreements are never failures."
+    },
+    "revision_instructions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["instruction", "target_files", "evidence"],
+        "properties": {
+          "instruction": { "type": "string", "minLength": 10 },
+          "target_files": { "type": "array", "items": { "type": "string" } },
+          "evidence": {
+            "type": "string",
+            "description": "The concrete evidence (test output, code excerpt, reproduction) that motivates this instruction."
+          }
+        }
+      },
+      "description": "Concrete, evidence-based instructions. Required when verdict is 'revision_required'."
+    },
+    "additional_tests_required": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Integration, regression, or user-flow tests the director adds beyond the implementer's unit tests."
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "verdict": { "const": "revision_required" } } },
+      "then": { "required": ["revision_instructions", "failure_reasons"] }
+    },
+    {
+      "if": { "properties": { "verdict": { "const": "rejected" } } },
+      "then": { "required": ["failure_reasons"] }
+    }
+  ],
+  "definitions": {
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["result", "evidence"],
+      "properties": {
+        "result": { "type": "string", "enum": ["pass", "fail", "not_applicable"] },
+        "evidence": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What the director actually inspected to reach this result."
+        }
+      }
+    },
+    "failure_reason": {
+      "type": "string",
+      "enum": [
+        "completion_criteria_unmet",
+        "test_failure",
+        "not_runnable",
+        "regression",
+        "interface_violation",
+        "placeholder_implementation",
+        "fake_success",
+        "not_wired_into_flow",
+        "instruction_not_applied",
+        "repeated_same_error"
+      ]
+    }
+  }
+}

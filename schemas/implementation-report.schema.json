@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/implementation-report.schema.json",
+  "title": "Implementation Report",
+  "description": "The report an implementer must return after working on a task contract. A status of 'complete' without at least one executed test command is invalid.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "status",
+    "summary",
+    "files_changed",
+    "tests_added",
+    "test_executions",
+    "completion_criteria_status",
+    "out_of_scope_issues"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["complete", "partial", "blocked", "failed"],
+      "description": "Implementer's own assessment. The director's review, not this field, decides completion."
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What was actually done, in concrete terms."
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "change_type", "description"],
+        "properties": {
+          "path": { "type": "string" },
+          "change_type": { "type": "string", "enum": ["added", "modified", "deleted"] },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "tests_added": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Test files or test case names written for this task."
+    },
+    "test_executions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "exit_code", "passed", "failed", "output_excerpt"],
+        "properties": {
+          "command": { "type": "string" },
+          "exit_code": { "type": "integer" },
+          "passed": { "type": "integer", "minimum": 0 },
+          "failed": { "type": "integer", "minimum": 0 },
+          "skipped": { "type": "integer", "minimum": 0 },
+          "output_excerpt": {
+            "type": "string",
+            "description": "Verbatim excerpt of the real test output. Paraphrased or invented output is a fake_success failure."
+          }
+        }
+      },
+      "description": "Every test command actually executed, with real results."
+    },
+    "completion_criteria_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["criterion", "met", "evidence"],
+        "properties": {
+          "criterion": { "type": "string" },
+          "met": { "type": "boolean" },
+          "evidence": { "type": "string" }
+        }
+      },
+      "minItems": 1,
+      "description": "One entry per completion criterion in the task contract."
+    },
+    "out_of_scope_issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Problems noticed outside the task scope. Report them here; do not fix them."
+    },
+    "deviations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Any deviation from the task contract, with justification."
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "status": { "const": "complete" } }
+      },
+      "then": {
+        "properties": {
+          "test_executions": { "minItems": 1 }
+        }
+      }
+    }
+  ]
+}

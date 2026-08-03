@@ -1,0 +1,67 @@
+{
+  "task_id": "T-201",
+  "loop_number": 1,
+  "verdict": "revision_required",
+  "checks": {
+    "code_actually_changed": {
+      "result": "pass",
+      "evidence": "Diff shows real additions: server/services/csvExport.js (new), orders.js route addition, ordersClient.js addition, and a new ExportButton.jsx component."
+    },
+    "feature_wired_into_flow": {
+      "result": "fail",
+      "evidence": "Opened client/src/pages/OrdersPage.jsx in full: it has no import of ExportButton and does not render it anywhere in the toolbar JSX. Ran the client dev server and loaded the dashboard in a browser: no 'Export CSV' button is visible on the page. The component exists but is never mounted."
+    },
+    "tests_actually_executed": {
+      "result": "pass",
+      "evidence": "Re-ran both test commands independently: server suite 9 passed, client suite 6 passed, matching the report."
+    },
+    "test_results_match_report": {
+      "result": "pass",
+      "evidence": "Independent re-run counts (9 passed server, 6 passed client) match the implementation report exactly."
+    },
+    "no_fake_or_placeholder_success": {
+      "result": "fail",
+      "evidence": "The client test for ExportButton renders <ExportButton /> in isolation with a mocked ordersClient, never rendering <OrdersPage />. It cannot detect that OrdersPage never mounts the button, so the 'button triggers download' completion criterion is unverified in the actual user flow — the test creates an appearance of coverage that does not exist."
+    },
+    "no_regressions": {
+      "result": "pass",
+      "evidence": "All pre-existing tests in orders.test.js and OrdersPage.test.jsx still pass; GET /api/orders route untouched."
+    },
+    "interfaces_preserved": {
+      "result": "pass",
+      "evidence": "GET /api/orders handler and OrdersPage's default export signature are unchanged in the diff."
+    },
+    "no_out_of_scope_changes": {
+      "result": "pass",
+      "evidence": "Only files within editable_files were modified."
+    },
+    "error_handling_present": {
+      "result": "pass",
+      "evidence": "orders.test.js includes the header-only-CSV-on-empty-result case; route code wraps the DB query in try/catch returning 500 with a JSON body on failure."
+    },
+    "completion_criteria_met": {
+      "result": "fail",
+      "evidence": "First completion criterion ('Clicking the Export CSV button in the running dashboard downloads a CSV') is not met: there is no button on the rendered dashboard page to click."
+    }
+  },
+  "failure_reasons": [
+    "not_wired_into_flow"
+  ],
+  "revision_instructions": [
+    {
+      "instruction": "Import ExportButton into client/src/pages/OrdersPage.jsx and render it inside the existing toolbar div, passing the page's current filter state (status, dateFrom, dateTo) as props so the export uses the same filters as the visible table.",
+      "target_files": [
+        "client/src/pages/OrdersPage.jsx"
+      ],
+      "evidence": "Manual load of the dashboard shows no Export CSV button; grep of OrdersPage.jsx confirms no reference to ExportButton anywhere in the file."
+    },
+    {
+      "instruction": "Replace the isolated ExportButton unit test with (or add alongside it) a test that renders the full OrdersPage and asserts the Export CSV button is present and, on click, calls exportOrdersCsv with the page's currently active filters.",
+      "target_files": [
+        "client/src/pages/OrdersPage.test.jsx"
+      ],
+      "evidence": "The current test only mounts <ExportButton /> directly, so it cannot catch the button being absent from OrdersPage; it passed despite the feature being unreachable."
+    }
+  ],
+  "notes": "Endpoint-side work is solid; the gap is entirely on the client wiring."
+}

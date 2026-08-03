@@ -1,0 +1,14 @@
+{
+  "task_id": "T-301",
+  "loop_number": 2,
+  "instruction": "Remove the literal string-match special case in _week_start(). Fix the root cause: convert every incoming timestamp to UTC explicitly (reject naive datetimes with ValueError), then compute the ISO week start from the UTC value using a general inclusive boundary rule, so any timestamp in any week is handled the same way, not just the reported fixture date.",
+  "implementation_summary": "Implementer added the ValueError guard for naive datetimes (this part was applied correctly), but for the week-boundary logic added a second hardcoded date-equality branch for the specific date the director's loop 1 review had used to demonstrate the bug, rather than implementing a general UTC-based rule.",
+  "test_evidence": "Committed suite (8 tests, including two new ones matching the two hardcoded dates): 8 passed. Director-added third regression date (2026-09-14T00:00:00Z, not hardcoded): fails, event lands in the wrong week, reproducing the original defect.",
+  "review_verdict": "rejected",
+  "failure_reasons": [
+    "repeated_same_error",
+    "instruction_not_applied"
+  ],
+  "counted_as_failure": true,
+  "notes": "Second full loop, same root-cause pattern as loop 1 (date enumeration instead of a general rule). Two counted failures now on record; takeover criteria met."
+}

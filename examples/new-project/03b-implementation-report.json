@@ -1,0 +1,67 @@
+{
+  "task_id": "T-402",
+  "status": "complete",
+  "summary": "Implemented internal/config with a Config struct and Load(path) that applies defaults on a missing file, overrides fields from present YAML, and returns a descriptive error on malformed YAML.",
+  "files_changed": [
+    {
+      "path": "internal/config/config.go",
+      "change_type": "added",
+      "description": "Config{ListenAddr, LogLevel string}. Load(path) starts from defaults (\":8080\", \"info\"), returns them unchanged with nil error if os.Stat reports the file missing, otherwise reads and yaml.Unmarshal's the file into a copy of the defaults (so unset fields keep their default), returning a wrapped error on unmarshal failure."
+    },
+    {
+      "path": "internal/config/config_test.go",
+      "change_type": "added",
+      "description": "Tests: missing file returns defaults; sample-config.yaml overrides both fields; malformed YAML returns a non-nil error and nil Config."
+    },
+    {
+      "path": "internal/config/testdata/sample-config.yaml",
+      "change_type": "added",
+      "description": "Fixture: listen_addr: ':9090', log_level: 'debug'."
+    },
+    {
+      "path": "internal/config/testdata/malformed.yaml",
+      "change_type": "added",
+      "description": "Fixture: deliberately invalid YAML (unterminated list) for the error-path test."
+    }
+  ],
+  "tests_added": [
+    "internal/config/config_test.go::TestLoad_MissingFile_ReturnsDefaults",
+    "internal/config/config_test.go::TestLoad_SampleFile_OverridesFields",
+    "internal/config/config_test.go::TestLoad_MalformedYaml_ReturnsError"
+  ],
+  "test_executions": [
+    {
+      "command": "go test ./internal/config/... -v",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0,
+      "skipped": 0,
+      "output_excerpt": "=== RUN   TestLoad_MissingFile_ReturnsDefaults\n--- PASS: TestLoad_MissingFile_ReturnsDefaults (0.00s)\n=== RUN   TestLoad_SampleFile_OverridesFields\n--- PASS: TestLoad_SampleFile_OverridesFields (0.00s)\n=== RUN   TestLoad_MalformedYaml_ReturnsError\n--- PASS: TestLoad_MalformedYaml_ReturnsError (0.00s)\nPASS\nok  \texample.com/newapi/internal/config\t0.198s"
+    }
+  ],
+  "completion_criteria_status": [
+    {
+      "criterion": "Load() on a nonexistent path returns &Config{ListenAddr: \":8080\", LogLevel: \"info\"} with a nil error.",
+      "met": true,
+      "evidence": "TestLoad_MissingFile_ReturnsDefaults asserts both fields and a nil error against a path that does not exist."
+    },
+    {
+      "criterion": "Load() on internal/config/testdata/sample-config.yaml returns the ListenAddr and LogLevel values specified in that file.",
+      "met": true,
+      "evidence": "TestLoad_SampleFile_OverridesFields asserts ListenAddr==':9090' and LogLevel=='debug', matching the fixture."
+    },
+    {
+      "criterion": "Load() on a malformed YAML fixture returns a non-nil error and a nil *Config.",
+      "met": true,
+      "evidence": "TestLoad_MalformedYaml_ReturnsError asserts err != nil and cfg == nil against testdata/malformed.yaml."
+    },
+    {
+      "criterion": "go test ./internal/config/... passes with zero failures.",
+      "met": true,
+      "evidence": "3 passed, 0 failed, exit code 0."
+    }
+  ],
+  "out_of_scope_issues": [],
+  "deviations": [],
+  "notes": "Package builds and tests in isolation; cmd/server will not build until T-401 also lands, as expected."
+}

@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/task-contract.schema.json",
+  "title": "Task Contract",
+  "description": "The complete specification a director must provide before delegating any implementation task to an implementer. Vague scopes such as 'improve the feature' or 'fix the UI' are not valid task contracts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "title",
+    "objective",
+    "current_state",
+    "target_behavior",
+    "must_read_files",
+    "editable_files",
+    "forbidden_files",
+    "interfaces_to_preserve",
+    "input_format",
+    "output_format",
+    "error_handling",
+    "preservation_conditions",
+    "completion_criteria",
+    "test_commands",
+    "manual_verification",
+    "report_format"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$",
+      "description": "Unique task identifier, e.g. T-001."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 3,
+      "description": "Short human-readable task name."
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Why this task exists — the purpose of the work."
+    },
+    "current_state": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Observed state of the code/behavior before this task."
+    },
+    "target_behavior": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Precise description of the behavior after the task is done."
+    },
+    "must_read_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files the implementer must read before changing anything."
+    },
+    "editable_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files (or glob patterns) the implementer is allowed to modify or create."
+    },
+    "forbidden_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files (or glob patterns) the implementer must not touch."
+    },
+    "interfaces_to_preserve": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Public functions, endpoints, CLI flags, schemas, or contracts that must remain unchanged."
+    },
+    "input_format": {
+      "type": "string",
+      "description": "Expected input shape for the changed behavior. Use 'n/a' when not applicable."
+    },
+    "output_format": {
+      "type": "string",
+      "description": "Expected output shape for the changed behavior. Use 'n/a' when not applicable."
+    },
+    "error_handling": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Error situations that must be handled, and how."
+    },
+    "preservation_conditions": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Existing behavior that must not regress."
+    },
+    "completion_criteria": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Objective, checkable conditions that define done."
+    },
+    "test_commands": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "Exact commands the implementer must run and report results for."
+    },
+    "manual_verification": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Manual verification steps, when automated tests are insufficient. May be empty."
+    },
+    "report_format": {
+      "type": "string",
+      "description": "Required report format. Normally: 'implementation-report.schema.json'."
+    },
+    "depends_on": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" },
+      "description": "Task IDs that must be completed and reviewed before this task starts."
+    },
+    "conflict_domains": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Resources this task touches, used for the parallel-execution conflict check. Any overlap with another in-flight task forces sequential execution.",
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } },
+        "data_structures": { "type": "array", "items": { "type": "string" } },
+        "interfaces": { "type": "array", "items": { "type": "string" } },
+        "db_entities": { "type": "array", "items": { "type": "string" } },
+        "shared_configs": { "type": "array", "items": { "type": "string" } },
+        "state_stores": { "type": "array", "items": { "type": "string" } },
+        "build_targets": { "type": "array", "items": { "type": "string" } },
+        "user_flows": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

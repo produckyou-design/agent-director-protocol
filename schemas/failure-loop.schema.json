@@ -1,0 +1,78 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/failure-loop.schema.json",
+  "title": "Failure Loop Record",
+  "description": "Record of one full revision loop: instruction, implementation, tests, review, and outcome. Only full loops count toward the two-failure takeover threshold; re-asking a question or regenerating an answer is not a loop.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "loop_number",
+    "instruction",
+    "implementation_summary",
+    "test_evidence",
+    "review_verdict",
+    "failure_reasons",
+    "counted_as_failure"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$"
+    },
+    "loop_number": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1 = the initial implementation cycle, 2 = first revision cycle, and so on."
+    },
+    "instruction": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The instruction given to the implementer for this loop. For loops after the first, this must be an evidence-based revision instruction."
+    },
+    "implementation_summary": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the implementer actually changed in this loop."
+    },
+    "test_evidence": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Verbatim excerpt of the real test output produced in this loop."
+    },
+    "review_verdict": {
+      "type": "string",
+      "enum": ["approved", "revision_required", "rejected"]
+    },
+    "failure_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "completion_criteria_unmet",
+          "test_failure",
+          "not_runnable",
+          "regression",
+          "interface_violation",
+          "placeholder_implementation",
+          "fake_success",
+          "not_wired_into_flow",
+          "instruction_not_applied",
+          "repeated_same_error"
+        ]
+      },
+      "description": "Empty when the loop succeeded. Style or taste differences are never failure reasons."
+    },
+    "counted_as_failure": {
+      "type": "boolean",
+      "description": "True only when this was a full loop that ended in an objective failure. Two counted failures allow takeover."
+    },
+    "notes": { "type": "string" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "counted_as_failure": { "const": true } } },
+      "then": { "properties": { "failure_reasons": { "minItems": 1 } } }
+    }
+  ]
+}

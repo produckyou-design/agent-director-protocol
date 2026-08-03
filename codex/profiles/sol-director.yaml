@@ -1,0 +1,12 @@
+# Model names below are environment aliases — users may point "sol" (or any
+# other name here) at whatever Codex model their config.toml resolves it to.
+# This file is a platform-neutral description of intent, not a literal Codex
+# config.toml; map it onto your own config.toml / profile file as described in
+# ../INSTALL.md.
+director:
+  preferred_models: [sol]
+  effort: high        # maps to Codex's model_reasoning_effort; use xhigh for heavy design/decomposition passes
+implementer:
+  preferred_models: [configured-subagent-model]
+reviewer:
+  inherit: director   # default: reviewer == director (see core/ROLE-CONTRACT.md)
