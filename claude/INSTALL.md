@@ -9,18 +9,25 @@ available in.
 
 ## Project install
 
-Copy the skill directory into the project's `.claude/skills/`:
+`SKILL.md` links to the platform-neutral rules with relative paths
+(`../../../core/...`, `../../../schemas/...`), so a working install needs
+`core/` and `schemas/` copied into the project alongside the skill, not just
+the skill directory by itself:
 
 ```bash
 # macOS / Linux
 mkdir -p <project>/.claude/skills
 cp -r claude/skills/agent-director <project>/.claude/skills/agent-director
+cp -r core <project>/core
+cp -r schemas <project>/schemas
 ```
 
 ```powershell
 # Windows PowerShell
 New-Item -ItemType Directory -Force -Path "<project>\.claude\skills" | Out-Null
 Copy-Item -Recurse "claude\skills\agent-director" "<project>\.claude\skills\agent-director"
+Copy-Item -Recurse "core" "<project>\core"
+Copy-Item -Recurse "schemas" "<project>\schemas"
 ```
 
 ## User-global install
@@ -42,6 +49,14 @@ Copy-Item -Recurse "claude\skills\agent-director" "$env:USERPROFILE\.claude\skil
 A user-global install makes the skill available in every project; a project
 install keeps it scoped to that one repository. Both can coexist; the
 project-local copy takes precedence for that project.
+
+Because a user-global skill has no single project root to place `core/` and
+`schemas/` next to, `SKILL.md`'s `../../../core/...` and
+`../../../schemas/...` links only resolve per-project if you also copy
+`core/` and `schemas/` into each project that uses the global skill (same
+commands as the project install, minus the skill copy step), or edit those
+links to an absolute path for your machine. For most users the project
+install above is simpler for exactly this reason.
 
 ## Verify the install
 
@@ -91,3 +106,5 @@ aliases you are free to rename or replace.
 3. If you copied a profile YAML to `profile.yaml` next to `SKILL.md`, it is
    removed along with the skill directory in step 1; no separate cleanup is
    needed.
+4. Delete the `core/` and `schemas/` copies from the project if nothing else
+   in that repository depends on them.

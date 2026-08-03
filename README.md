@@ -123,12 +123,16 @@ into your `CLAUDE.md`. Commands below are copied from [`claude/INSTALL.md`](clau
 # Project install (macOS/Linux)
 mkdir -p <project>/.claude/skills
 cp -r claude/skills/agent-director <project>/.claude/skills/agent-director
+cp -r core <project>/core
+cp -r schemas <project>/schemas
 ```
 
 ```powershell
 # Project install (Windows PowerShell)
 New-Item -ItemType Directory -Force -Path "<project>\.claude\skills" | Out-Null
 Copy-Item -Recurse "claude\skills\agent-director" "<project>\.claude\skills\agent-director"
+Copy-Item -Recurse "core" "<project>\core"
+Copy-Item -Recurse "schemas" "<project>\schemas"
 ```
 
 For a user-global install (available in every project), copy to
