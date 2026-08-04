@@ -4,5 +4,15 @@ director:
   effort: high        # optional hint; adapters map to platform mechanism or omit
 implementer:
   preferred_models: [sonnet-5]
+  # Per-task-kind reasoning effort. The director MUST pass the matching value
+  # on every spawn; omitting it silently inherits the session default, which
+  # under-powers investigation work and over-powers mechanical work.
+  effort_by_task_kind:
+    investigation: high   # root-cause hunts, competing hypotheses, design judgement
+    audit: high           # pre-release compliance / security review
+    implementation: medium
+    pipeline: medium      # release/deploy execution — procedure fidelity, not creativity
+    mechanical: low       # version bumps, doc sync, single-line edits
+  effort_default: medium
 reviewer:
   inherit: director   # default: reviewer == director

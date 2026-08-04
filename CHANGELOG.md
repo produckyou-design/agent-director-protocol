@@ -5,6 +5,68 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Escalation Protocol** (`core/ESCALATION-PROTOCOL.md`, new): a mid-task
+  request mechanism for a stuck implementer or director to ask for more
+  reasoning power *before* guessing a third time — `EFFORT_ESCALATION_REQUEST`
+  / `MODEL_ESCALATION_REQUEST` (implementer → director) and
+  `DIRECTOR_ESCALATION_REQUEST` (director → user). Neither role ever changes
+  its own model or effort; a request is granted only after the requester's
+  evidence is independently checked.
+- **Rescue Protocol** (`core/RESCUE-PROTOCOL.md`, new): replaces the previous
+  "two failed loops → director takes over" default. After two counted
+  failures, the director now classifies the cause
+  (`diagnosis_gap` / `reasoning_gap` / `model_capability_gap` /
+  `requirement_conflict` / `environment_issue` / `rollback_needed`); only a
+  genuine reasoning or model-capability gap earns a bounded, one-shot
+  **Rescue Agent** promotion (≤2 attempts, isolated checkpoint, explicit
+  `forbidden_scope`) before director takeover becomes reachable at all.
+  Director direct coding remains the last resort, gated by the same
+  takeover-record requirement as before.
+- **Mandatory disclosure/notification schemas**: three new JSON Schemas make
+  the "never silent" requirement checkable —
+  `agent-composition-disclosure.schema.json` (who's about to run, stated
+  before any spawn), `promotion-notice.schema.json` (why a task is being
+  promoted, doubling as an approval request outside the pre-approved
+  model/effort range), and `rescue-outcome-notice.schema.json` (what
+  happened, including whether the team reverted to its normal tier).
+- **Escalation request schemas**: `escalation-request.schema.json` and
+  `director-escalation-request.schema.json`.
+- **`rescue-agent-task.schema.json`**: the bounded scope package (prior
+  attempts, last-passing checkpoint, editable/forbidden scope, attempt limit)
+  handed to a Rescue Agent.
+- **Per-task-kind reasoning effort**: `implementer.effort_by_task_kind` added
+  to all three model profiles (`opus-director.yaml`, `fable-director.yaml`,
+  `sol-director.yaml`) — investigation/audit default to `high`,
+  implementation/pipeline to `medium`, mechanical work to `low`. The director
+  must set this explicitly on every spawn rather than inheriting a session
+  default.
+- **Agent-composition disclosure step**: `DELEGATION-PROTOCOL.md` step 7 now
+  requires disclosing the full spawn plan (director model/effort, each
+  subagent's role/task/model/effort, parallel or sequential, Rescue Agent
+  availability) before any implementer is spawned for a batch.
+- Three new reference templates per platform adapter (`claude/`, `codex/`):
+  `escalation-template.md`, `rescue-agent-template.md`,
+  `agent-briefing-template.md` — bringing each adapter's reference set from
+  four templates to seven.
+- `core/` grows from 8 to 10 documents; `schemas/` from 5 to 11.
+
+### Changed
+
+- `core/TAKEOVER-PROTOCOL.md` condition (b) now requires the Rescue Protocol
+  to have run its course (promotion tried and failed, or classified as
+  inapplicable) — "two failed loops" alone no longer authorizes takeover.
+- `core/ROLE-CONTRACT.md` and `core/DELEGATION-PROTOCOL.md` updated to
+  reference the Rescue Agent and disclosure requirements; a Rescue Agent is
+  explicitly clarified as filling the implementer role, not a fourth role.
+- Both platform adapters' `SKILL.md` rewritten: "Failure loop and takeover"
+  replaced by "Failure loop → Rescue Agent → takeover (in that order)"; new
+  "Escalation" section; new agent-composition-disclosure step in the
+  delegation sequence.
+
 ## [0.1.0] - 2026-08-03
 
 Initial release.

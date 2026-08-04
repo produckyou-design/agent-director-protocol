@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/rescue-agent-task.schema.json",
+  "title": "Rescue Agent Task Package",
+  "description": "The bounded scope package the director hands to a one-shot Rescue Agent after an implementer has failed the same task twice and the failure was classified as reasoning_gap or model_capability_gap. See RESCUE-PROTOCOL.md. Not a standing role — one task, at most two attempts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "failed_task_id",
+    "failure_classification",
+    "attempt_1",
+    "attempt_1_result",
+    "attempt_2",
+    "attempt_2_result",
+    "confirmed_facts",
+    "unresolved_points",
+    "last_passing_checkpoint",
+    "editable_files",
+    "forbidden_files",
+    "forbidden_scope",
+    "completion_criteria",
+    "assigned_model",
+    "assigned_effort",
+    "max_attempts"
+  ],
+  "properties": {
+    "failed_task_id": {
+      "type": "string",
+      "pattern": "^T-[0-9]{3,}$",
+      "description": "The original task_id, unmodified by hindsight."
+    },
+    "failure_classification": {
+      "type": "string",
+      "enum": ["reasoning_gap", "model_capability_gap"],
+      "description": "Only these two classifications route to a Rescue Agent. diagnosis_gap, requirement_conflict, environment_issue, and rollback_needed never do — see RESCUE-PROTOCOL.md Step 1."
+    },
+    "attempt_1": { "type": "string", "minLength": 10, "description": "What the first failed attempt actually changed." },
+    "attempt_1_result": { "type": "string", "minLength": 5, "description": "Verbatim evidence of the first attempt's outcome — test output or error, not a paraphrase." },
+    "attempt_2": { "type": "string", "minLength": 10, "description": "What the second failed attempt actually changed." },
+    "attempt_2_result": { "type": "string", "minLength": 5, "description": "Verbatim evidence of the second attempt's outcome." },
+    "confirmed_facts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "What is actually established, with evidence, across both attempts."
+    },
+    "unresolved_points": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What remains uncertain or unexplained."
+    },
+    "last_passing_checkpoint": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The commit, tag, or green-test state immediately before the first failed attempt. The Rescue Agent works from here, isolated (branch/worktree) where the platform supports it — not from the failed implementer's working state."
+    },
+    "editable_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "forbidden_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "forbidden_scope": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What the Rescue Agent may NOT do — e.g. redesign unrelated modules, change shared contracts not implicated by this failure. The Rescue Agent does not redesign the project; it receives only this failed task."
+    },
+    "completion_criteria": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "test_commands": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "assigned_model": {
+      "type": "string",
+      "description": "The director's explicit choice of a stronger model. Never automatic."
+    },
+    "assigned_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"],
+      "description": "The director's explicit choice of a higher reasoning tier. Never automatic."
+    },
+    "max_attempts": {
+      "type": "integer",
+      "const": 2,
+      "description": "Fixed at 2. Tracked separately from the implementer's own failure-loop count in FAILURE-LOOP.md."
+    },
+    "attempt_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2,
+      "description": "Which Rescue Agent attempt this is (1 or 2)."
+    }
+  }
+}

@@ -1,11 +1,14 @@
-# agent-director-protocol
+# agent-director-protocol (ADP)
 
 *[한국어](README.ko.md)*
 
 A platform-neutral operating protocol for AI coding agents: one high-capability
 **director** plans, decomposes, delegates, and reviews; **implementer**
-subagents write the actual code. The core protocol is platform-agnostic; thin
-adapters bind it to Claude Code and OpenAI Codex.
+subagents write the actual code. When an implementer gets stuck, the protocol
+has a defined escalation path — a bounded **Rescue Agent** promotion, then
+takeover — instead of leaving "the model just tries harder" to chance. The
+core protocol is platform-agnostic; thin adapters bind it to Claude Code and
+OpenAI Codex.
 
 ## The problem
 
@@ -15,16 +18,20 @@ one uninterrupted pass. That burns the most capable (and most expensive)
 model's attention on mechanical edits, and it removes the one thing that
 catches silent failures — an independent check between "I wrote the code" and
 "the task is done." A model that both implements and reviews its own work has
-no adversarial pressure forcing it to look for what it got wrong.
+no adversarial pressure forcing it to look for what it got wrong. And when it
+does get stuck, "try again" and "just use a bigger model for everything" are
+both bad defaults — one burns turns on a repeated mistake, the other burns
+budget on tasks that never needed it.
 
 This repository does not claim a magic percentage improvement in quality or
 cost. It describes a mechanism instead: split the work into a role that
 **plans, delegates, and reviews** and a role that **implements**, force every
-delegated unit of work through a written, checkable contract, and require the
+delegated unit of work through a written, checkable contract, require the
 reviewing role to verify evidence — actual diffs, actual test output — rather
-than trust a self-reported "done." The result is a workflow, not a benchmark
-claim: read the docs, decide whether the mechanism fits your project, and
-judge the outcome yourself.
+than trust a self-reported "done," and give a stuck implementer a structured,
+disclosed way to ask for more power instead of guessing a third time. The
+result is a workflow, not a benchmark claim: read the docs, decide whether the
+mechanism fits your project, and judge the outcome yourself.
 
 ## Roles
 
@@ -34,9 +41,13 @@ judge the outcome yourself.
 | implementer | yes, within contract scope | yes | no (self-reports status only) |
 | reviewer | no | no | no (advises the director) |
 
-Reviewer is a role, not necessarily a separate participant — by default the
-director performs it. Full definitions, boundaries, and the "director never
-writes product code" rule: [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md).
+A **Rescue Agent** is not a fourth role — it's the implementer role, filled by
+a stronger model or higher reasoning effort for one already-failed task, under
+tighter scope and a hard attempt limit. It is reviewed exactly like any other
+implementer output. Reviewer is a role, not necessarily a separate participant
+— by default the director performs it. Full definitions, boundaries, and the
+"director never writes product code" rule:
+[`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md).
 
 ## How it works
 
@@ -44,8 +55,8 @@ writes product code" rule: [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md).
  analyze repo ──▶ interpret requirement ──▶ design ──▶ decompose into tasks
       │                                                       │
       │  core/DELEGATION-PROTOCOL.md                          ▼
-      │                                          write a task contract per task
-      │                                          core/TASK-CONTRACT.md
+      │  ▲ disclose agent composition                write a task contract per task
+      │  │ before spawning anything                  core/TASK-CONTRACT.md
       │                                                       │
       │                                                       ▼
       │                                    order by dependency / conflict check
@@ -55,36 +66,89 @@ writes product code" rule: [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md).
       │                                       delegate ──▶ implement + test
       │                                                (implementer role)
       │                                                       │
-      │                                                       ▼
-      │                                          director review (10 gates)
-      │                                          core/REVIEW-GATES.md
-      │                                                       │
-      │                                    ┌──────────────────┴──────────────────┐
-      │                                    ▼                                     ▼
-      │                              approved                          revision_required /
-      │                                    │                               rejected
-      │                                    ▼                                     │
-      │                          completion standard                            ▼
-      │                          core/COMPLETION-STANDARD.md         evidence-based revision
-      │                                    ▲                         instruction, loop again
-      │                                    │                         core/FAILURE-LOOP.md
-      │                                    │                                     │
-      │                                    │                     2 counted failures on this task?
-      │                                    │                                     │
-      │                                    │                                    yes
-      │                                    │                                     ▼
-      │                                    └───────────────────────  takeover record, then a
-      │                                                               single bounded direct fix
-      │                                                               core/TAKEOVER-PROTOCOL.md
+      │              stuck? (2 failed attempts,                ▼
+      │               same root cause) ◀────────  director review (10 gates)
+      │                    │                       core/REVIEW-GATES.md
+      │                    ▼                                  │
+      │        escalation request                ┌────────────┴────────────┐
+      │        core/ESCALATION-PROTOCOL.md        ▼                         ▼
+      │                    │                 approved             revision_required
+      │                    ▼                      │                         │
+      │        director classifies cause          ▼                         ▼
+      │        core/RESCUE-PROTOCOL.md    completion standard   evidence-based revision
+      │             │             │       core/COMPLETION-STANDARD.md   instruction, loop again
+      │   reasoning/model    other cause          ▲                core/FAILURE-LOOP.md
+      │      gap only        (spec/env/                                    │
+      │             │         rollback)                                    │
+      │             ▼             │                                        │
+      │   Rescue Agent            │                                        │
+      │   (1-shot, ≤2 tries)      │                                        │
+      │       │       │           │                                        │
+      │  succeeds   fails ────────┤                                        │
+      │       │       │           │                                        │
+      │       └──▶ review ◀───────┘                                        │
+      │            + integrate         director picks ONE:                 │
+      │                            direct intervention (takeover, last resort)
+      │                            roll back / escalate to user /
+      │                            reduce scope / convert to investigation
+      │                            core/TAKEOVER-PROTOCOL.md
       ▼
  integration + regression pass across all tasks (core/COMPLETION-STANDARD.md)
 ```
 
 Each stage is a link above to the core document that defines it in full. The
 short version: nothing is delegated vaguely, nothing is accepted on a
-self-report, only two genuinely independent objective failures justify the
-director touching product code directly, and "done" is a director judgment
-backed by evidence, never an implementer's `status` field.
+self-report, a stuck implementer requests more power rather than guessing a
+third time, only a genuine reasoning/model-capability gap earns a bounded
+Rescue Agent promotion, director direct coding is the last resort — reachable
+only after that promotion has also failed or didn't apply — and "done" is a
+director judgment backed by evidence, never an implementer's `status` field.
+
+## Escalation → Rescue Agent → takeover
+
+The part of the protocol most likely to differ from what you'd expect a
+solo agent to do: **a third guess-based fix for the same problem is
+forbidden.**
+
+1. **Two failed attempts at the same root cause** (two different diffs, two
+   different results, same underlying cause — not two re-prompts) trigger an
+   escalation request, not a third try. An implementer stops and submits
+   `EFFORT_ESCALATION_REQUEST` / `MODEL_ESCALATION_REQUEST`; the director can
+   submit its own `DIRECTOR_ESCALATION_REQUEST` to the user when it is the one
+   stuck. Neither role ever changes its own model or effort — the request is
+   only granted after the requester's evidence (actual diffs, actual test
+   output) is independently checked. See
+   [`core/ESCALATION-PROTOCOL.md`](core/ESCALATION-PROTOCOL.md).
+2. **The director classifies the failure** into exactly one cause:
+   `diagnosis_gap`, `reasoning_gap`, `model_capability_gap`,
+   `requirement_conflict`, `environment_issue`, `rollback_needed`. Only
+   `reasoning_gap` and `model_capability_gap` justify more model power — a
+   stronger model doesn't fix a contradictory task contract or broken CI.
+3. **A genuine reasoning/capability gap → Rescue Agent**: a one-shot promotion
+   to a stronger model or higher effort, scoped to this one task, capped at
+   two attempts (tracked separately from the implementer's own loop count),
+   working from an isolated last-passing checkpoint with an explicit
+   `forbidden_scope`. It does not redesign the project. Every promotion is
+   disclosed to the user *before* it starts — with the prior attempts, the
+   reason, the assigned model/effort, and (when it falls outside a
+   pre-approved range or adds cost) as an explicit approval request — and
+   every outcome, success or failure, gets a matching notice when it ends.
+   Nothing here is silent. See
+   [`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md).
+4. **Only if the Rescue Agent also fails** (or the cause was never a
+   reasoning/capability gap) does the director choose: direct intervention
+   (takeover — still gated by a written record, still the last resort, never
+   the automatic next step), roll back, escalate to the user, reduce scope, or
+   convert the task into a read-only investigation. See
+   [`core/TAKEOVER-PROTOCOL.md`](core/TAKEOVER-PROTOCOL.md).
+
+Three schemas make the disclosure requirement checkable rather than aspirational:
+[`agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)
+(who's about to run, stated before any spawn),
+[`promotion-notice.schema.json`](schemas/promotion-notice.schema.json) (why this
+task is being promoted, and the approval gate when needed), and
+[`rescue-outcome-notice.schema.json`](schemas/rescue-outcome-notice.schema.json)
+(what happened, and whether the team reverted to its normal tier).
 
 ## Repository layout
 
@@ -92,20 +156,21 @@ backed by evidence, never an implementer's `status` field.
 agent-director-protocol/
 ├─ README.md  README.ko.md  LICENSE  CHANGELOG.md
 ├─ CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md  .gitignore
-├─ core/                         platform-neutral protocol (8 docs)
+├─ core/                         platform-neutral protocol (10 docs)
 │  ├─ ROLE-CONTRACT.md           DELEGATION-PROTOCOL.md
 │  ├─ TASK-CONTRACT.md           FAILURE-LOOP.md
 │  ├─ REVIEW-GATES.md            CONCURRENCY-RULES.md
+│  ├─ ESCALATION-PROTOCOL.md     RESCUE-PROTOCOL.md
 │  ├─ TAKEOVER-PROTOCOL.md       COMPLETION-STANDARD.md
 ├─ claude/                       Claude Code adapter
-│  ├─ skills/agent-director/SKILL.md + references/*.md
+│  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
 │  ├─ CLAUDE.md.example          profiles/{opus-director,fable-director}.yaml
 │  └─ INSTALL.md
 ├─ codex/                        OpenAI Codex adapter
-│  ├─ skills/agent-director/SKILL.md + references/*.md
+│  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
 │  ├─ AGENTS.md.example          profiles/sol-director.yaml
 │  └─ INSTALL.md
-├─ schemas/                      5 JSON Schema (draft-07) documents
+├─ schemas/                      11 JSON Schema (draft-07) documents
 ├─ examples/                     4 worked, schema-valid scenarios
 │  ├─ python-project/  web-project/  existing-codebase/  new-project/
 ├─ scripts/                      validation scripts (check_repository.py, ...)
@@ -169,21 +234,25 @@ profile-to-`config.toml` mapping) are in [`codex/INSTALL.md`](codex/INSTALL.md).
 2. In a small feature branch, ask the agent to **"act as director for this
    feature"** — pick something with 2+ moving pieces, not a one-line fix.
 3. Watch for the sequence described in "How it works": the director should
-   read the relevant code first, then produce a **task contract** (not start
-   editing files), then delegate that contract to a subagent, then require
-   an **implementation report** back with real test output, then produce a
-   **review result** scoring the ten checks with evidence, and finally a
-   short **completion report** that cites what it actually verified.
+   first disclose the agent composition (models, effort, whether a Rescue
+   Agent is even available this session), then read the relevant code, then
+   produce a **task contract** (not start editing files), then delegate that
+   contract to a subagent, then require an **implementation report** back
+   with real test output, then produce a **review result** scoring the ten
+   checks with evidence, and finally a short **completion report** that cites
+   what it actually verified.
 4. If you see the director editing product code directly, without a task
-   contract and without a takeover record, the protocol is not being
-   followed — see "Bad usage" below.
+   contract and without a takeover record — or silently upgrading a subagent
+   to a stronger model without telling you — the protocol is not being
+   followed. See "Bad usage" below.
 
 ## Configuration & model profiles
 
 Profiles (`claude/profiles/*.yaml`, `codex/profiles/sol-director.yaml`) are a
 **convention read by the skill's own instructions**, not a mechanism enforced
-by Claude Code or Codex. Each profile is a small YAML file naming preferred
-models per role:
+by Claude Code or Codex. Each profile names preferred models per role, and —
+new in this version — a per-task-kind reasoning-effort table the director
+must apply on every spawn:
 
 ```yaml
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
@@ -192,6 +261,13 @@ director:
   effort: high        # optional hint; adapters map to platform mechanism or omit
 implementer:
   preferred_models: [sonnet-5]
+  effort_by_task_kind:
+    investigation: high   # root-cause hunts, competing hypotheses, design judgement
+    audit: high            # pre-release compliance / security review
+    implementation: medium
+    pipeline: medium       # release/deploy execution — procedure fidelity, not creativity
+    mechanical: low        # version bumps, doc sync, single-line edits
+  effort_default: medium
 reviewer:
   inherit: director   # default: reviewer == director
 ```
@@ -200,8 +276,8 @@ Model names are environment aliases — swap them for whatever your platform
 resolves them to. `core/` never mentions a model name; only `*/profiles/*.yaml`
 do. To switch profiles, edit the YAML directly, or (Claude Code) copy the
 chosen file to `profile.yaml` next to `SKILL.md`, or (Codex) translate the
-`preferred_models`/`effort` fields into your own `config.toml` / named
-profile, as described in each platform's `INSTALL.md`.
+`preferred_models`/`effort`/`effort_by_task_kind` fields into your own
+`config.toml` / named profile, as described in each platform's `INSTALL.md`.
 
 ## Applying this to a new project
 
@@ -231,6 +307,12 @@ for a bug fix that reaches director takeover after two failed loops.
 | [`examples/web-project/`](examples/web-project/) | Additive feature on an existing web app; loop 1 fails `not_wired_into_flow`, loop 2 is approved. |
 | [`examples/existing-codebase/`](examples/existing-codebase/) | Bug fix; two counted failure loops on the same root cause, followed by a director takeover. |
 | [`examples/new-project/`](examples/new-project/) | Two independent tasks on a new service dispatched in parallel, with a full conflict-domain check. |
+
+These four examples predate the Rescue Agent / escalation layer and still
+illustrate the takeover path directly (a `requirement_conflict`-style case
+where a stronger model wouldn't have helped either). Read them alongside
+[`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md) to see where a Rescue
+Agent promotion would now sit before that takeover in a `reasoning_gap` case.
 
 ## A real excerpt: task contract
 
@@ -311,11 +393,20 @@ enough to force sequencing. Full rule and worked examples:
 - **The director coding because "it's a small task."** Task size is never a
   valid reason to skip delegation or takeover requirements — see
   `core/ROLE-CONTRACT.md` and `core/TAKEOVER-PROTOCOL.md`.
+- **Jumping straight to takeover after two failures.** Two failed loops
+  trigger classification and, for a reasoning/capability gap, a Rescue Agent
+  attempt *first* — takeover is what happens if that also fails, not the
+  automatic next step. See `core/RESCUE-PROTOCOL.md`.
+- **Promoting a subagent to a stronger model without telling anyone.** Every
+  Rescue Agent promotion — and every return to the normal tier once it's
+  resolved — gets a notice at the time it happens. A silent upgrade (or
+  silent downgrade back) is a protocol violation even if the resulting code
+  is fine.
 - **Trusting an implementer's `status: complete` as-is.** It starts a review;
   it never ends one. The director must independently verify evidence.
 - **Counting a re-prompt as a revision loop.** Re-asking "make it work" after
   a failure, without a new evidence-based instruction, is not a loop and does
-  not count toward the two-failure takeover threshold.
+  not count toward the two-failure escalation threshold.
 - **Running parallel tasks that share a file.** Even if every other conflict
   domain is independent, two implementers touching the same file concurrently
   is always blocked — sequence them instead.
@@ -335,8 +426,8 @@ enough to force sequencing. Full rule and worked examples:
 - **This is instructions, not a runtime.** Nothing here is code that enforces
   the rules mechanically. Compliance depends entirely on the model actually
   following the protocol — a model that ignores `SKILL.md` or `AGENTS.md`
-  will not be stopped from writing product code directly by anything in this
-  repository.
+  will not be stopped from writing product code directly, or from silently
+  promoting itself, by anything in this repository.
 
 ## Security notes
 
@@ -345,8 +436,8 @@ enough to force sequencing. Full rule and worked examples:
   sensitive environment — they run with whatever privileges the implementer
   session has.
 - Never put secrets, credentials, or tokens in task contracts, implementation
-  reports, review results, or takeover records — these are meant to be
-  readable audit artifacts.
+  reports, review results, escalation requests, or takeover records — these
+  are meant to be readable audit artifacts.
 - Reports may embed real command output (`test_executions.output_excerpt`).
   Scrub secrets from that output before recording or sharing it.
 

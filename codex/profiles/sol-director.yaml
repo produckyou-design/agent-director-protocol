@@ -8,5 +8,16 @@ director:
   effort: high        # maps to Codex's model_reasoning_effort; use xhigh for heavy design/decomposition passes
 implementer:
   preferred_models: [configured-subagent-model]
+  # Per-task-kind reasoning effort (maps to model_reasoning_effort per codex
+  # exec run). The director MUST pass the matching value on every worker
+  # invocation; omitting it silently inherits the session default, which
+  # under-powers investigation work and over-powers mechanical work.
+  effort_by_task_kind:
+    investigation: high   # root-cause hunts, competing hypotheses, design judgement
+    audit: high           # pre-release compliance / security review
+    implementation: medium
+    pipeline: medium      # release/deploy execution — procedure fidelity, not creativity
+    mechanical: low       # version bumps, doc sync, single-line edits
+  effort_default: medium
 reviewer:
   inherit: director   # default: reviewer == director (see core/ROLE-CONTRACT.md)

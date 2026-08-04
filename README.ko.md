@@ -1,11 +1,14 @@
-# agent-director-protocol
+# agent-director-protocol (ADP)
 
 *[English](README.md)*
 
 AI 코딩 에이전트를 위한 플랫폼 중립적 운영 프로토콜입니다. 역량이 높은 하나의
 **디렉터(director)**가 계획하고, 작업을 분해하고, 위임하고, 검토하며,
-**구현자(implementer)** 서브에이전트가 실제 코드를 작성합니다. 핵심 프로토콜은
-플랫폼에 독립적이며, 얇은 어댑터가 Claude Code와 OpenAI Codex에 이를 연결합니다.
+**구현자(implementer)** 서브에이전트가 실제 코드를 작성합니다. implementer가
+막히면, "모델이 더 잘 해보겠지"라는 운에 맡기는 대신 명확한 승격 경로가
+있습니다 — 범위가 제한된 **구조 에이전트(Rescue Agent)** 일회성 승격, 그다음
+인수인계(takeover) 순서입니다. 핵심 프로토콜은 플랫폼에 독립적이며, 얇은
+어댑터가 Claude Code와 OpenAI Codex에 이를 연결합니다.
 
 ## 해결하려는 문제
 
@@ -15,15 +18,19 @@ AI 코딩 에이전트를 위한 플랫폼 중립적 운영 프로토콜입니�
 가장 비용이 큰) 모델의 주의력을 기계적인 편집에 소모시키고, "코드를 작성했다"와
 "작업이 끝났다" 사이를 가로막는 독립적인 검증 단계를 제거합니다. 스스로 구현하고
 스스로 검토하는 모델에게는 자신의 실수를 찾아내도록 강제하는 적대적 압력이
-존재하지 않습니다.
+존재하지 않습니다. 그리고 정말로 막혔을 때, "다시 시도해봐"와 "그냥 모든 걸 더
+큰 모델로 돌려"는 둘 다 나쁜 기본값입니다 — 하나는 같은 실수를 반복하며 턴을
+낭비하고, 다른 하나는 애초에 필요 없던 작업에까지 예산을 낭비합니다.
 
 이 저장소는 품질이나 비용이 몇 퍼센트 향상된다는 식의 검증 불가능한 주장을 하지
 않습니다. 대신 하나의 메커니즘을 설명합니다. 작업을 **계획, 위임, 검토**하는
 역할과 **구현**하는 역할로 나누고, 위임되는 모든 작업 단위를 문서화되고 검증
 가능한 계약을 통과하도록 강제하며, 검토 역할이 자기보고된 "완료"를 신뢰하는 대신
-실제 diff와 실제 테스트 출력 같은 증거를 검증하도록 요구합니다. 결과는 벤치마크
-주장이 아니라 하나의 작업 흐름입니다. 문서를 읽고, 이 메커니즘이 여러분의
-프로젝트에 맞는지 판단하고, 결과는 직접 평가하시기 바랍니다.
+실제 diff와 실제 테스트 출력 같은 증거를 검증하도록 요구하고, 막힌 implementer가
+세 번째로 추측성 시도를 하는 대신 구조화되고 투명하게 공개되는 방식으로 더 큰
+힘을 요청할 수 있게 합니다. 결과는 벤치마크 주장이 아니라 하나의 작업 흐름입니다.
+문서를 읽고, 이 메커니즘이 여러분의 프로젝트에 맞는지 판단하고, 결과는 직접
+평가하시기 바랍니다.
 
 ## 역할
 
@@ -33,9 +40,13 @@ AI 코딩 에이전트를 위한 플랫폼 중립적 운영 프로토콜입니�
 | implementer | 예, 계약 범위 내에서 | 예 | 아니오 (상태만 자가 보고) |
 | reviewer | 아니오 | 아니오 | 아니오 (director에게 조언) |
 
-reviewer는 반드시 별도의 참여자가 아니라 하나의 역할이며, 기본적으로 director가
-수행합니다. 전체 정의, 경계, "director는 제품 코드를 작성하지 않는다"는 규칙은
-[`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md)에 있습니다.
+**구조 에이전트(Rescue Agent)**는 네 번째 역할이 아닙니다 — 이미 실패한 하나의
+작업에 대해, 더 강한 모델이나 더 높은 추론 노력으로 채워지는 implementer 역할이며,
+더 좁은 범위와 엄격한 시도 횟수 제한 아래 놓입니다. 다른 implementer 산출물과
+완전히 동일하게 검토됩니다. reviewer는 반드시 별도의 참여자가 아니라 하나의
+역할이며, 기본적으로 director가 수행합니다. 전체 정의, 경계, "director는 제품
+코드를 작성하지 않는다"는 규칙은 [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md)에
+있습니다.
 
 ## 동작 방식
 
@@ -43,8 +54,8 @@ reviewer는 반드시 별도의 참여자가 아니라 하나의 역할이며, �
  analyze repo ──▶ interpret requirement ──▶ design ──▶ decompose into tasks
       │                                                       │
       │  core/DELEGATION-PROTOCOL.md                          ▼
-      │                                          write a task contract per task
-      │                                          core/TASK-CONTRACT.md
+      │  ▲ disclose agent composition                write a task contract per task
+      │  │ before spawning anything                  core/TASK-CONTRACT.md
       │                                                       │
       │                                                       ▼
       │                                    order by dependency / conflict check
@@ -54,36 +65,85 @@ reviewer는 반드시 별도의 참여자가 아니라 하나의 역할이며, �
       │                                       delegate ──▶ implement + test
       │                                                (implementer role)
       │                                                       │
-      │                                                       ▼
-      │                                          director review (10 gates)
-      │                                          core/REVIEW-GATES.md
-      │                                                       │
-      │                                    ┌──────────────────┴──────────────────┐
-      │                                    ▼                                     ▼
-      │                              approved                          revision_required /
-      │                                    │                               rejected
-      │                                    ▼                                     │
-      │                          completion standard                            ▼
-      │                          core/COMPLETION-STANDARD.md         evidence-based revision
-      │                                    ▲                         instruction, loop again
-      │                                    │                         core/FAILURE-LOOP.md
-      │                                    │                                     │
-      │                                    │                     2 counted failures on this task?
-      │                                    │                                     │
-      │                                    │                                    yes
-      │                                    │                                     ▼
-      │                                    └───────────────────────  takeover record, then a
-      │                                                               single bounded direct fix
-      │                                                               core/TAKEOVER-PROTOCOL.md
+      │              stuck? (2 failed attempts,                ▼
+      │               same root cause) ◀────────  director review (10 gates)
+      │                    │                       core/REVIEW-GATES.md
+      │                    ▼                                  │
+      │        escalation request                ┌────────────┴────────────┐
+      │        core/ESCALATION-PROTOCOL.md        ▼                         ▼
+      │                    │                 approved             revision_required
+      │                    ▼                      │                         │
+      │        director classifies cause          ▼                         ▼
+      │        core/RESCUE-PROTOCOL.md    completion standard   evidence-based revision
+      │             │             │       core/COMPLETION-STANDARD.md   instruction, loop again
+      │   reasoning/model    other cause          ▲                core/FAILURE-LOOP.md
+      │      gap only        (spec/env/                                    │
+      │             │         rollback)                                    │
+      │             ▼             │                                        │
+      │   Rescue Agent            │                                        │
+      │   (1-shot, ≤2 tries)      │                                        │
+      │       │       │           │                                        │
+      │  succeeds   fails ────────┤                                        │
+      │       │       │           │                                        │
+      │       └──▶ review ◀───────┘                                        │
+      │            + integrate         director picks ONE:                 │
+      │                            direct intervention (takeover, last resort)
+      │                            roll back / escalate to user /
+      │                            reduce scope / convert to investigation
+      │                            core/TAKEOVER-PROTOCOL.md
       ▼
  integration + regression pass across all tasks (core/COMPLETION-STANDARD.md)
 ```
 
 위 다이어그램의 각 단계는 해당 단계를 정의하는 core 문서로 연결됩니다.
 요약하자면 다음과 같습니다. 어떤 작업도 모호하게 위임되지 않고, 어떤 결과물도
-자기보고만으로 수락되지 않으며, 객관적으로 독립된 실패가 두 번 발생했을 때만
-director가 제품 코드를 직접 건드릴 수 있고, "완료"는 증거에 근거한 director의
-판단이지 implementer의 `status` 필드가 결코 아닙니다.
+자기보고만으로 수락되지 않으며, 막힌 implementer는 세 번째 추측을 하는 대신 더
+큰 힘을 요청하고, 진짜 추론/모델 능력 격차만이 범위가 제한된 구조 에이전트
+승격을 정당화하며, director의 직접 코딩은 그 승격이 실패했거나 애초에 해당되지
+않을 때만 도달하는 최후의 수단이고, "완료"는 증거에 근거한 director의 판단이지
+implementer의 `status` 필드가 결코 아닙니다.
+
+## 에스컬레이션 → 구조 에이전트(Rescue Agent) → 인수인계(takeover)
+
+혼자 작업하는 에이전트라면 이렇게 하지 않을 법한, 이 프로토콜에서 가장 특징적인
+부분입니다. **동일한 문제에 대한 세 번째 추측성 수정은 금지됩니다.**
+
+1. **동일한 근본 원인에 대한 두 번의 실패한 시도**(서로 다른 diff 두 개, 서로
+   다른 결과 두 개, 동일한 근본 원인 — 단순 재프롬프트 두 번이 아님)는 세 번째
+   시도가 아니라 에스컬레이션 요청을 촉발합니다. implementer는 멈추고
+   `EFFORT_ESCALATION_REQUEST` / `MODEL_ESCALATION_REQUEST`를 제출하며,
+   director 자신이 막혔을 때는 사용자에게 직접 `DIRECTOR_ESCALATION_REQUEST`를
+   제출할 수 있습니다. 어느 역할도 스스로 자신의 모델이나 노력 수준을 바꾸지
+   않습니다 — 요청자의 증거(실제 diff, 실제 테스트 출력)가 독립적으로 확인된
+   뒤에만 승인됩니다. [`core/ESCALATION-PROTOCOL.md`](core/ESCALATION-PROTOCOL.md)
+   참고.
+2. **director가 실패 원인을 분류합니다.** `diagnosis_gap`, `reasoning_gap`,
+   `model_capability_gap`, `requirement_conflict`, `environment_issue`,
+   `rollback_needed` 중 정확히 하나로 분류합니다. `reasoning_gap`과
+   `model_capability_gap`만이 더 큰 모델 힘을 정당화합니다 — 더 강한 모델은
+   모순된 작업 계약이나 고장난 CI를 고치지 못합니다.
+3. **진짜 추론/능력 격차 → 구조 에이전트(Rescue Agent)**: 이 작업 하나에만
+   범위가 한정된, 더 강한 모델이나 더 높은 노력 수준으로의 일회성 승격이며,
+   최대 두 번의 시도로 제한되고(implementer 자체의 루프 횟수와는 별도로
+   계산), 격리된 마지막 통과 상태에서 시작하며, 명시적인 `forbidden_scope`가
+   있습니다. 프로젝트를 재설계하지 않습니다. 모든 승격은 시작되기 *전에*
+   사용자에게 고지됩니다 — 이전 시도, 사유, 배정된 모델/노력 수준을 포함하며,
+   사전 승인 범위를 벗어나거나 추가 비용이 발생하면 명시적인 승인 요청이 되고
+   — 종료 시에는 성공이든 실패든 그에 맞는 통지가 옵니다. 조용히 처리되는
+   것은 없습니다. [`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md) 참고.
+4. **구조 에이전트마저 실패했을 때만**(또는 애초에 추론/능력 격차가 아니었을
+   때) director가 다음 중 하나를 선택합니다: 직접 개입(인수인계 — 여전히
+   기록으로 게이팅되며, 여전히 최후의 수단이지 자동으로 이어지는 다음 단계가
+   아님), 롤백, 사용자에게 에스컬레이션, 범위 축소, 또는 읽기 전용 조사
+   작업으로 전환. [`core/TAKEOVER-PROTOCOL.md`](core/TAKEOVER-PROTOCOL.md) 참고.
+
+세 가지 스키마가 고지 요건을 희망 사항이 아니라 검증 가능한 것으로 만듭니다.
+[`agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)
+(스폰 전에 명시되는, 누가 실행되려는지),
+[`promotion-notice.schema.json`](schemas/promotion-notice.schema.json)
+(이 작업이 왜 승격되는지, 필요할 때의 승인 게이트),
+[`rescue-outcome-notice.schema.json`](schemas/rescue-outcome-notice.schema.json)
+(무슨 일이 일어났는지, 그리고 팀이 원래 등급으로 복귀했는지)입니다.
 
 ## 저장소 구조
 
@@ -91,20 +151,21 @@ director가 제품 코드를 직접 건드릴 수 있고, "완료"는 증거에 
 agent-director-protocol/
 ├─ README.md  README.ko.md  LICENSE  CHANGELOG.md
 ├─ CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md  .gitignore
-├─ core/                         platform-neutral protocol (8 docs)
+├─ core/                         platform-neutral protocol (10 docs)
 │  ├─ ROLE-CONTRACT.md           DELEGATION-PROTOCOL.md
 │  ├─ TASK-CONTRACT.md           FAILURE-LOOP.md
 │  ├─ REVIEW-GATES.md            CONCURRENCY-RULES.md
+│  ├─ ESCALATION-PROTOCOL.md     RESCUE-PROTOCOL.md
 │  ├─ TAKEOVER-PROTOCOL.md       COMPLETION-STANDARD.md
 ├─ claude/                       Claude Code adapter
-│  ├─ skills/agent-director/SKILL.md + references/*.md
+│  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
 │  ├─ CLAUDE.md.example          profiles/{opus-director,fable-director}.yaml
 │  └─ INSTALL.md
 ├─ codex/                        OpenAI Codex adapter
-│  ├─ skills/agent-director/SKILL.md + references/*.md
+│  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
 │  ├─ AGENTS.md.example          profiles/sol-director.yaml
 │  └─ INSTALL.md
-├─ schemas/                      5 JSON Schema (draft-07) documents
+├─ schemas/                      11 JSON Schema (draft-07) documents
 ├─ examples/                     4 worked, schema-valid scenarios
 │  ├─ python-project/  web-project/  existing-codebase/  new-project/
 ├─ scripts/                      validation scripts (check_repository.py, ...)
@@ -170,21 +231,25 @@ Codex에는 "director/implementer"라는 개념이 네이티브로 존재하지 
 2. 작은 기능 브랜치에서 에이전트에게 **"이 기능에 대해 director로 동작해줘"**라고
    요청합니다. 한 줄짜리 수정이 아니라, 움직이는 부분이 2개 이상인 작업을
    고르세요.
-3. "동작 방식"에서 설명한 순서를 확인하세요. director는 먼저 관련 코드를 읽고,
-   (파일 편집을 바로 시작하지 않고) **작업 계약(task contract)**을 작성한 뒤,
-   그 계약을 서브에이전트에게 위임하고, 실제 테스트 출력이 담긴 **구현
-   보고서(implementation report)**를 요구하고, 증거와 함께 열 가지 검사 항목을
-   채점한 **검토 결과(review result)**를 작성하고, 마지막으로 실제로 검증한
-   내용을 인용하는 짧은 **완료 보고서**를 내야 합니다.
+3. "동작 방식"에서 설명한 순서를 확인하세요. director는 먼저 에이전트 구성(모델,
+   노력 수준, 이번 세션에서 구조 에이전트 사용 가능 여부)을 고지한 뒤, 관련
+   코드를 읽고, (파일 편집을 바로 시작하지 않고) **작업 계약(task contract)**을
+   작성한 뒤, 그 계약을 서브에이전트에게 위임하고, 실제 테스트 출력이 담긴
+   **구현 보고서(implementation report)**를 요구하고, 증거와 함께 열 가지 검사
+   항목을 채점한 **검토 결과(review result)**를 작성하고, 마지막으로 실제로
+   검증한 내용을 인용하는 짧은 **완료 보고서**를 내야 합니다.
 4. 만약 director가 작업 계약도 없이, 인수인계(takeover) 기록도 없이 제품
-   코드를 직접 편집하는 모습이 보인다면, 프로토콜이 지켜지지 않고 있는 것입니다.
-   아래 "잘못된 사용" 절을 참고하세요.
+   코드를 직접 편집하는 모습이 보이거나 — 아무 고지 없이 서브에이전트를 더 강한
+   모델로 조용히 승격시킨다면, 프로토콜이 지켜지지 않고 있는 것입니다. 아래
+   "잘못된 사용" 절을 참고하세요.
 
 ## 설정 및 모델 프로필
 
 프로필(`claude/profiles/*.yaml`, `codex/profiles/sol-director.yaml`)은 Claude
 Code나 Codex가 강제하는 메커니즘이 아니라 **스킬 자체의 지침이 읽는 관례**입니다.
-각 프로필은 역할별 선호 모델을 지정하는 작은 YAML 파일입니다.
+각 프로필은 역할별 선호 모델을 지정하며, 이번 버전에서 새로 추가된 것으로 —
+director가 매 스폰마다 반드시 적용해야 하는 작업 종류별 추론 노력 표가
+있습니다.
 
 ```yaml
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
@@ -193,6 +258,13 @@ director:
   effort: high        # optional hint; adapters map to platform mechanism or omit
 implementer:
   preferred_models: [sonnet-5]
+  effort_by_task_kind:
+    investigation: high   # root-cause hunts, competing hypotheses, design judgement
+    audit: high            # pre-release compliance / security review
+    implementation: medium
+    pipeline: medium       # release/deploy execution — procedure fidelity, not creativity
+    mechanical: low        # version bumps, doc sync, single-line edits
+  effort_default: medium
 reviewer:
   inherit: director   # default: reviewer == director
 ```
@@ -201,9 +273,9 @@ reviewer:
 해석하든 자유롭게 바꿔도 됩니다. `core/`는 어떤 모델 이름도 언급하지 않으며,
 오직 `*/profiles/*.yaml`만 언급합니다. 프로필을 바꾸려면 YAML 파일을 직접
 편집하거나, (Claude Code) 선택한 파일을 `SKILL.md` 옆의 `profile.yaml`로
-복사하거나, (Codex) `preferred_models`/`effort` 필드를 각 플랫폼의
-`INSTALL.md`에서 설명하는 대로 여러분의 `config.toml` / 이름 있는 프로필로
-번역하면 됩니다.
+복사하거나, (Codex) `preferred_models`/`effort`/`effort_by_task_kind` 필드를
+각 플랫폼의 `INSTALL.md`에서 설명하는 대로 여러분의 `config.toml` / 이름 있는
+프로필로 번역하면 됩니다.
 
 ## 새 프로젝트에 적용하기
 
@@ -234,6 +306,12 @@ reviewer:
 | [`examples/web-project/`](examples/web-project/) | 기존 웹 앱에 추가된 기능; 루프 1은 `not_wired_into_flow`로 실패, 루프 2에서 승인. |
 | [`examples/existing-codebase/`](examples/existing-codebase/) | 버그 수정; 동일한 근본 원인으로 두 번 실패가 집계된 후 director가 인수인계. |
 | [`examples/new-project/`](examples/new-project/) | 새 서비스의 독립된 두 작업을 병렬로 배정, 전체 충돌 도메인 점검 포함. |
+
+이 네 가지 예시는 구조 에이전트/에스컬레이션 계층이 도입되기 전에 작성되었으며,
+여전히 인수인계 경로를 직접 보여줍니다(더 강한 모델이었어도 도움이 되지
+않았을 `requirement_conflict` 유형 사례). `reasoning_gap` 사례에서 그 인수인계
+앞에 구조 에이전트 승격이 어디에 위치할지 함께 보려면
+[`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md)를 같이 읽으세요.
 
 ## 실제 발췌: 작업 계약(task contract)
 
@@ -315,11 +393,19 @@ reviewer:
 - **"작은 작업이니까"라며 director가 직접 코딩하기.** 작업의 크기는 위임이나
   인수인계 요건을 건너뛰는 타당한 이유가 될 수 없습니다.
   `core/ROLE-CONTRACT.md`와 `core/TAKEOVER-PROTOCOL.md`를 참고하세요.
+- **두 번 실패한 즉시 인수인계로 건너뛰기.** 두 번의 실패한 루프는 분류를
+  촉발하며, 추론/능력 격차인 경우 *먼저* 구조 에이전트 시도를 촉발합니다 —
+  인수인계는 그것마저 실패했을 때 일어나는 일이지, 자동으로 이어지는 다음
+  단계가 아닙니다. `core/RESCUE-PROTOCOL.md` 참고.
+- **아무 고지 없이 서브에이전트를 더 강한 모델로 승격시키기.** 모든 구조
+  에이전트 승격 — 그리고 해결된 뒤 원래 등급으로의 복귀 — 은 일어나는 시점에
+  통지됩니다. 결과 코드가 괜찮더라도, 조용한 승격(또는 조용한 원상복귀)은
+  프로토콜 위반입니다.
 - **implementer의 `status: complete`를 그대로 신뢰하기.** 이는 검토를
   시작시킬 뿐, 결코 검토를 끝내지 않습니다. director는 반드시 증거를 독립적으로
   검증해야 합니다.
 - **재프롬프트를 리비전 루프로 계산하기.** 실패 후 새로운 증거 기반 지시 없이
-  "되게 해줘"라고 다시 요청하는 것은 루프가 아니며, 두 번의 실패 임계값(인수인계
+  "되게 해줘"라고 다시 요청하는 것은 루프가 아니며, 두 번의 실패 임계값(에스컬레이션
   조건)에 포함되지 않습니다.
 - **파일을 공유하는 작업을 병렬로 실행하기.** 다른 모든 충돌 도메인이 독립적이더라도,
   두 implementer가 동시에 같은 파일을 건드리는 것은 항상 차단되어야 하며,
@@ -339,17 +425,17 @@ reviewer:
 - **이것은 런타임이 아니라 지침입니다.** 이 저장소의 어떤 것도 규칙을
   기계적으로 강제하는 코드가 아닙니다. 준수 여부는 전적으로 모델이 실제로
   프로토콜을 따르는지에 달려 있습니다. `SKILL.md`나 `AGENTS.md`를 무시하는
-  모델을 이 저장소의 어떤 것도 막아서 제품 코드를 직접 작성하지 못하게 하지
-  않습니다.
+  모델을, 제품 코드를 직접 작성하거나 스스로를 조용히 승격시키는 것으로부터
+  이 저장소의 어떤 것도 막아주지 않습니다.
 
 ## 보안 유의사항
 
 - 작업 계약은 정당하게 명령 실행을 지시할 수 있습니다(`test_commands`,
   `manual_verification`). 민감한 환경에서 실행하기 전에 `test_commands`를
   검토하세요 — 이는 implementer 세션이 가진 권한으로 실행됩니다.
-- 작업 계약, 구현 보고서, 검토 결과, 인수인계 기록 어디에도 비밀 정보,
-  자격 증명, 토큰을 절대 넣지 마세요. 이 문서들은 읽을 수 있는 감사 기록으로
-  의도된 것입니다.
+- 작업 계약, 구현 보고서, 검토 결과, 에스컬레이션 요청, 인수인계 기록 어디에도
+  비밀 정보, 자격 증명, 토큰을 절대 넣지 마세요. 이 문서들은 읽을 수 있는 감사
+  기록으로 의도된 것입니다.
 - 보고서에는 실제 명령 출력이 포함될 수 있습니다(`test_executions.output_excerpt`).
   기록하거나 공유하기 전에 그 출력에서 비밀 정보를 지우세요.
 

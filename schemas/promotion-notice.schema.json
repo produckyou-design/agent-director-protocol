@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/promotion-notice.schema.json",
+  "title": "Promotion Notice",
+  "description": "What the director tells the user IMMEDIATELY when promoting a failed task to a Rescue Agent (or granting a mid-task escalation request). Never a silent decision. See RESCUE-PROTOCOL.md. If the promotion needs the user to change model settings, or exceeds a pre-approved model/effort range, or requires extra cost, this notice doubles as an approval request — the director does not start the Rescue Agent until approval is granted.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task",
+    "prior_model",
+    "prior_effort",
+    "failure_count",
+    "failed_approaches",
+    "promotion_reason",
+    "rescue_model",
+    "rescue_effort",
+    "editable_scope",
+    "forbidden_scope",
+    "task_scoped_only",
+    "within_preapproved_range"
+  ],
+  "properties": {
+    "task": { "type": "string", "description": "The task_id or short description being promoted." },
+    "prior_model": { "type": "string", "description": "The ordinary implementer's model." },
+    "prior_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "failure_count": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "Number of counted failed loops on this task (per FAILURE-LOOP.md). Rescue Agent promotion requires at least 2."
+    },
+    "failed_approaches": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "What each failed attempt actually tried — not a vague 'it didn't work'."
+    },
+    "promotion_reason": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The specific reason promotion is judged necessary — tie this to the RESCUE-PROTOCOL.md Step 1 classification (reasoning_gap / model_capability_gap)."
+    },
+    "rescue_model": { "type": "string" },
+    "rescue_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "editable_scope": {
+      "type": "string",
+      "description": "What the Rescue Agent is allowed to change."
+    },
+    "forbidden_scope": {
+      "type": "string",
+      "description": "What the Rescue Agent may NOT touch."
+    },
+    "task_scoped_only": {
+      "type": "boolean",
+      "const": true,
+      "description": "Always true: the promotion applies to this failed task only, not to the session's default subagent tier."
+    },
+    "within_preapproved_range": {
+      "type": "boolean",
+      "description": "True if rescue_model/rescue_effort are already within what the user has pre-approved. If false, this notice is also an approval request — see approval_status."
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": ["not_required", "pending", "granted", "denied"],
+      "description": "not_required when within_preapproved_range is true. Otherwise starts at 'pending' and the Rescue Agent does not start until it becomes 'granted'."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "within_preapproved_range": { "const": false } } },
+      "then": { "required": ["approval_status"] }
+    }
+  ]
+}

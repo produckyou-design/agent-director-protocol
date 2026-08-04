@@ -12,6 +12,11 @@ which underlying model fills a role, and no file in `core/` names one.
 A single session may host multiple implementers working on different tasks. A project has exactly
 one director acting at a time for a given task tree.
 
+A "Rescue Agent" ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)) is not a fourth role. It is the `implementer` role, filled
+with a stronger model or higher reasoning effort for one already-failed task, under stricter scope
+and attempt limits than an ordinary implementer assignment. It answers to the same director, is
+reviewed under the same [REVIEW-GATES.md](REVIEW-GATES.md), and does not get a lighter check for being better-resourced.
+
 ## Director
 
 The director is responsible for the parts of the work that require whole-repository judgment and
@@ -43,8 +48,11 @@ The director MUST NOT write product code. All product code is written by an impl
 task contract, under implementer responsibility.
 
 The single exception is takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md), which is permitted only when the implementer
-demonstrably cannot perform the task, or when at least two full revision loops have failed. Takeover
-requires a written takeover record before any code is touched.
+demonstrably cannot perform the task, or when a [Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion
+assigned after two failed revision loops — has also failed or was inapplicable. **Two failed
+revision loops alone do not authorize takeover;** they trigger failure-cause classification and, for
+a reasoning or model capability gap, a Rescue Agent attempt first. Takeover requires a written
+takeover record before any code is touched.
 
 **"The task is small or simple" is NEVER a valid exception to this rule.** Task size and difficulty
 do not authorize the director to bypass delegation. A one-line fix still goes through a task

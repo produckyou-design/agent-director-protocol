@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/director-escalation-request.schema.json",
+  "title": "Director Escalation Request",
+  "description": "The director's own request to the user for a stronger model or higher reasoning effort, issued when the director itself is stuck. The director does not change its own model. No high-risk decision or speculative implementation proceeds before the user responds. See ESCALATION-PROTOCOL.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "current_model",
+    "current_effort",
+    "blocked_decision",
+    "confirmed_facts",
+    "unresolved_conflicts",
+    "attempts",
+    "risk_if_continued",
+    "exact_next_prompt"
+  ],
+  "properties": {
+    "current_model": { "type": "string" },
+    "current_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "blocked_decision": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The specific design, integration, or risk decision the director cannot confidently make right now."
+    },
+    "confirmed_facts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "What is actually established, with evidence."
+    },
+    "unresolved_conflicts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "The specific conflicting results, designs, or subagent reports the director could not reconcile."
+    },
+    "attempts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "What the director already tried to resolve blocked_decision at the current model/effort."
+    },
+    "risk_if_continued": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What could go wrong if the director proceeds on a guess instead of escalating (data loss, security, broken shared contract, botched deploy, etc.)."
+    },
+    "recommended_model": { "type": "string" },
+    "recommended_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "review_scope": {
+      "type": "string",
+      "description": "What the upgraded model/effort should actually review or decide — bounded, not 'the whole project'."
+    },
+    "forbidden_scope": {
+      "type": "string",
+      "minLength": 5,
+      "description": "What the upgraded model/effort must NOT do — e.g. restart the whole project, redesign unrelated modules. Escalation re-examines only the blocked decision and its directly related scope."
+    },
+    "protected_files": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "last_passing_checkpoint": {
+      "type": "string",
+      "description": "The last known-good state to fall back to if escalation does not resolve the block."
+    },
+    "exact_next_prompt": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The precise question or task the director wants the upgraded model/effort — or the user — to resolve."
+    }
+  }
+}

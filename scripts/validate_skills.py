@@ -30,6 +30,9 @@ REQUIRED_REFERENCE_FILES = {
     "review-template.md",
     "revision-template.md",
     "takeover-template.md",
+    "escalation-template.md",
+    "rescue-agent-template.md",
+    "agent-briefing-template.md",
 }
 
 

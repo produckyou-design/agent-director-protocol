@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/escalation-request.schema.json",
+  "title": "Escalation Request",
+  "description": "An implementer's request to the director for more reasoning effort or a stronger model, issued instead of a third guess-based fix. The implementer does not change its own model or effort; it stops and submits this request. See ESCALATION-PROTOCOL.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_type",
+    "task",
+    "root_cause_key",
+    "attempt_1",
+    "attempt_1_result",
+    "attempt_2",
+    "attempt_2_result",
+    "confirmed_facts",
+    "unresolved_points",
+    "current_model",
+    "current_effort",
+    "regression_risk",
+    "exact_next_prompt"
+  ],
+  "properties": {
+    "request_type": {
+      "type": "string",
+      "enum": ["EFFORT_ESCALATION_REQUEST", "MODEL_ESCALATION_REQUEST"],
+      "description": "EFFORT_ESCALATION: same model needs a higher reasoning tier. MODEL_ESCALATION: a stronger model is needed. An implementer may believe both apply; it may propose both, but must pick the request_type it judges primary."
+    },
+    "task": {
+      "type": "string",
+      "minLength": 5,
+      "description": "The task_id or a short description of the task this request concerns."
+    },
+    "root_cause_key": {
+      "type": "string",
+      "minLength": 3,
+      "description": "A short stable identifier for the suspected root cause, used to check whether attempt_1 and attempt_2 actually targeted the same cause."
+    },
+    "failed_test": {
+      "type": "string",
+      "description": "The specific test command or name that keeps failing, if applicable."
+    },
+    "attempt_1": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What the first fix actually changed."
+    },
+    "attempt_1_result": {
+      "type": "string",
+      "minLength": 5,
+      "description": "The observed outcome of attempt_1, in evidence terms (test output, error), not a summary judgment."
+    },
+    "attempt_2": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What the second fix actually changed. Must be a genuinely different approach from attempt_1, not a restatement."
+    },
+    "attempt_2_result": {
+      "type": "string",
+      "minLength": 5,
+      "description": "The observed outcome of attempt_2, in evidence terms."
+    },
+    "confirmed_facts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1,
+      "description": "What is actually known, backed by evidence — not assumptions."
+    },
+    "unresolved_points": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "What remains uncertain or unexplained after both attempts."
+    },
+    "current_model": { "type": "string" },
+    "current_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "recommended_model": {
+      "type": "string",
+      "description": "Model names are environment aliases; this is a recommendation, not a directive. The director decides."
+    },
+    "recommended_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "regression_risk": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Risk that a third blind attempt would widen breakage or touch shared contracts."
+    },
+    "protected_files": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Files that must not be touched by a next attempt without explicit director authorization (e.g. shared contracts, security-sensitive paths)."
+    },
+    "last_passing_test": {
+      "type": "string",
+      "description": "The last known-good checkpoint (test run, commit, or state) to fall back to if escalation does not resolve the issue."
+    },
+    "exact_next_prompt": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The precise instruction the implementer believes should be run next, once escalation is granted — not a vague 'try again'."
+    }
+  }
+}

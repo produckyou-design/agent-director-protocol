@@ -21,8 +21,15 @@ The director MUST follow this sequence for any nontrivial change:
    independent. Independent tasks are candidates for parallel dispatch; see [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md).
 6. **Write a task contract per task.** Every delegated unit of work gets its own task contract,
    matching every required field of the schema. See [TASK-CONTRACT.md](TASK-CONTRACT.md) and `../schemas/task-contract.schema.json`.
-7. **Assign.** Hand each task contract to an implementer. Do not assign a task before its
-   `depends_on` tasks have been reviewed and approved.
+7. **Disclose the agent composition, then assign.** Before spawning any implementer, tell the user
+   what is about to run, matching [`../schemas/agent-composition-disclosure.schema.json`](../schemas/agent-composition-disclosure.schema.json)
+   field for field: `director_model`, `director_effort`, `subagent_count`, `subagents` (each one's
+   role, task, model, and effort), `parallel`, and `rescue_agent_available`. This happens once, for
+   the whole batch of tasks about to be dispatched, not per individual spawn. Only then does the
+   director hand each task contract to an implementer. Do not assign a task before its `depends_on`
+   tasks have been reviewed and approved. (Mid-task promotions — [Rescue Agent](RESCUE-PROTOCOL.md) promotion or
+   a granted [escalation](ESCALATION-PROTOCOL.md) — get their own notice when they happen; see RESCUE-PROTOCOL.md.
+   They are not folded into this upfront disclosure.)
 8. **Review.** Every implementation report is reviewed against evidence before being accepted. See
    [REVIEW-GATES.md](REVIEW-GATES.md).
 

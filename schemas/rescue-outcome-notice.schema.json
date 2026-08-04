@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/rescue-outcome-notice.schema.json",
+  "title": "Rescue Outcome Notice",
+  "description": "What the director tells the user when a Rescue Agent's work on a promoted task ends, success or failure. Pairs with promotion-notice.schema.json — every promotion gets a matching outcome notice. See RESCUE-PROTOCOL.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task",
+    "result",
+    "files_changed",
+    "tests_run",
+    "director_verification",
+    "integrated",
+    "reverted_to_baseline"
+  ],
+  "properties": {
+    "task": { "type": "string" },
+    "result": {
+      "type": "string",
+      "enum": ["success", "failure"]
+    },
+    "files_changed": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "tests_run": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["command", "result"],
+        "properties": {
+          "command": { "type": "string" },
+          "result": { "type": "string", "description": "Verbatim outcome, not a paraphrase." }
+        }
+      }
+    },
+    "director_verification": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What the director itself independently checked (diff, re-run tests) per REVIEW-GATES.md — not a restatement of the Rescue Agent's own report."
+    },
+    "integrated": {
+      "type": "boolean",
+      "description": "Whether the change was merged/integrated. Only true if result is success and director_verification passed."
+    },
+    "reverted_to_baseline": {
+      "type": "boolean",
+      "description": "Whether subsequent, unrelated tasks have returned to the normal implementer tier (the promotion was task-scoped and has now ended)."
+    },
+    "next_step_if_failed": {
+      "type": "string",
+      "enum": [
+        "director_direct_intervention",
+        "rollback",
+        "escalate_to_user",
+        "reduce_scope",
+        "convert_to_investigation"
+      ],
+      "description": "Required when result is failure — the RESCUE-PROTOCOL.md Step 3 choice the director is making next."
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "result": { "const": "failure" } } },
+      "then": { "required": ["next_step_if_failed"] }
+    }
+  ]
+}

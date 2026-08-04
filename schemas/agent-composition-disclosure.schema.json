@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/agent-director-protocol/schemas/agent-composition-disclosure.schema.json",
+  "title": "Agent Composition Disclosure",
+  "description": "What the director tells the user BEFORE dispatching any implementer for a batch of tasks. One disclosure per batch, not per individual spawn. See DELEGATION-PROTOCOL.md. Work does not start until this has been stated.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "director_model",
+    "director_effort",
+    "subagent_count",
+    "subagents",
+    "parallel",
+    "rescue_agent_available"
+  ],
+  "properties": {
+    "director_model": { "type": "string" },
+    "director_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "subagent_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "subagents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "task", "model", "effort"],
+        "properties": {
+          "role": { "type": "string", "description": "e.g. implementer, reviewer-second-pass." },
+          "task": { "type": "string", "description": "task_id or short description this subagent owns." },
+          "model": { "type": "string" },
+          "effort": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "xhigh", "max"]
+          }
+        }
+      },
+      "description": "One entry per subagent about to be spawned, with the task each owns."
+    },
+    "parallel": {
+      "type": "boolean",
+      "description": "Whether these subagents run concurrently (per CONCURRENCY-RULES.md conflict-domain check) or sequentially."
+    },
+    "rescue_agent_available": {
+      "type": "boolean",
+      "description": "Whether a Rescue Agent promotion (RESCUE-PROTOCOL.md) is actually available in this session/environment if a task fails twice — e.g. whether a stronger model tier is reachable at all."
+    }
+  }
+}

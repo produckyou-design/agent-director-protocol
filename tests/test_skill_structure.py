@@ -27,6 +27,8 @@ CORE_REQUIRED_FILES = {
     "FAILURE-LOOP.md",
     "REVIEW-GATES.md",
     "CONCURRENCY-RULES.md",
+    "ESCALATION-PROTOCOL.md",
+    "RESCUE-PROTOCOL.md",
     "TAKEOVER-PROTOCOL.md",
     "COMPLETION-STANDARD.md",
 }
@@ -37,6 +39,12 @@ SCHEMA_REQUIRED_FILES = {
     "review-result.schema.json",
     "failure-loop.schema.json",
     "takeover-record.schema.json",
+    "escalation-request.schema.json",
+    "director-escalation-request.schema.json",
+    "rescue-agent-task.schema.json",
+    "agent-composition-disclosure.schema.json",
+    "promotion-notice.schema.json",
+    "rescue-outcome-notice.schema.json",
 }
 
 EXAMPLE_REQUIRED_DIRS = {
@@ -48,13 +56,13 @@ EXAMPLE_REQUIRED_DIRS = {
 
 
 class TestDirectoryLayout(unittest.TestCase):
-    def test_core_has_eight_docs(self):
+    def test_core_has_ten_docs(self):
         core_dir = REPO_ROOT / "core"
         self.assertTrue(core_dir.is_dir(), f"missing {core_dir}")
         actual = {p.name for p in core_dir.glob("*.md")}
         self.assertEqual(actual, CORE_REQUIRED_FILES)
 
-    def test_schemas_has_five_files(self):
+    def test_schemas_has_eleven_files(self):
         schemas_dir = REPO_ROOT / "schemas"
         self.assertTrue(schemas_dir.is_dir(), f"missing {schemas_dir}")
         actual = {p.name for p in schemas_dir.glob("*.schema.json")}
@@ -91,7 +99,7 @@ class TestSkillFrontmatter(unittest.TestCase):
                 self.assertTrue(description, "description must be non-empty")
                 self.assertNotIn("\n", description, "description must be single-line")
 
-    def test_references_directory_contains_exactly_four_templates(self):
+    def test_references_directory_contains_exactly_seven_templates(self):
         for platform in ("claude", "codex"):
             references_dir = REPO_ROOT / platform / "skills" / "agent-director" / "references"
             actual = {p.name for p in references_dir.iterdir() if p.is_file()}
