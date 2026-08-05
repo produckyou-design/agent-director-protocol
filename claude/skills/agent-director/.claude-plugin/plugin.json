@@ -1,0 +1,21 @@
+{
+  "name": "agent-director",
+  "displayName": "Agent Director Protocol (ADP)",
+  "version": "0.1.0",
+  "description": "A platform-neutral director/implementer operating protocol for AI coding agents. One high-capability director plans, decomposes, delegates, and reviews; implementer subagents write the actual code. Includes a defined escalation path (Rescue Agent promotion, then takeover) instead of leaving stuck implementers to chance.",
+  "author": {
+    "name": "produckyou-design",
+    "url": "https://github.com/produckyou-design"
+  },
+  "homepage": "https://github.com/produckyou-design/agent-director-protocol",
+  "repository": "https://github.com/produckyou-design/agent-director-protocol",
+  "license": "MIT",
+  "keywords": [
+    "ai-agents",
+    "multi-agent",
+    "director-implementer",
+    "task-delegation",
+    "code-review",
+    "escalation-protocol"
+  ]
+}
