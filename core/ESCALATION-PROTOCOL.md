@@ -30,11 +30,12 @@ Stop and evaluate escalation when any of the following is true:
   the judgment is not confident.
 - Current confidence in the judgment is below 70%.
 
-**These triggers are deliberately more sensitive than the two-full-loop threshold in
-[FAILURE-LOOP.md](FAILURE-LOOP.md) / [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md).** A confidence or
-risk signal can fire mid-attempt, before two full revision loops have completed — requesting more
-reasoning power is cheap, so the bar to ask for it is deliberately lower than the bar for director
-takeover.
+**These triggers are deliberately more sensitive than the full-loop threshold in
+[FAILURE-LOOP.md](FAILURE-LOOP.md) / [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md)** — the active profile's
+`implementer.failure_threshold`, default two. A confidence or risk signal can fire mid-attempt,
+before that many full revision loops have completed — requesting more reasoning power is cheap, so
+the bar to ask for it is deliberately lower than the bar for director takeover, regardless of what
+the configured threshold is.
 
 ### Exclusions
 
@@ -75,10 +76,12 @@ Then the director chooses exactly one of:
 - **Read-only investigation or reproduction, one more round, same model.** The problem isn't narrowed
   enough yet to know whether promotion is even the right move.
 - **Promote to a Rescue Agent (one-shot, ≤2 attempts).** Applies when the request's underlying cause
-  is `reasoning_gap` or `model_capability_gap` — the same classification used after two implementer
-  failures. See [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) for the scope package, isolation, and attempt limit. This
-  replaces treating "raise effort" and "reassign to a stronger model" as separate free-floating
-  options — both are the same bounded construct now.
+  is `reasoning_gap` or `model_capability_gap` — the same classification used after repeated
+  implementer failures. See [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) for the scope package, isolation, attempt limit, and
+  the "escalate one axis at a time" rule — an `EFFORT_ESCALATION_REQUEST` and a
+  `MODEL_ESCALATION_REQUEST` route through the same bounded Rescue Agent construct, but a granted
+  request still raises only the axis it asked for on the first attempt unless the director's
+  `promotion_reason` states why both are needed at once.
 - **Do not promote.** If the request's underlying cause is actually `requirement_conflict` or
   `environment_issue`, a stronger model will not fix it — route to escalate-to-user or suspend/
   rollback instead (below), per [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 1.
@@ -93,9 +96,9 @@ not a peer option here, and still requires a takeover record per [TAKEOVER-PROTO
 ## Relationship to takeover
 
 Escalation is the default first response to a stuck loop, and it is never a shortcut straight to
-takeover. [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md)'s two-full-loop threshold and this protocol's "no third guess"
-threshold land on the same count (two failures) by design — the difference is the action taken, not
-the count. At that count, [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens next: the director classifies the
+takeover. [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md)'s threshold and this protocol's "no third guess"
+threshold land on the same count by design — both read the same profile's `implementer.failure_threshold`
+(default two) — the difference is the action taken, not the count. At that count, [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens next: the director classifies the
 failure cause, and for `reasoning_gap` / `model_capability_gap` promotes a bounded, one-shot Rescue
 Agent (≤2 attempts) — never the director writing product code directly. Takeover remains reserved
 for TAKEOVER-PROTOCOL.md's two narrow conditions: the implementer demonstrably cannot perform the

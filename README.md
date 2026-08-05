@@ -110,9 +110,10 @@ The part of the protocol most likely to differ from what you'd expect a
 solo agent to do: **a third guess-based fix for the same problem is
 forbidden.**
 
-1. **Two failed attempts at the same root cause** (two different diffs, two
-   different results, same underlying cause — not two re-prompts) trigger an
-   escalation request, not a third try. An implementer stops and submits
+1. **Failed attempts at the same root cause, up to the active profile's
+   `implementer.failure_threshold`** (default two — different diffs, different
+   results, same underlying cause, not re-prompts) trigger an escalation
+   request, not another try. An implementer stops and submits
    `EFFORT_ESCALATION_REQUEST` / `MODEL_ESCALATION_REQUEST`; the director can
    submit its own `DIRECTOR_ESCALATION_REQUEST` to the user when it is the one
    stuck. Neither role ever changes its own model or effort — the request is
@@ -124,11 +125,16 @@ forbidden.**
    `requirement_conflict`, `environment_issue`, `rollback_needed`. Only
    `reasoning_gap` and `model_capability_gap` justify more model power — a
    stronger model doesn't fix a contradictory task contract or broken CI.
-3. **A genuine reasoning/capability gap → Rescue Agent**: a one-shot promotion
-   to a stronger model or higher effort, scoped to this one task, capped at
-   two attempts (tracked separately from the implementer's own loop count),
-   working from an isolated last-passing checkpoint with an explicit
-   `forbidden_scope`. It does not redesign the project. Every promotion is
+3. **A genuine reasoning/capability gap → Rescue Agent**: a one-shot promotion,
+   scoped to this one task, capped at two attempts (tracked separately from
+   the implementer's own loop count), that raises **one axis at a time** —
+   `model_capability_gap` bumps the model first and only adds effort on a
+   second attempt; `reasoning_gap` bumps effort first and only adds model on a
+   second attempt. It works from an isolated last-passing checkpoint with an
+   explicit `forbidden_scope` and does not redesign the project. A
+   `requirement_conflict`, by contrast, never gets a Rescue Agent — the
+   director revises the task contract and re-delegates instead, as ordinary
+   planning with better information. Every promotion is
    disclosed to the user *before* it starts — with the prior attempts, the
    reason, the assigned model/effort, and (when it falls outside a
    pre-approved range or adds cost) as an explicit approval request — and

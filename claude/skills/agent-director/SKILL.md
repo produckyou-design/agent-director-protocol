@@ -124,8 +124,9 @@ is only granted after the requester's evidence is independently checked.
   own `DIRECTOR_ESCALATION_REQUEST` to the user via the same template, and finalizes nothing
   high-risk until the user responds.
 - Trigger conditions other than "two failed attempts" (widening failure surface, a previously
-  passing feature breaking, low confidence) can fire this earlier than the two-loop count below —
-  asking for more reasoning power is cheap, so the bar to ask is lower than the bar for takeover.
+  passing feature breaking, low confidence) can fire this earlier than the failure-loop count below —
+  asking for more reasoning power is cheap, so the bar to ask is lower than the bar for takeover,
+  regardless of what the active profile's `failure_threshold` is set to.
 - Typos, command mistakes, and transient environment failures may be excluded from the count, but
   the exclusion reason must be logged.
 
@@ -145,51 +146,68 @@ rule: [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
 ## Failure loop → Rescue Agent → takeover (in that order)
 
 Escalation (above) is a mid-task request for more power. This section is the *default* path once an
-implementer has already failed the same task twice — **director direct coding is the last resort
-here, not the next step.** Count only full revision loops (instruction → implementation → tests →
-director review → evidence-based revision instruction → re-implementation → re-test → re-review) as
-failures — merely re-asking or regenerating an answer does not count.
+implementer has already failed the same task the active profile's `implementer.failure_threshold`
+times (default **two** — see [`../../profiles/`](../../profiles/)) — **director direct coding is the
+last resort here, not the next step.** Count only full revision loops (instruction → implementation
+→ tests → director review → evidence-based revision instruction → re-implementation → re-test →
+re-review) as failures — merely re-asking or regenerating an answer does not count.
 
 ```
-implementer fails twice (2 counted loops)
+implementer fails the configured number of times (failure_threshold, default 2 counted loops)
   → director reads the real diff/tests/logs and classifies the cause
-      reasoning_gap / model_capability_gap → promote a Rescue Agent (one-shot, ≤2 attempts)
+      reasoning_gap / model_capability_gap → promote a Rescue Agent (one-shot, ≤2 attempts,
+                                              ONE axis raised per attempt — see step 2)
                                                   succeeds → review + integrate, done, no director coding
                                                   fails again → director picks ONE:
-      diagnosis_gap / requirement_conflict /                    direct intervention (takeover, last resort)
-      environment_issue / rollback_needed  ──────┘               roll back
-      → skip the Rescue Agent, go straight to                    escalate to the user
-        the same director-picks-ONE choice                       reduce scope
-                                                                   convert to an investigation task
+      requirement_conflict → director revises the task                direct intervention (takeover, last resort)
+      contract & re-delegates (ordinary planning,                     roll back
+      not a Step 4 choice — self-escalate first if                    escalate to the user
+      confidence is low). Fails too → picks ONE ↴                     reduce scope
+                                                                        convert to an investigation task
+      diagnosis_gap / environment_issue / rollback_needed
+      → skip the Rescue Agent, go straight to the
+        same director-picks-ONE choice
 ```
 
 1. **Classify** the failure into exactly one cause (`diagnosis_gap`, `reasoning_gap`,
    `model_capability_gap`, `requirement_conflict`, `environment_issue`, `rollback_needed`) using the
    actual diffs, failing tests, and logs from both attempts — not the implementer's summary.
-2. **`reasoning_gap` / `model_capability_gap` → Rescue Agent.** Before anything runs, send the
+2. **`reasoning_gap` / `model_capability_gap` → Rescue Agent, one axis at a time.** Attempt 1 raises
+   only the axis that matches the classification — `model_capability_gap` bumps the model and keeps
+   the failed implementer's own effort tier; `reasoning_gap` keeps the model and bumps only the
+   effort tier. Only if attempt 1 also fails does attempt 2 raise the *other* axis on top (never both
+   axes on attempt 1, unless the evidence already makes a combined jump clearly necessary — then say
+   so in `promotion_reason`). Before attempt 1 runs, send the
    [promotion notice](references/agent-briefing-template.md) (mirrors
    [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)):
    task, prior model/effort, failure count, what each failed attempt tried, the promotion reason, the
-   assigned rescue model/effort, editable/forbidden scope, and whether it's within the user's
-   pre-approved range. If not, this notice is also an approval request — do not start until
-   `approval_status` is `granted`. Then assign a stronger model or higher effort to this one task
-   only, using
+   assigned rescue model/effort for *this attempt*, editable/forbidden scope, and whether it's within
+   the user's pre-approved range. If not, this notice is also an approval request — do not start
+   until `approval_status` is `granted`. Hand the scope package via
    [`references/rescue-agent-template.md`](references/rescue-agent-template.md) (mirrors
    [`rescue-agent-task.schema.json`](../../../schemas/rescue-agent-task.schema.json)):
    both prior attempts as reference (not a forced starting point), the last-passing checkpoint,
-   editable/forbidden files, an explicit `forbidden_scope`, and at most two attempts — tracked
-   separately from the implementer's own loop count. Prefer an isolated branch/worktree from the
-   last-passing checkpoint (see Concurrency, above) rather than continuing the failed implementer's
-   working state. When the Rescue Agent's work ends — success or failure — send the matching
+   editable/forbidden files, an explicit `forbidden_scope`, and this attempt's `attempt_number` (1 or
+   2) with its own `assigned_model` / `assigned_effort` — tracked separately from the implementer's
+   own loop count. Prefer an isolated branch/worktree from the last-passing checkpoint (see
+   Concurrency, above) rather than continuing the failed implementer's working state. When each
+   attempt ends — success or failure — send the matching
    [rescue outcome notice](references/agent-briefing-template.md) (mirrors
    [`rescue-outcome-notice.schema.json`](../../../schemas/rescue-outcome-notice.schema.json)),
    including `reverted_to_baseline` so the return to the normal tier is stated, not inferred.
-3. **Other causes never get a Rescue Agent.** A stronger model does not fix a contradictory spec
-   (`requirement_conflict`) or broken tooling (`environment_issue`) — go straight to step 4.
-4. **If the Rescue Agent also fails (or was never applicable),** choose exactly one: director direct
-   intervention (still requires the takeover record below — this is the ONLY door into takeover, not
-   a parallel option), roll back to the last-passing checkpoint, escalate to the user, reduce task
-   scope, or convert the task into a read-only investigation.
+3. **`requirement_conflict` → revise the contract, not a Rescue Agent.** The default response is
+   ordinary re-planning: fix the contradiction in the task contract and re-delegate per
+   [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md) — not a Rescue Agent, and not yet a
+   step-4 choice. If confidence in the revision is low, or it touches architecture, security,
+   deployment, or data-loss risk, submit your own `DIRECTOR_ESCALATION_REQUEST` (Escalation, above)
+   before finalizing it. Only if the *revised* contract also fails does this go to step 4.
+   `environment_issue` and `diagnosis_gap`/`rollback_needed` never get a Rescue Agent or a revision
+   attempt — go straight to step 4 (rollback_needed defaults to "roll back").
+4. **If the Rescue Agent also fails, or the revised contract also fails, or a cause never routed to
+   either,** choose exactly one: director direct intervention (still requires the takeover record
+   below — this is the ONLY door into takeover, not a parallel option), roll back to the last-passing
+   checkpoint, escalate to the user, reduce task scope, or convert the task into a read-only
+   investigation.
 5. **On a verified Rescue Agent success, the director does not write code anyway.** Review the real
    diff and re-run the real tests exactly as for any other implementation, then integrate.
 
@@ -199,14 +217,16 @@ implementer fails twice (2 counted loops)
    [`references/takeover-template.md`](references/takeover-template.md)
    (mirrors
    [`takeover-record.schema.json`](../../../schemas/takeover-record.schema.json))
-   with concrete evidence — when reached via the Rescue Agent path, `second_failure_evidence` is the
-   Rescue Agent's second attempt, not the original implementer's.
+   with concrete evidence — `second_failure_evidence` is whichever step actually ran its course: the
+   Rescue Agent's second attempt (`reasoning_gap`/`model_capability_gap`) or the revised task
+   contract's failed re-delegation (`requirement_conflict`) — never the original implementer's second
+   loop.
 2. Record it (e.g. in the task's example/audit trail).
 3. Only then may the director write product code directly, bounded to `modification_scope`.
 
-"The task is small or simple" is never a valid takeover reason, and "the implementer failed twice" is
-never a valid takeover reason **by itself** — it must have gone through classification and, where
-applicable, a Rescue Agent first. Full rules:
+"The task is small or simple" is never a valid takeover reason, and "the implementer hit the failure
+threshold" is never a valid takeover reason **by itself** — it must have gone through classification
+and, where applicable, a Rescue Agent or a revised task contract first. Full rules:
 [`FAILURE-LOOP.md`](../../../core/FAILURE-LOOP.md),
 [`RESCUE-PROTOCOL.md`](../../../core/RESCUE-PROTOCOL.md), and
 [`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md). Completion is

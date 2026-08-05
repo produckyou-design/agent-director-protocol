@@ -25,9 +25,14 @@ Loop records are written using [`../schemas/failure-loop.schema.json`](../schema
 `implementation_summary`, `test_evidence` (a verbatim excerpt, never paraphrased), `review_verdict`,
 `failure_reasons`, `counted_as_failure`, and optional `notes`.
 
-Only loops where `counted_as_failure` is `true` count toward the two-failure threshold that permits
-takeover under [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md). A loop that ends in `review_verdict: approved` is not a failure. A loop that
-ends in `revision_required` or `rejected` for an objective reason (see below) is counted.
+Only loops where `counted_as_failure` is `true` count toward the failure threshold that triggers
+[RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) classification and, ultimately, permits takeover under
+[TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md). That threshold is the active profile's
+`implementer.failure_threshold` — **default two** — not a value hardcoded in this document; a
+profile may raise or lower it (never below one), and every other document in this protocol that
+says "two failures" means "that configured count." A loop that ends in `review_verdict: approved`
+is not a failure. A loop that ends in `revision_required` or `rejected` for an objective reason (see
+below) is counted.
 
 ## The ten objective failure definitions
 

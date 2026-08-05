@@ -12,8 +12,14 @@ implementer has already failed the same task twice.
 
 ## The default flow
 
+The failure count that triggers this flow is the active profile's `implementer.failure_threshold`
+— **default two**, the number used throughout this document and its examples (see
+[FAILURE-LOOP.md](FAILURE-LOOP.md)). A profile MAY raise it (e.g. when the implementer tier is
+cheap enough that an extra guess costs little before promoting) or lower it (never below
+one); whatever value is configured, "twice" below means "that many times."
+
 ```
-implementer fails task twice (2 counted loops, FAILURE-LOOP.md)
+implementer fails task the configured number of times (failure_threshold, default 2 counted loops, FAILURE-LOOP.md)
         │
         ▼
 director reviews the actual diff, failing tests, and logs
@@ -21,22 +27,31 @@ director reviews the actual diff, failing tests, and logs
         ▼
 director classifies the failure cause (exactly one, below)
         │
-        ├─ reasoning gap / model capability gap ──► promote to Rescue Agent (one-shot, ≤2 attempts)
+        ├─ reasoning gap / model capability gap ──► promote to Rescue Agent (one-shot, ≤2 attempts,
+        │                                            one axis raised per attempt — Step 2)
         │                                                   │
         │                                    succeeds ◄─────┤──────► fails again (≤2 attempts used)
         │                                        │                          │
         │                              review + integrate            director chooses:
         │                              (no director coding)          A/B/C/D/E below
         │
-        └─ diagnosis gap / requirement conflict / environment issue / rollback needed
+        ├─ requirement conflict ──► director revises the task contract & re-delegates
+        │                            (ordinary planning, not a Step 3 choice — self-escalate
+        │                             first if confidence is low or risk is high)
+        │                                        │
+        │                          succeeds ◄────┤────► the revised contract also fails
+        │                                                        │
+        │                                              director chooses: A/B/C/D/E below
+        │
+        └─ diagnosis gap / environment issue / rollback needed
                     │
                     ▼
            do NOT promote to a Rescue Agent — route straight to director choice A/B/C/D/E
 ```
 
 Director direct coding (**A** below) is never the automatic next step after two failures. It is one
-option among five, chosen only after a Rescue Agent has also failed, or immediately for failure
-causes that a stronger model cannot fix (requirement conflict, environment issue).
+option among five, chosen only after a Rescue Agent has also failed, after a revised task contract
+for a `requirement_conflict` has also failed, or immediately for `environment_issue`.
 
 ## Step 1 — classify the failure cause
 
@@ -59,16 +74,45 @@ director assigns exactly one cause:
 
 **Only `reasoning_gap` and `model_capability_gap` route to a Rescue Agent.** `requirement_conflict`
 and `environment_issue` are explicitly NOT treated as reasoning problems — promoting to a stronger
-model does not fix a contradictory spec or a broken CI runner. They route directly to Step 3.
-`diagnosis_gap` may earn one read-only investigation round (not a fix attempt) before
-re-classification; it does not by itself justify a Rescue Agent. `rollback_needed` routes directly to
-option **B** in Step 3.
+model does not fix a contradictory spec or a broken CI runner. `diagnosis_gap` may earn one
+read-only investigation round (not a fix attempt) before re-classification; it does not by itself
+justify a Rescue Agent. `rollback_needed` routes directly to option **B** in Step 3.
+
+**`requirement_conflict` does not default to Step 3's five options.** Its default resolution is
+the director revising the task contract to resolve the contradiction and re-delegating per
+[DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md) — ordinary planning, done again with better information, not an
+escalation choice. If confidence in that redesign is low, or it touches architecture, security,
+deployment, or data-loss risk, the director uses its own self-escalation path
+([ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) → "Director self-escalation") to request a higher effort tier for
+itself *before* finalizing the new contract — it does not silently redesign at the same tier that
+already produced two failures downstream. Step 3 is for `requirement_conflict` only if a revised
+contract, once tried, also fails; `environment_issue` routes straight to Step 3.
 
 ## Step 2 — Rescue Agent (reasoning_gap / model_capability_gap only)
 
 A Rescue Agent is a **single task's** one-shot promotion, not a standing tier. It uses a higher
 reasoning effort or a stronger model than the implementer that failed — the director assigns this
 explicitly (from the active profile's model/effort options); it is never automatic.
+
+### Escalate one axis at a time
+
+The Rescue Agent's first attempt raises only the axis that matches Step 1's classification, holding
+the other fixed — a combined jump on attempt 1 tells the director nothing about which axis actually
+mattered:
+
+- **`model_capability_gap`** → attempt 1 uses a stronger model at the failed implementer's own
+  effort tier. Only if attempt 1 also fails does attempt 2 add a higher effort tier on top of that
+  same stronger model.
+- **`reasoning_gap`** → attempt 1 keeps the failed implementer's model and raises only the effort
+  tier. Only if attempt 1 also fails does attempt 2 add a stronger model on top of that higher
+  effort tier.
+
+Each attempt is its own [`rescue-agent-task.schema.json`](../schemas/rescue-agent-task.schema.json) document
+(`attempt_number: 1` or `2`) with its own `assigned_model` / `assigned_effort`, and its own
+[promotion notice](../schemas/promotion-notice.schema.json) — attempt 2's notice states plainly what
+changed from attempt 1's. A director MAY assign both axes on attempt 1 instead, when the evidence
+already makes a single-axis attempt clearly futile — but then `promotion_reason` must say why
+staging was skipped, not leave it unstated.
 
 **Every promotion is announced to the user at the time it happens — never a silent internal
 decision.** The director sends a promotion notice matching
@@ -188,5 +232,12 @@ The director chooses exactly one:
    `reverted_to_baseline`, so the return to the normal tier is stated, not left for the user to infer
    from a later report. Neither direction is a silent internal decision. This applies to a granted
    mid-task escalation request the same as to a Rescue Agent promotion.
+9. A Rescue Agent's first attempt raises exactly one axis (model or effort, matching Step 1's
+   classification) unless the director states in `promotion_reason` why a combined jump was
+   necessary — see Step 2, "Escalate one axis at a time."
+10. The failure count that triggers this document is the active profile's
+    `implementer.failure_threshold`, not a hardcoded constant — a profile may set it above or below
+    two, but never below one, and the count still requires objective `counted_as_failure: true`
+    loops per [FAILURE-LOOP.md](FAILURE-LOOP.md), not a raw retry tally.
 9. A promotion notice outside the user's pre-approved model/effort range, or requiring extra cost, is
    also an approval request — the Rescue Agent does not start until approval is granted.

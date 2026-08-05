@@ -53,6 +53,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `agent-briefing-template.md` — bringing each adapter's reference set from
   four templates to seven.
 - `core/` grows from 8 to 10 documents; `schemas/` from 5 to 11.
+- **Configurable failure threshold**: `implementer.failure_threshold` (new profile field,
+  default 2) replaces the hardcoded "two failed loops" count referenced across
+  `FAILURE-LOOP.md`, `ESCALATION-PROTOCOL.md`, `RESCUE-PROTOCOL.md`, and
+  `TAKEOVER-PROTOCOL.md`. `codex/profiles/sol-director.yaml` raises it to 3, since a
+  `codex exec` worker run is cheap enough that one extra evidence-based attempt costs
+  little before promoting.
+- **Escalate one axis at a time**: a Rescue Agent's first attempt now raises only the
+  axis matching the Step 1 classification — `model_capability_gap` bumps the model and
+  holds effort fixed; `reasoning_gap` bumps effort and holds the model fixed. Only a
+  failed first attempt adds the other axis on attempt 2. A director may still assign
+  both axes on attempt 1 when the evidence makes staging clearly unnecessary, but must
+  say so in `promotion_reason`.
+- **`requirement_conflict` gets its own default path**: instead of falling into
+  `RESCUE-PROTOCOL.md` Step 3's generic five options, the director now revises the task
+  contract and re-delegates (ordinary re-planning, self-escalating first if confidence
+  is low or the risk is architectural/security/deployment/data-loss). Step 3 applies
+  only if that revised contract also fails.
 
 ### Changed
 

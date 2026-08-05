@@ -19,5 +19,13 @@ implementer:
     pipeline: medium      # release/deploy execution — procedure fidelity, not creativity
     mechanical: low       # version bumps, doc sync, single-line edits
   effort_default: medium
+  # How many counted failed loops (core/FAILURE-LOOP.md) on the same task
+  # before core/RESCUE-PROTOCOL.md classification kicks in. Default is 2;
+  # raised here to 3 because a codex exec worker run is cheap and fast
+  # enough that one extra guess-attempt (still evidence-based, never a
+  # blind retry) costs little before promoting to a Rescue Agent. Tune
+  # anywhere from 2-4; never below 1. See core/RESCUE-PROTOCOL.md
+  # "The default flow".
+  failure_threshold: 3
 reviewer:
   inherit: director   # default: reviewer == director (see core/ROLE-CONTRACT.md)

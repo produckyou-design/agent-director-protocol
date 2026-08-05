@@ -47,20 +47,60 @@ Every implementation report the director receives is reviewed against the ten ch
 
 ## Escalation (stop guessing, request an upgrade)
 
-**A third guess-based fix for the same problem is forbidden.** Once two `codex exec` attempts at the same root cause have both failed, the next step is an escalation request, not a third worker run. Nobody changes their own model or `model_reasoning_effort`: a worker cannot re-invoke itself at a higher tier — instead its final message (or the director's own read of its failed attempts) is an `EFFORT_ESCALATION_REQUEST` / `MODEL_ESCALATION_REQUEST`, filled in via [`references/escalation-template.md`](references/escalation-template.md) (mirrors [`escalation-request.schema.json`](../../../schemas/escalation-request.schema.json)). The director evaluates the actual diffs and test output for both attempts and either runs one more read-only investigation worker at the same tier, or — for a genuine reasoning/model-capability gap — grants it as a Rescue Agent promotion (below). A granted request gets the same promotion notice / rescue outcome notice pair as an ordinary Rescue Agent promotion, including the approval-required branch when the grant needs a config/profile change outside what's pre-approved.
+**A third guess-based fix for the same problem is forbidden.** Once `codex exec` attempts at the same root cause have failed the active profile's `implementer.failure_threshold` times (default two — see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml)), the next step is an escalation request, not another worker run. Nobody changes their own model or `model_reasoning_effort`: a worker cannot re-invoke itself at a higher tier — instead its final message (or the director's own read of its failed attempts) is an `EFFORT_ESCALATION_REQUEST` / `MODEL_ESCALATION_REQUEST`, filled in via [`references/escalation-template.md`](references/escalation-template.md) (mirrors [`escalation-request.schema.json`](../../../schemas/escalation-request.schema.json)). The director evaluates the actual diffs and test output for both attempts and either runs one more read-only investigation worker at the same tier, or — for a genuine reasoning/model-capability gap — grants it as a Rescue Agent promotion (below). A granted request gets the same promotion notice / rescue outcome notice pair as an ordinary Rescue Agent promotion, including the approval-required branch when the grant needs a config/profile change outside what's pre-approved.
 
 If the director itself is stuck (conflicting worker outputs, an unresolved shared-contract impact, low confidence on a security/deploy/data-loss judgment), it submits its own `DIRECTOR_ESCALATION_REQUEST` to the user via the same template's Part 2, and finalizes nothing high-risk until the user responds. Full rule: [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md).
 
 ## Rescue Protocol → takeover (in that order)
 
-Once a task has failed twice (two counted revision loops, not mere re-prompts), director direct coding is the **last** resort, not the next step. The director reads the real diff, failing tests, and logs for both attempts and classifies the cause into exactly one of `diagnosis_gap`, `reasoning_gap`, `model_capability_gap`, `requirement_conflict`, `environment_issue`, `rollback_needed` — see [RESCUE-PROTOCOL.md](../../../core/RESCUE-PROTOCOL.md) Step 1.
+Once a task has failed the active profile's `implementer.failure_threshold` times (default **two**
+counted revision loops, not mere re-prompts — see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml), which raises
+this to 3 by default since a `codex exec` worker run is cheap enough that one extra evidence-based
+attempt costs little before promoting), director direct coding is the **last** resort, not the next
+step. The director reads the real diff, failing tests, and logs for both attempts and classifies the
+cause into exactly one of `diagnosis_gap`, `reasoning_gap`, `model_capability_gap`,
+`requirement_conflict`, `environment_issue`, `rollback_needed` — see [RESCUE-PROTOCOL.md](../../../core/RESCUE-PROTOCOL.md) Step 1.
 
-- **`reasoning_gap` / `model_capability_gap`** → promote to a **Rescue Agent**: a single, bounded `codex exec` run using a stronger model or a higher `model_reasoning_effort` for this one task only (never a standing tier change). Before it starts, send the [promotion notice](references/agent-briefing-template.md) (mirrors [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)) — if the rescue model/effort falls outside the user's pre-approved range or needs a config change, this notice is also an approval request; do not launch until `approval_status` is `granted`. Hand it the scope package from [`references/rescue-agent-template.md`](references/rescue-agent-template.md) (mirrors [`rescue-agent-task.schema.json`](../../../schemas/rescue-agent-task.schema.json)): both prior attempts as reference material, the last-passing checkpoint (a git ref to reset a scratch worktree to — Codex has no native worktree isolation, so create one explicitly with `git worktree add`), editable/forbidden files, an explicit `forbidden_scope`, and at most two attempts, tracked separately from the implementer's own loop count. When it ends, send the matching [rescue outcome notice](references/agent-briefing-template.md) (mirrors [`rescue-outcome-notice.schema.json`](../../../schemas/rescue-outcome-notice.schema.json)), success or failure either way, including `reverted_to_baseline`.
-- **Other causes never get a Rescue Agent** — a stronger model does not fix a contradictory task contract (`requirement_conflict`) or broken tooling (`environment_issue`). Go straight to the choice below.
+- **`reasoning_gap` / `model_capability_gap`** → promote to a **Rescue Agent**, raising *one axis at a
+  time* across its (at most two) `codex exec` attempts:
+  ```bash
+  # attempt 1 — model_capability_gap: bump the model only, keep the failed
+  # worker's own effort tier (e.g. medium)
+  codex exec --profile sol-director -c model=<stronger-model> -c model_reasoning_effort=medium "<rescue task>"
+
+  # attempt 2 (only if attempt 1 also fails) — same stronger model, now also
+  # raise effort
+  codex exec --profile sol-director -c model=<stronger-model> -c model_reasoning_effort=high "<rescue task>"
+  ```
+  For `reasoning_gap`, swap the order: attempt 1 keeps the original model and only raises
+  `model_reasoning_effort`; attempt 2 (if needed) adds the stronger `-c model=...` on top. Assigning
+  both `-c model=...` and a higher `model_reasoning_effort` on attempt 1 is allowed when the evidence
+  already makes a single-axis attempt clearly futile — state why in `promotion_reason` when you do.
+  Before attempt 1 launches, send the [promotion notice](references/agent-briefing-template.md)
+  (mirrors [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)) — if the rescue model/effort falls
+  outside the user's pre-approved range or needs a config change, this notice is also an approval
+  request; do not launch until `approval_status` is `granted`. Hand it the scope package from
+  [`references/rescue-agent-template.md`](references/rescue-agent-template.md) (mirrors [`rescue-agent-task.schema.json`](../../../schemas/rescue-agent-task.schema.json)):
+  both prior attempts as reference material, the last-passing checkpoint (a git ref to reset a
+  scratch worktree to — Codex has no native worktree isolation, so create one explicitly with
+  `git worktree add`), editable/forbidden files, an explicit `forbidden_scope`, and this run's
+  `attempt_number` (1 or 2) with its own `assigned_model` / `assigned_effort` — tracked separately
+  from the implementer's own loop count. When each attempt ends, send the matching
+  [rescue outcome notice](references/agent-briefing-template.md) (mirrors [`rescue-outcome-notice.schema.json`](../../../schemas/rescue-outcome-notice.schema.json)), success or
+  failure either way, including `reverted_to_baseline`.
+- **`requirement_conflict`** → not a Rescue Agent. Revise the task contract to resolve the
+  contradiction and re-delegate as an ordinary new `codex exec` run per [DELEGATION-PROTOCOL.md](../../../core/DELEGATION-PROTOCOL.md) — submit your
+  own `DIRECTOR_ESCALATION_REQUEST` first if confidence in the revision is low or it touches
+  architecture/security/deployment/data-loss risk. Only if the *revised* contract's run also fails
+  does this go to the choice below.
+- **`environment_issue` / `diagnosis_gap` / `rollback_needed`** never get a Rescue Agent or a
+  revision attempt — a stronger model does not fix broken tooling or a task contract that was never
+  the problem. Go straight to the choice below.
 - **On a verified Rescue Agent success**, review the real diff and re-run the real tests exactly as for any ordinary implementation report — the director still does not write code.
-- **If the Rescue Agent also fails (or was never applicable)**, the director chooses exactly one: director direct intervention (takeover, below — the only door into it), roll back to the last-passing checkpoint, escalate to the user, reduce task scope, or convert the task into a read-only investigation worker.
+- **If the Rescue Agent also fails, the revised contract also fails, or a cause never routed to
+  either**, the director chooses exactly one: director direct intervention (takeover, below — the only door into it), roll back to the last-passing checkpoint, escalate to the user, reduce task scope, or convert the task into a read-only investigation worker.
 
-**Takeover** requires, before any code is touched: a written takeover record ([TAKEOVER-PROTOCOL.md](../../../core/TAKEOVER-PROTOCOL.md), schema at [`../../../schemas/takeover-record.schema.json`](../../../schemas/takeover-record.schema.json), template at [`references/takeover-template.md`](references/takeover-template.md)) — when reached via the Rescue Agent path, its `second_failure_evidence` is the Rescue Agent's second attempt, not the original worker's. "The task is small" is never sufficient justification, and neither is "two loops failed" standing alone — it must have gone through classification and, where applicable, a Rescue Agent first. Takeover means the director edits files directly in its own session — there is no special Codex mechanism for this; it is simply the director not delegating.
+**Takeover** requires, before any code is touched: a written takeover record ([TAKEOVER-PROTOCOL.md](../../../core/TAKEOVER-PROTOCOL.md), schema at [`../../../schemas/takeover-record.schema.json`](../../../schemas/takeover-record.schema.json), template at [`references/takeover-template.md`](references/takeover-template.md)) — its `second_failure_evidence` is whichever step actually ran its course: the Rescue Agent's second attempt (`reasoning_gap`/`model_capability_gap`), or the revised task contract's failed re-delegation (`requirement_conflict`) — never the original worker's second loop. "The task is small" is never sufficient justification, and neither is "hit the failure threshold" standing alone — it must have gone through classification and, where applicable, a Rescue Agent or a revised contract first. Takeover means the director edits files directly in its own session — there is no special Codex mechanism for this; it is simply the director not delegating.
 
 ## Completion judgment
 

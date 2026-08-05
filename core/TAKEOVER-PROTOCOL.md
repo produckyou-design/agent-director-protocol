@@ -3,13 +3,15 @@
 This document defines the only conditions under which the director may write product code directly,
 and the record it must produce before doing so.
 
-**Sequencing note:** reaching two failed loops does NOT by itself authorize takeover, and takeover is
-never the automatic next step after two failures. [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens at that
-point: the director classifies the failure cause and, for a reasoning or model capability gap,
-promotes the task to a bounded, one-shot Rescue Agent (at most two attempts) before takeover is even
-considered. Condition (b) below is satisfied only once that Rescue Agent step has been tried and
-failed, or was inapplicable per Rescue Protocol's classification. [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) covers the
-separate case of a mid-task request for more power (before two failures have occurred).
+**Sequencing note:** reaching the failure threshold (the active profile's `implementer.failure_threshold`,
+default two) does NOT by itself authorize takeover, and takeover is never the automatic next step
+once it's reached. [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens at that point: the director classifies
+the failure cause and, for a reasoning or model capability gap, promotes the task to a bounded,
+one-shot Rescue Agent (at most two attempts, one axis raised at a time); for a requirement conflict,
+it revises the task contract and re-delegates instead — before takeover is even considered.
+Condition (b) below is satisfied only once that Rescue Agent step or revised contract has been tried
+and failed, or was inapplicable per Rescue Protocol's classification. [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) covers
+the separate case of a mid-task request for more power (before the failure threshold is reached).
 
 ## When takeover is allowed
 
@@ -21,12 +23,14 @@ ONLY when:
   established with concrete evidence, not assumed in advance. This condition is independent of
   [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) — a missing capability or access right is not fixed by a stronger model, so it
   does not require a Rescue Agent attempt first; or
-- **(b)** at least two full revision loops, as defined in [FAILURE-LOOP.md](FAILURE-LOOP.md), have ended in `counted_as_failure:
-  true`, **and** the Rescue Protocol step that two-failure count triggers has run its course: either
-  a Rescue Agent was assigned and also failed after its allotted attempts, or Rescue Agent promotion
-  was inapplicable because the failure was classified as `requirement_conflict` or
-  `environment_issue` (see [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 1). **"Two failed loops" alone, without having gone
-  through that classification, does NOT satisfy condition (b).**
+- **(b)** at least the active profile's `implementer.failure_threshold` (default two) full revision
+  loops, as defined in [FAILURE-LOOP.md](FAILURE-LOOP.md), have ended in `counted_as_failure: true`, **and** the
+  Rescue Protocol step that count triggers has run its course: either a Rescue Agent was assigned
+  and also failed after its allotted attempts, a revised task contract for a `requirement_conflict`
+  was tried and also failed, or Rescue Agent promotion was inapplicable because the failure was
+  classified as `environment_issue` (see [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 1). **Reaching the failure
+  threshold alone, without having gone through that classification (and, where applicable, a Rescue
+  Agent or a revised contract), does NOT satisfy condition (b).**
 
 Both conditions require evidence gathered through the normal delegation and review cycle. Takeover
 is never a shortcut chosen instead of delegation, and it is never a shortcut chosen instead of a
@@ -42,8 +46,10 @@ the protocol trustworthy.
 
 Before writing any code under takeover, the director MUST write a takeover record matching [`../schemas/takeover-record.schema.json`](../schemas/takeover-record.schema.json) in
 full. When reached via condition (b), `second_failure_evidence` and `second_revision_instruction`
-describe the **Rescue Agent's** second attempt and its outcome (not the original implementer's
-second loop) — the Rescue Agent step is what condition (b) actually requires to have run its course.
+describe whichever step condition (b) actually required to run its course before takeover became
+reachable: the **Rescue Agent's** second attempt for `reasoning_gap` / `model_capability_gap`, or the
+**revised task contract's** failed re-delegation for `requirement_conflict` — not the original
+implementer's second loop in either case.
 
 - **`task_id`** — the task being taken over.
 - **`original_requirement`** — the requirement as originally delegated, unmodified by hindsight.

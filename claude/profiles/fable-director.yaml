@@ -14,5 +14,10 @@ implementer:
     pipeline: medium      # release/deploy execution — procedure fidelity, not creativity
     mechanical: low       # version bumps, doc sync, single-line edits
   effort_default: medium
+  # How many counted failed loops (FAILURE-LOOP.md) on the same task before
+  # RESCUE-PROTOCOL.md classification kicks in. Default 2; raise it only if
+  # an extra implementer attempt is genuinely cheap here, lower it never
+  # below 1. See core/RESCUE-PROTOCOL.md "The default flow".
+  failure_threshold: 2
 reviewer:
   inherit: director   # default: reviewer == director
