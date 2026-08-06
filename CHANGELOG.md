@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `.github/workflows/validate.yml`: `actions/checkout@v4` → `v5`,
+  `actions/setup-python@v5` → `v6` — both were running on a Node.js 20 runtime
+  GitHub Actions flagged as deprecated (forced onto Node 24 in the meantime,
+  so this was cosmetic, not a functional break).
+
 ### Fixed
 
 - Install docs gave `/plugin update agent-director`, which fails with
