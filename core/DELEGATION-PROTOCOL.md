@@ -56,8 +56,9 @@ The director MUST follow this sequence for any nontrivial change:
    it starts — see [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md) on why conflict-freedom alone does not imply an
    unbounded batch size is fine.
 
-   Only then does the director hand each task contract to an implementer. Do not assign a task
-   before its `depends_on` tasks have been reviewed and approved. **An implementer must not itself
+   Only then does the director hand each task contract to an implementer. Establish the last-passing
+   checkpoint before the first dispatch, per [STATE-SAFETY.md](STATE-SAFETY.md). Do not assign a task before its
+   `depends_on` tasks have been reviewed and approved. **An implementer must not itself
    spawn further subagents** — see [ROLE-CONTRACT.md](ROLE-CONTRACT.md); if it judges a task needs splitting further, it
    reports that back to the director as an out-of-scope issue instead of acting on it. (Mid-task
    promotions — [Rescue Agent](RESCUE-PROTOCOL.md) promotion or a granted [escalation](ESCALATION-PROTOCOL.md) — get their own notice

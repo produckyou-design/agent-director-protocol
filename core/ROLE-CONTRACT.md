@@ -36,6 +36,8 @@ cannot be safely decomposed to an implementer. Its responsibilities are:
 - **Test-result verification** — confirming that reported test runs actually occurred and actually
   produced the reported results.
 - **Integration** — merging accepted work into the whole and resolving cross-task interactions.
+  Integration is the director's step alone; implementers do not merge or commit to the main line.
+  See [STATE-SAFETY.md](STATE-SAFETY.md).
 - **Regression checking** — confirming that previously working behavior still works after new
   changes land.
 - **Failure-cause analysis** — when a revision loop fails, determining the actual cause rather than
@@ -66,7 +68,11 @@ The implementer executes the work described in a task contract. Its responsibili
 - Write tests that exercise the changed behavior.
 - Run the tests and capture real output.
 - Fix errors encountered during implementation and testing, within scope.
-- Report changes accurately, using the implementation report format required by the task contract.
+- Report changes accurately, using the implementation report format required by the task contract —
+  including incidental changes it did not intend, per [STATE-SAFETY.md](STATE-SAFETY.md).
+- Leave integration to the director: do not merge, rebase, push, or otherwise commit to the shared
+  main line, and do not discard a failed attempt's changes before the director has reviewed them.
+  See [STATE-SAFETY.md](STATE-SAFETY.md).
 - Report out-of-scope problems it notices. It MUST NOT fix them itself; out-of-scope fixes are new
   work that requires its own task contract.
 

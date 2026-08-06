@@ -162,12 +162,13 @@ task is being promoted, and the approval gate when needed), and
 agent-director-protocol/
 ├─ README.md  README.ko.md  LICENSE  CHANGELOG.md
 ├─ CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md  .gitignore
-├─ core/                         platform-neutral protocol (10 docs)
+├─ core/                         platform-neutral protocol (11 docs)
 │  ├─ ROLE-CONTRACT.md           DELEGATION-PROTOCOL.md
 │  ├─ TASK-CONTRACT.md           FAILURE-LOOP.md
 │  ├─ REVIEW-GATES.md            CONCURRENCY-RULES.md
 │  ├─ ESCALATION-PROTOCOL.md     RESCUE-PROTOCOL.md
-│  ├─ TAKEOVER-PROTOCOL.md       COMPLETION-STANDARD.md
+│  ├─ TAKEOVER-PROTOCOL.md       STATE-SAFETY.md
+│  ├─ COMPLETION-STANDARD.md
 ├─ claude/                       Claude Code adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
 │  ├─ CLAUDE.md.example          profiles/{opus-director,fable-director}.yaml
@@ -413,6 +414,37 @@ the active profile's `director.max_batch_agents` (default 4) requires the
 user's explicit approval before anything spawns, regardless of how cleanly it
 passes the conflict-domain check. See
 [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md) step 4.
+
+When part of a batch fails, each task is resolved on its own evidence:
+passing tasks integrate normally (unless they depend on a failed one), and
+each failed task runs its own failure loop with its own count — failures do
+not pool across tasks. If a failure reveals the *design* was wrong rather
+than one implementer struggling, the director stops integrating and returns
+to design.
+
+## State safety
+
+Every other rule here assumes a recoverable working state, so
+[`core/STATE-SAFETY.md`](core/STATE-SAFETY.md) states that assumption
+explicitly:
+
+- A **last-passing checkpoint** (a real commit SHA or tag, not "the state
+  before we started") is established before the first dispatch, and a dirty
+  working tree is resolved first — otherwise every later diff is ambiguous.
+- **A failed attempt's changes are never destroyed before the director has
+  reviewed them.** That diff is the evidence the revision instruction, Rescue
+  Agent package, and takeover record all depend on. No `git checkout .`,
+  `reset --hard`, or `clean -fd` on unreviewed work.
+- **Implementers do not commit to the main line.** Integration is the
+  director's step, after review gates pass; an implementer may commit freely
+  inside its own worktree or branch.
+- **Destructive operations are deliberate decisions**, never incidental
+  steps — force-pushing or rewriting a pushed branch, deleting the only copy
+  of some work, or discarding the checkpoint itself.
+- **Concurrent implementers get isolated working copies.** The
+  conflict-domain check covers *intended* changes; it does not stop a stray
+  write or a regenerated artifact from one agent landing in another's diff.
+  Where no isolation mechanism exists, run sequentially.
 
 ## Bad usage (anti-patterns)
 

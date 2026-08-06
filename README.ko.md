@@ -156,12 +156,13 @@ implementer의 `status` 필드가 결코 아닙니다.
 agent-director-protocol/
 ├─ README.md  README.ko.md  LICENSE  CHANGELOG.md
 ├─ CONTRIBUTING.md  SECURITY.md  CODE_OF_CONDUCT.md  .gitignore
-├─ core/                         platform-neutral protocol (10 docs)
+├─ core/                         platform-neutral protocol (11 docs)
 │  ├─ ROLE-CONTRACT.md           DELEGATION-PROTOCOL.md
 │  ├─ TASK-CONTRACT.md           FAILURE-LOOP.md
 │  ├─ REVIEW-GATES.md            CONCURRENCY-RULES.md
 │  ├─ ESCALATION-PROTOCOL.md     RESCUE-PROTOCOL.md
-│  ├─ TAKEOVER-PROTOCOL.md       COMPLETION-STANDARD.md
+│  ├─ TAKEOVER-PROTOCOL.md       STATE-SAFETY.md
+│  ├─ COMPLETION-STANDARD.md
 ├─ claude/                       Claude Code adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
 │  ├─ CLAUDE.md.example          profiles/{opus-director,fable-director}.yaml
@@ -411,6 +412,37 @@ reviewer:
 배치는, 충돌 도메인 검사를 아무리 깔끔하게 통과하더라도 스폰되기 전에
 사용자의 명시적 승인이 필요합니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)
 4단계를 참고하세요.
+
+배치의 일부만 실패했을 때는 각 작업을 그 작업 자체의 증거로 판단합니다.
+통과한 작업은 정상적으로 통합되고(실패한 작업에 의존하는 경우는 제외),
+실패한 작업은 각자의 실패 루프를 각자의 횟수로 진행합니다 — 실패는 작업
+간에 합산되지 않습니다. 만약 그 실패가 구현자 한 명의 문제가 아니라
+*설계 자체*가 틀렸음을 드러낸다면, director는 통합을 멈추고 설계 단계로
+돌아갑니다.
+
+## 상태 안전성
+
+이 문서의 다른 모든 규칙은 복구 가능한 작업 상태를 전제하므로,
+[`core/STATE-SAFETY.md`](core/STATE-SAFETY.md)가 그 전제를 명시적인 규칙으로
+만듭니다:
+
+- **마지막 통과 체크포인트**("작업 시작 전 상태"가 아니라 실제 커밋 SHA나
+  태그)를 첫 배정 전에 확보하고, 작업 트리가 더러우면 먼저 정리합니다 —
+  그러지 않으면 이후의 모든 diff가 모호해집니다.
+- **실패한 시도의 변경 내용은 director가 검토하기 전에 절대 파기하지
+  않습니다.** 그 diff야말로 수정 지시, 구조 에이전트 패키지, 인수인계
+  기록이 모두 의존하는 증거입니다. 검토 전 작업물에 `git checkout .`,
+  `reset --hard`, `clean -fd`는 금지입니다.
+- **implementer는 메인 라인에 커밋하지 않습니다.** 통합은 검수 게이트를
+  통과한 뒤 director가 하는 단계이며, implementer는 자기 전용
+  worktree/브랜치 안에서는 자유롭게 커밋해도 됩니다.
+- **파괴적 작업은 의도적인 결정**이지 다른 작업에 딸린 부수 단계가 아닙니다
+  — 이미 푸시된 브랜치의 force-push나 히스토리 재작성, 유일한 사본의 삭제,
+  체크포인트 자체의 폐기 등.
+- **동시에 실행되는 implementer는 격리된 작업 사본을 받습니다.** 충돌 도메인
+  검사는 *의도된* 변경만 다루며, 한 에이전트의 부수적 쓰기나 재생성된
+  아티팩트가 다른 에이전트의 diff에 섞이는 것까지 막아주지는 않습니다.
+  격리 수단이 없으면 순차 실행합니다.
 
 ## 잘못된 사용 (안티패턴)
 

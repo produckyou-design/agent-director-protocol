@@ -89,6 +89,35 @@ logical dependency on each other's output, only a resource collision. In that ca
 sequences them (either order is valid) rather than declaring a false dependency. `depends_on` is
 reserved for genuine "B needs A's output" relationships from [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md)'s ordering step.
 
+## When part of a parallel batch fails
+
+Dispatching N tasks together does not make them succeed or fail together. When some tasks in a batch
+pass review and others do not, the director MUST resolve each task on its own evidence:
+
+- **Passing tasks are reviewed and integrated normally.** A sibling task's failure is not a reason to
+  discard work that met its own completion criteria. Holding good work hostage to an unrelated
+  failure wastes it and makes the eventual re-run larger than it needed to be.
+- **Failing tasks enter the failure loop individually.** Each failed task counts its own loops
+  ([FAILURE-LOOP.md](FAILURE-LOOP.md)) toward its own threshold and, if it reaches it, gets its own classification and
+  possible Rescue Agent ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)). Failures do not pool across tasks: two different tasks
+  failing once each is not "two failures" for either of them.
+- **Integrate in dependency order, not completion order.** If a passing task's `depends_on` chain
+  includes a task that failed, it is not integrated yet regardless of its own verdict — its
+  correctness was established against an assumption that no longer holds. Hold it at its isolated
+  checkpoint until the dependency resolves, then re-review it rather than integrating on the strength
+  of the earlier review.
+
+**Exception — a failure that invalidates the batch's premise.** If the failure reveals that the
+*design* the batch was decomposed from is wrong (not merely that one implementer struggled), the
+director stops integrating and returns to design. This is the `requirement_conflict` path in
+[RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 1 applied at batch scope: revising the plan and re-delegating is the correct
+response, and integrating half of a plan now known to be wrong is not.
+
+**On user interruption mid-batch**, the same rule applies: the director does not abandon in-flight
+work silently. It reports which tasks completed, which were in progress, and where each one's state
+is preserved ([STATE-SAFETY.md](STATE-SAFETY.md)), so the run can be resumed or rolled back deliberately rather than
+leaving a half-integrated tree.
+
 ## This is a correctness gate, not a volume control
 
 Passing the conflict check makes parallel dispatch *safe*; it does not make a large batch

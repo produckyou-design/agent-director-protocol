@@ -150,7 +150,7 @@ history, and the scope above — nothing wider.
 
 ### Isolation
 
-Before assigning, the director preserves the last-passing checkpoint (the commit, tag, or
+Before assigning, the director preserves the last-passing checkpoint per [STATE-SAFETY.md](STATE-SAFETY.md) (the commit, tag, or
 green-test state immediately before the first failed attempt). Where the platform supports isolated
 working copies (see [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md) on worktree isolation), the Rescue Agent works from that
 checkpoint in a separate branch or worktree — not by continuing from the failed implementer's
@@ -221,7 +221,7 @@ The director chooses exactly one:
 4. The last-passing checkpoint is preserved before a Rescue Agent starts.
 5. No failed change — implementer's or Rescue Agent's — is merged automatically. Integration happens
    only after the director verifies the real diff and real tests.
-6. Nothing about roles, review gates, or git safety rules elsewhere in this protocol changes. This
+6. Nothing about roles, review gates, or state-safety rules ([STATE-SAFETY.md](STATE-SAFETY.md)) elsewhere in this protocol changes. This
    document adds one bounded step between "two failures" and "takeover"; it does not relax review,
    concurrency, or completion standards.
 7. Model/effort assignment for a Rescue Agent is the director's explicit choice (or a

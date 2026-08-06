@@ -157,9 +157,39 @@ data_structures, interfaces, db_entities, shared_configs, state_stores,
 build_targets, user_flows) do not overlap. Any overlap forces sequential
 execution. Never let two subagents edit the same file concurrently. When the
 environment supports isolated working copies (e.g. the Agent tool's
-`worktree` isolation), prefer that for anything running in parallel as an
-extra safety margin, not as a substitute for the conflict-domain check. Full
-rule: [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
+`worktree` isolation), use it for anything running in parallel — the
+conflict-domain check covers *intended* changes, not a stray write or
+regenerated artifact from one subagent landing in another's diff. Where no
+isolation is available, run sequentially. Full rule:
+[`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
+
+**When part of a batch fails**, resolve each task on its own evidence: integrate
+the passing ones (unless they `depends_on` a failed task — then hold and
+re-review after), and let each failed task run its own failure loop with its own
+count. Failures do not pool across tasks. If the failure shows the *design* was
+wrong rather than one implementer struggling, stop integrating and return to
+design. On user interruption, report what completed, what was in flight, and
+where each state is preserved — never abandon in-flight work silently.
+
+## State safety (git discipline)
+
+- **Establish a last-passing checkpoint** (a real commit SHA/tag, not "the state
+  before we started") before the first dispatch, and resolve a dirty working tree
+  first — otherwise every later diff is ambiguous.
+- **Never destroy a failed attempt's changes before reviewing them.** No
+  `git checkout .` / `reset --hard` / `clean -fd` on unreviewed work — the failed
+  diff is the evidence the revision instruction, Rescue Agent package, and
+  takeover record all depend on. Preserve it (scratch branch, named stash, patch)
+  first.
+- **Subagents don't commit to the main line.** Integration is yours, after the
+  review gates pass. A subagent may commit freely inside its own worktree/branch.
+- **Destructive operations are deliberate decisions**, never incidental steps:
+  force-push or history rewrite of a pushed branch, deleting the only copy of
+  work, or discarding the checkpoint itself. State what will be lost first.
+- Verify `files_changed` against the real diff — an omitted incidental change
+  (reformatted file, regenerated lockfile) hides scope creep.
+
+Full rule: [`STATE-SAFETY.md`](../../../core/STATE-SAFETY.md).
 
 ## Failure loop → Rescue Agent → takeover (in that order)
 
@@ -280,4 +310,5 @@ only claimed per
 [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md) ·
 [`RESCUE-PROTOCOL.md`](../../../core/RESCUE-PROTOCOL.md) ·
 [`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md) ·
+[`STATE-SAFETY.md`](../../../core/STATE-SAFETY.md) ·
 [`COMPLETION-STANDARD.md`](../../../core/COMPLETION-STANDARD.md)

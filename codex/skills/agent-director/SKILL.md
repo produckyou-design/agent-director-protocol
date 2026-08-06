@@ -45,7 +45,19 @@ Before launching any `codex exec` worker for a batch of tasks, tell the user wha
 
 ## Concurrency
 
-Never run two `codex exec` workers whose `conflict_domains` overlap (files, data structures, interfaces, DB schema, shared config, state, build/packaging, user flows) — see [CONCURRENCY-RULES.md](../../../core/CONCURRENCY-RULES.md). Because each worker is a separate OS process with its own filesystem writes, an overlap is a real race, not just a merge-conflict risk. When in doubt, run sequentially.
+Never run two `codex exec` workers whose `conflict_domains` overlap (files, data structures, interfaces, DB schema, shared config, state, build/packaging, user flows) — see [CONCURRENCY-RULES.md](../../../core/CONCURRENCY-RULES.md). Because each worker is a separate OS process with its own filesystem writes, an overlap is a real race, not just a merge-conflict risk. Codex has no native worktree isolation, so give concurrent workers their own `git worktree add` copies explicitly — the conflict-domain check covers *intended* changes, not a stray write or regenerated artifact from one process landing in another's diff. Without isolation, run sequentially.
+
+**When part of a batch fails**, resolve each task on its own evidence: integrate the passing ones (unless they `depends_on` a failed task — then hold and re-review after), and let each failed task run its own failure loop with its own count. Failures do not pool across tasks. If the failure shows the *design* was wrong rather than one worker struggling, stop integrating and return to design. On user interruption, report what completed, what was in flight, and where each state is preserved — never abandon in-flight work silently.
+
+## State safety (git discipline)
+
+- **Establish a last-passing checkpoint** (a real commit SHA/tag, not "the state before we started") before the first `codex exec` dispatch, and resolve a dirty working tree first — otherwise every later diff is ambiguous. This is the same ref a Rescue Agent's scratch worktree resets to.
+- **Never destroy a failed worker's changes before reviewing them.** No `git checkout .` / `reset --hard` / `clean -fd` on unreviewed work — the failed diff is the evidence the revision instruction, Rescue Agent package, and takeover record all depend on. Preserve it (scratch branch, named stash, patch) first.
+- **Workers don't commit to the main line.** Integration is the director's step, after the review gates pass. A worker may commit freely inside its own worktree/branch.
+- **Destructive operations are deliberate decisions**, never incidental steps: force-push or history rewrite of a pushed branch, deleting the only copy of work, or discarding the checkpoint itself. State what will be lost first.
+- Verify `files_changed` against the real diff — an omitted incidental change (reformatted file, regenerated lockfile) hides scope creep.
+
+Full rule: [`STATE-SAFETY.md`](../../../core/STATE-SAFETY.md).
 
 ## Review gates
 

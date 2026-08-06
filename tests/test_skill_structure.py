@@ -31,6 +31,7 @@ CORE_REQUIRED_FILES = {
     "RESCUE-PROTOCOL.md",
     "TAKEOVER-PROTOCOL.md",
     "COMPLETION-STANDARD.md",
+    "STATE-SAFETY.md",
 }
 
 SCHEMA_REQUIRED_FILES = {
@@ -56,7 +57,7 @@ EXAMPLE_REQUIRED_DIRS = {
 
 
 class TestDirectoryLayout(unittest.TestCase):
-    def test_core_has_ten_docs(self):
+    def test_core_has_expected_docs(self):
         core_dir = REPO_ROOT / "core"
         self.assertTrue(core_dir.is_dir(), f"missing {core_dir}")
         actual = {p.name for p in core_dir.glob("*.md")}
