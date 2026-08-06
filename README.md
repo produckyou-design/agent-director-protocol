@@ -49,7 +49,7 @@ probably do not need this repository.
 | "Done!" — but the code was never wired into the real call path, or the test never ran | Ten mandatory [review gates](core/REVIEW-GATES.md) scored against the actual diff and actual test output; an implementer's `status` field starts a review, it never ends one |
 | A stub, hardcoded return, or invented test output presented as a working feature | `placeholder_implementation` / `fake_success` are named, objective [failure reasons](core/FAILURE-LOOP.md) — not judgment calls |
 | The agent burns turns retrying the same broken fix on a loop | A third guess-based fix at the same root cause is forbidden; it must [escalate with evidence](core/ESCALATION-PROTOCOL.md) instead |
-| Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) is one task, ≤2 attempts, one axis raised at a time (model *or* effort), and only for a genuine reasoning/capability gap — a contradictory spec routes to re-planning instead |
+| Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) is one task, ≤2 attempts, one axis raised at a time — **reasoning effort first, a stronger model only if that fails** — and only for a genuine reasoning/capability gap; a contradictory spec routes to re-planning instead |
 | A model quietly upgrades itself, or spawns a swarm of subagents you never approved | Every promotion and every batch is disclosed *before* it runs, with a per-subagent `justification`; above `max_batch_agents` it becomes an approval request, and implementers cannot spawn subagents at all |
 | Two parallel agents clobber the same file | An eight-domain [conflict check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
 | A failed attempt gets `git checkout .`-ed away, taking the evidence with it | [State safety](core/STATE-SAFETY.md): failed work is preserved until reviewed, and the checkpoint is a real commit SHA |
@@ -184,10 +184,11 @@ forbidden.**
    stronger model doesn't fix a contradictory task contract or broken CI.
 3. **A genuine reasoning/capability gap → Rescue Agent**: a one-shot promotion,
    scoped to this one task, capped at two attempts (tracked separately from
-   the implementer's own loop count), that raises **one axis at a time** —
-   `model_capability_gap` bumps the model first and only adds effort on a
-   second attempt; `reasoning_gap` bumps effort first and only adds model on a
-   second attempt. It works from an isolated last-passing checkpoint with an
+   the implementer's own loop count), that raises **one axis at a time, effort
+   first** — attempt 1 keeps the model and raises reasoning effort (cheaper,
+   and often enough on its own); attempt 2 adds a stronger model. Leading with
+   the model is reserved for the case where the implementer was already at its
+   highest available effort. It works from an isolated last-passing checkpoint with an
    explicit `forbidden_scope` and does not redesign the project. A
    `requirement_conflict`, by contrast, never gets a Rescue Agent — the
    director revises the task contract and re-delegates instead, as ordinary
@@ -350,7 +351,7 @@ director:
   effort: high        # optional hint; adapters map to platform mechanism or omit
   max_batch_agents: 4  # batch above this size needs your approval before it spawns
 implementer:
-  preferred_models: [sonnet-5]
+  preferred_models: [opus-5, sonnet-5]  # pick by cost per completed task, not per token
   effort_by_task_kind:
     investigation: high   # root-cause hunts, competing hypotheses, design judgement
     audit: high            # pre-release compliance / security review
@@ -365,7 +366,21 @@ reviewer:
 
 Model names are environment aliases — swap them for whatever your platform
 resolves them to. `core/` never mentions a model name; only `*/profiles/*.yaml`
-do. **Only override the profile if a project wants different policy** — e.g. a
+do.
+
+**Choosing an implementer tier: measure cost per completed task, not per
+token.** A model with a lower per-token price that needs more steps, more
+retries, and more supervision to finish the same work can cost more in total —
+and the per-token gap is often narrower than the sticker suggests once an
+introductory rate expires. The same logic runs the other way on reasoning
+effort: spending more up front sometimes *lowers* total cost by cutting the
+number of turns, while a capable model at a modest effort tier is frequently
+the efficient point. Effort defaults carried over from an older model rarely
+transfer unchanged. This repository states no benchmark numbers because the
+right answer depends on your workload and on prices that change — sweep tiers
+and effort levels on your own tasks and compare the cost to *done*.
+
+**Only override the profile if a project wants different policy** — e.g. a
 stricter project lowers `max_batch_agents`, or a project running cheap/fast
 implementer passes raises `failure_threshold` (Codex's default already does
 this — see `codex/profiles/sol-director.yaml`). To override: copy the file and

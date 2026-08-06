@@ -20,6 +20,13 @@ field for field.
 `EFFORT_ESCALATION_REQUEST` (same model, higher reasoning tier) or `MODEL_ESCALATION_REQUEST`
 (stronger model needed). You may argue for both, but name the primary one.
 
+**`EFFORT_ESCALATION_REQUEST` is the default** — more reasoning room on the same model is the
+cheaper move and is often sufficient on its own. Ask for `MODEL_ESCALATION_REQUEST` only when the
+implementer is already at its highest available reasoning effort (no headroom left to test), or
+when the evidence points at a capability the current model tier lacks at any effort setting — and
+say which of the two applies. A model request made while effort headroom remains, with no stated
+reason, is routed back as an effort escalation.
+
 ### task
 
 `T-###` or a short task description.

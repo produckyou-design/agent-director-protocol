@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-07
+
+### Changed
+
+- **Escalation now raises reasoning effort before reaching for a stronger model.**
+  Previously the first Rescue Agent attempt raised whichever axis matched the Step 1
+  classification, so a `model_capability_gap` jumped straight to a bigger model.
+  Effort is now the first lever in both cases: attempt 1 keeps the failed
+  implementer's model and raises effort, attempt 2 adds the stronger model. Leading
+  with the model is reserved for the case where the implementer was already at its
+  highest available effort — no headroom left to test — and must be stated in
+  `promotion_reason`. Correspondingly, `EFFORT_ESCALATION_REQUEST` is now the default
+  request type; `MODEL_ESCALATION_REQUEST` requires effort to be maxed out or a
+  capability the tier lacks at any setting. Updated `core/RESCUE-PROTOCOL.md`,
+  `core/ESCALATION-PROTOCOL.md`, both platform `SKILL.md` files (including the Codex
+  `codex exec -c` command examples), both `escalation-template.md` references, and
+  both READMEs.
+- **Implementer profiles list a higher-capability tier first, with the reason stated
+  as a principle rather than a benchmark.** `claude/profiles/default.yaml` now has
+  `implementer.preferred_models: [opus-5, sonnet-5]`. The accompanying guidance —
+  in the profiles and in both READMEs' "Configuration & model profiles" section —
+  says to measure **cost per completed task, not per token**: a cheaper-per-token
+  model that needs more steps, retries, and supervision can cost more to finish the
+  same work, and a capable model at a modest effort tier is often the efficient
+  point. Deliberately no benchmark numbers or prices: those depend on the workload
+  and change over time, and this repository does not publish figures it cannot
+  verify. Readers are told to sweep tiers and effort levels on their own tasks.
+
 ## [0.4.1] - 2026-08-06
 
 ### Changed

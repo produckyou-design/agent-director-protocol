@@ -22,10 +22,23 @@ director:
   # larger disclosed batches in this project.
   max_batch_agents: 4
 implementer:
-  preferred_models: [sonnet-5]
+  # Measure cost per completed task, not per token. A cheaper-per-token model
+  # that needs more steps, more retries, and more supervision can cost more to
+  # finish the same work — and the per-token gap is usually smaller than the
+  # sticker suggests once an introductory rate expires. Pick the tier whose
+  # total cost to *done* is lowest for your workload, then verify on your own
+  # tasks rather than trusting anyone's benchmark (including this comment).
+  preferred_models: [opus-5, sonnet-5]
   # Per-task-kind reasoning effort. The director MUST pass the matching value
   # on every spawn; omitting it silently inherits the session default, which
   # under-powers investigation work and over-powers mechanical work.
+  #
+  # These sit one notch lower than you might expect because a capable model at
+  # a modest effort tier is often the efficient point: it spends a fraction of
+  # the tokens and latency while holding quality, and effort defaults carried
+  # over from an older model rarely transfer. Sweep your own tasks before
+  # changing them — and note that raising effort *up front* on agentic work
+  # sometimes lowers total cost by cutting the number of turns.
   effort_by_task_kind:
     investigation: high   # root-cause hunts, competing hypotheses, design judgement
     audit: high           # pre-release compliance / security review

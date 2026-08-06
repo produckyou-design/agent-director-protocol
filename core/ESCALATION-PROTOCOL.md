@@ -59,6 +59,18 @@ further speculative changes and submits exactly one of `EFFORT_ESCALATION_REQUES
 asks for a stronger model. An implementer may believe both are warranted and say so in the request,
 but the final decision belongs to the director.
 
+**Ask for effort first.** `EFFORT_ESCALATION_REQUEST` is the default request type: more reasoning
+room on the same model is the cheaper move and is often sufficient on its own. Submit a
+`MODEL_ESCALATION_REQUEST` only when one of these holds, and say which in the request:
+
+- the implementer is already running at the highest reasoning effort available to it, so there is
+  no effort headroom left to test; or
+- the evidence points at a capability the current model tier does not have at any effort setting —
+  not merely a harder instance of the same task.
+
+A request that asks for a stronger model while effort headroom remains, without stating why, is
+routed back as an effort escalation.
+
 **No third guess-based fix proceeds without a director instruction issued after this request.**
 
 ## Director duty: verify before granting

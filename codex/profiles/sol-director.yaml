@@ -15,11 +15,20 @@ director:
   # also a real resource cost, not just a review-fatigue concern.
   max_batch_agents: 4
 implementer:
+  # Measure cost per completed task, not per token. A cheaper-per-token model
+  # that needs more steps, more retries, and more supervision can cost more to
+  # finish the same work. Pick the tier whose total cost to *done* is lowest
+  # for your workload, and verify on your own tasks.
   preferred_models: [configured-subagent-model]
   # Per-task-kind reasoning effort (maps to model_reasoning_effort per codex
   # exec run). The director MUST pass the matching value on every worker
   # invocation; omitting it silently inherits the session default, which
   # under-powers investigation work and over-powers mechanical work.
+  #
+  # Raising effort is the first escalation lever, ahead of a stronger model —
+  # see core/RESCUE-PROTOCOL.md "Escalate one axis at a time". Sweep these on
+  # your own tasks; effort defaults carried over from an older model rarely
+  # transfer unchanged.
   effort_by_task_kind:
     investigation: high   # root-cause hunts, competing hypotheses, design judgement
     audit: high           # pre-release compliance / security review

@@ -94,18 +94,27 @@ A Rescue Agent is a **single task's** one-shot promotion, not a standing tier. I
 reasoning effort or a stronger model than the implementer that failed — the director assigns this
 explicitly (from the active profile's model/effort options); it is never automatic.
 
-### Escalate one axis at a time
+### Escalate one axis at a time — reasoning effort first
 
-The Rescue Agent's first attempt raises only the axis that matches Step 1's classification, holding
-the other fixed — a combined jump on attempt 1 tells the director nothing about which axis actually
-mattered:
+The Rescue Agent's first attempt raises only one axis, holding the other fixed. A combined jump on
+attempt 1 tells the director nothing about which axis actually mattered, and **raising reasoning
+effort is the cheaper and more often sufficient move** — a capable model given more room to reason
+usually closes the gap without a model change at all:
 
-- **`model_capability_gap`** → attempt 1 uses a stronger model at the failed implementer's own
-  effort tier. Only if attempt 1 also fails does attempt 2 add a higher effort tier on top of that
-  same stronger model.
 - **`reasoning_gap`** → attempt 1 keeps the failed implementer's model and raises only the effort
   tier. Only if attempt 1 also fails does attempt 2 add a stronger model on top of that higher
   effort tier.
+- **`model_capability_gap`** → the same order applies unless the effort tier is already at the
+  model's ceiling. Attempt 1 raises effort on the current model; attempt 2 moves to a stronger
+  model. Skip straight to the stronger model on attempt 1 only when the implementer was **already
+  running at its highest available effort** — in that case there is no effort headroom left to
+  test, and `promotion_reason` should say so.
+
+**Prefer an effort escalation request over a model escalation request.** When an implementer or the
+director asks for more power ([ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md)), the default ask is
+`EFFORT_ESCALATION_REQUEST`. `MODEL_ESCALATION_REQUEST` is for the case where effort is already
+maxed out, or where the evidence points at a capability the current model tier does not have at any
+effort setting.
 
 Each attempt is its own [`rescue-agent-task.schema.json`](../schemas/rescue-agent-task.schema.json) document
 (`attempt_number: 1` or `2`) with its own `assigned_model` / `assigned_effort`, and its own
@@ -232,9 +241,11 @@ The director chooses exactly one:
    `reverted_to_baseline`, so the return to the normal tier is stated, not left for the user to infer
    from a later report. Neither direction is a silent internal decision. This applies to a granted
    mid-task escalation request the same as to a Rescue Agent promotion.
-9. A Rescue Agent's first attempt raises exactly one axis (model or effort, matching Step 1's
-   classification) unless the director states in `promotion_reason` why a combined jump was
-   necessary — see Step 2, "Escalate one axis at a time."
+9. A Rescue Agent's first attempt raises exactly one axis, and **reasoning effort is the axis that
+   goes first** — a stronger model is attempt 2, or attempt 1 only when the implementer was already
+   at its highest available effort. Any deviation (a combined jump, or leading with the model while
+   effort headroom remains) must be justified in `promotion_reason`. See Step 2, "Escalate one axis
+   at a time — reasoning effort first."
 10. The failure count that triggers this document is the active profile's
     `implementer.failure_threshold`, not a hardcoded constant — a profile may set it above or below
     two, but never below one, and the count still requires objective `counted_as_failure: true`

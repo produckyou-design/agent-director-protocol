@@ -125,8 +125,10 @@ itself. It is not automatic model switching: nobody changes their own model or e
 implementer requests it from the director, the director requests it from the user, and the request
 is only granted after the requester's evidence is independently checked.
 
-- **Implementer stuck** → it stops and submits `EFFORT_ESCALATION_REQUEST` or
-  `MODEL_ESCALATION_REQUEST` using
+- **Implementer stuck** → it stops and submits `EFFORT_ESCALATION_REQUEST` (the default — more
+  reasoning room on the same model is cheaper and usually enough) or, only when effort is already
+  maxed out or the gap is a capability the tier lacks at any setting,
+  `MODEL_ESCALATION_REQUEST` — using
   [`references/escalation-template.md`](references/escalation-template.md) (mirrors
   [`escalation-request.schema.json`](../../../schemas/escalation-request.schema.json)).
   It does not attempt a third fix while waiting.
@@ -220,12 +222,12 @@ implementer fails the configured number of times (failure_threshold, default 2 c
 1. **Classify** the failure into exactly one cause (`diagnosis_gap`, `reasoning_gap`,
    `model_capability_gap`, `requirement_conflict`, `environment_issue`, `rollback_needed`) using the
    actual diffs, failing tests, and logs from both attempts — not the implementer's summary.
-2. **`reasoning_gap` / `model_capability_gap` → Rescue Agent, one axis at a time.** Attempt 1 raises
-   only the axis that matches the classification — `model_capability_gap` bumps the model and keeps
-   the failed implementer's own effort tier; `reasoning_gap` keeps the model and bumps only the
-   effort tier. Only if attempt 1 also fails does attempt 2 raise the *other* axis on top (never both
-   axes on attempt 1, unless the evidence already makes a combined jump clearly necessary — then say
-   so in `promotion_reason`). Before attempt 1 runs, send the
+2. **`reasoning_gap` / `model_capability_gap` → Rescue Agent, one axis at a time, effort first.**
+   Attempt 1 keeps the failed implementer's model and raises only the reasoning effort — the cheaper
+   move, and often sufficient on its own. Attempt 2 adds a stronger model on top. Lead with the
+   model on attempt 1 only when the implementer was **already at its highest available effort**
+   (no headroom left to test) — and say so in `promotion_reason`. Never both axes on attempt 1
+   unless the evidence makes a combined jump clearly necessary, again stated in `promotion_reason`. Before attempt 1 runs, send the
    [promotion notice](references/agent-briefing-template.md) (mirrors
    [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)):
    task, prior model/effort, failure count, what each failed attempt tried, the promotion reason, the

@@ -65,7 +65,7 @@ Every implementation report the director receives is reviewed against the ten ch
 
 ## Escalation (stop guessing, request an upgrade)
 
-**A third guess-based fix for the same problem is forbidden.** Once `codex exec` attempts at the same root cause have failed the active profile's `implementer.failure_threshold` times (default two — see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml)), the next step is an escalation request, not another worker run. Nobody changes their own model or `model_reasoning_effort`: a worker cannot re-invoke itself at a higher tier — instead its final message (or the director's own read of its failed attempts) is an `EFFORT_ESCALATION_REQUEST` / `MODEL_ESCALATION_REQUEST`, filled in via [`references/escalation-template.md`](references/escalation-template.md) (mirrors [`escalation-request.schema.json`](../../../schemas/escalation-request.schema.json)). The director evaluates the actual diffs and test output for both attempts and either runs one more read-only investigation worker at the same tier, or — for a genuine reasoning/model-capability gap — grants it as a Rescue Agent promotion (below). A granted request gets the same promotion notice / rescue outcome notice pair as an ordinary Rescue Agent promotion, including the approval-required branch when the grant needs a config/profile change outside what's pre-approved.
+**A third guess-based fix for the same problem is forbidden.** Once `codex exec` attempts at the same root cause have failed the active profile's `implementer.failure_threshold` times (default two — see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml)), the next step is an escalation request, not another worker run. Nobody changes their own model or `model_reasoning_effort`: a worker cannot re-invoke itself at a higher tier — instead its final message (or the director's own read of its failed attempts) is an `EFFORT_ESCALATION_REQUEST` — the default, since more reasoning room on the same model is cheaper and usually sufficient — or a `MODEL_ESCALATION_REQUEST` only when `model_reasoning_effort` is already maxed out or the gap is a capability the tier lacks at any setting, filled in via [`references/escalation-template.md`](references/escalation-template.md) (mirrors [`escalation-request.schema.json`](../../../schemas/escalation-request.schema.json)). The director evaluates the actual diffs and test output for both attempts and either runs one more read-only investigation worker at the same tier, or — for a genuine reasoning/model-capability gap — grants it as a Rescue Agent promotion (below). A granted request gets the same promotion notice / rescue outcome notice pair as an ordinary Rescue Agent promotion, including the approval-required branch when the grant needs a config/profile change outside what's pre-approved.
 
 If the director itself is stuck (conflicting worker outputs, an unresolved shared-contract impact, low confidence on a security/deploy/data-loss judgment), it submits its own `DIRECTOR_ESCALATION_REQUEST` to the user via the same template's Part 2, and finalizes nothing high-risk until the user responds. Full rule: [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md).
 
@@ -80,20 +80,20 @@ cause into exactly one of `diagnosis_gap`, `reasoning_gap`, `model_capability_ga
 `requirement_conflict`, `environment_issue`, `rollback_needed` — see [RESCUE-PROTOCOL.md](../../../core/RESCUE-PROTOCOL.md) Step 1.
 
 - **`reasoning_gap` / `model_capability_gap`** → promote to a **Rescue Agent**, raising *one axis at a
-  time* across its (at most two) `codex exec` attempts:
+  time* across its (at most two) `codex exec` attempts — **reasoning effort first**, since more
+  reasoning room on the same model is the cheaper move and is often enough on its own:
   ```bash
-  # attempt 1 — model_capability_gap: bump the model only, keep the failed
-  # worker's own effort tier (e.g. medium)
-  codex exec --profile sol-director -c model=<stronger-model> -c model_reasoning_effort=medium "<rescue task>"
+  # attempt 1 — keep the failed worker's model, raise effort only
+  codex exec --profile sol-director -c model_reasoning_effort=high "<rescue task>"
 
-  # attempt 2 (only if attempt 1 also fails) — same stronger model, now also
-  # raise effort
+  # attempt 2 (only if attempt 1 also fails) — keep the raised effort, now
+  # also move to a stronger model
   codex exec --profile sol-director -c model=<stronger-model> -c model_reasoning_effort=high "<rescue task>"
   ```
-  For `reasoning_gap`, swap the order: attempt 1 keeps the original model and only raises
-  `model_reasoning_effort`; attempt 2 (if needed) adds the stronger `-c model=...` on top. Assigning
-  both `-c model=...` and a higher `model_reasoning_effort` on attempt 1 is allowed when the evidence
-  already makes a single-axis attempt clearly futile — state why in `promotion_reason` when you do.
+  Lead with `-c model=...` on attempt 1 only when the failed worker was **already at its highest
+  available `model_reasoning_effort`** — no effort headroom is left to test, and `promotion_reason`
+  must say so. Assigning both axes on attempt 1 is likewise allowed when the evidence already makes
+  a single-axis attempt clearly futile — state why in `promotion_reason` when you do.
   Before attempt 1 launches, send the [promotion notice](references/agent-briefing-template.md)
   (mirrors [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)) — if the rescue model/effort falls
   outside the user's pre-approved range or needs a config change, this notice is also an approval
