@@ -391,6 +391,29 @@ even if the tasks seem unrelated in intent — a shared file alone is always
 enough to force sequencing. Full rule and worked examples:
 [`core/CONCURRENCY-RULES.md`](core/CONCURRENCY-RULES.md).
 
+Passing that check makes a split *safe*, not *warranted*. The default is the
+fewest task contracts that satisfy the verifiable-unit rule — one implementer
+working through several steps in sequence is the common case, not the
+exception. Splitting into more than one subagent needs one of these reasons, stated as
+that subagent's `justification` in the agent-composition disclosure (see
+[`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)):
+
+1. **Genuine parallelism benefit** — the pieces have disjoint
+   `conflict_domains` and finishing sooner materially matters.
+2. **A distinct effort or model tier is actually warranted** for one part
+   (e.g. one piece is `investigation`-kind work, the rest is `mechanical`).
+3. **Isolating blast radius** — a risky change should be reviewable
+   independently of a safe one.
+4. **Genuinely independent verifiable outcomes** that would otherwise force
+   unrelated work into a single contract, making it harder to review or
+   revert in isolation.
+
+"Smaller diffs" or "tidier task IDs" alone is never sufficient. A batch above
+the active profile's `director.max_batch_agents` (default 4) requires the
+user's explicit approval before anything spawns, regardless of how cleanly it
+passes the conflict-domain check. See
+[`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md) step 4.
+
 ## Bad usage (anti-patterns)
 
 - **Delegating "fix the UI" with no contract.** A vague request is not a task

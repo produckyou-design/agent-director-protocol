@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-06
+
 ### Added
 
 - **Escalation Protocol** (`core/ESCALATION-PROTOCOL.md`, new): a mid-task
@@ -105,6 +107,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaced by "Failure loop → Rescue Agent → takeover (in that order)"; new
   "Escalation" section; new agent-composition-disclosure step in the
   delegation sequence.
+- `README.md` / `README.ko.md`'s "Parallel work rules" section now spells out
+  the four concrete reasons for splitting into more than one subagent, and
+  the "Bad usage" list gains two entries: over-decomposition and an
+  implementer spawning its own subagents.
+- `SECURITY.md` supported-versions table updated to `0.2.x`.
 
 ## [0.1.0] - 2026-08-03
 

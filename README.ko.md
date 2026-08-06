@@ -390,6 +390,28 @@ reviewer:
 충분합니다. 전체 규칙과 실제 예시는
 [`core/CONCURRENCY-RULES.md`](core/CONCURRENCY-RULES.md)를 참고하세요.
 
+이 검사를 통과하는 것은 분리가 *안전하다*는 뜻이지 *필요하다*는 뜻이 아닙니다.
+기본값은 검증 가능한 단위 규칙을 만족하는 최소 개수의 작업 계약이며, 구현자
+하나가 여러 단계를 순차적으로 처리하는 게 예외가 아니라 흔한 경우입니다.
+서브에이전트를 하나 이상으로 나누려면 다음 사유 중 하나가 그 서브에이전트의
+`justification`으로 명시돼야 합니다
+([`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json) 참고):
+
+1. **진짜 병렬 이득** — 작업들의 `conflict_domains`가 서로 겹치지 않고,
+   더 빨리 끝내는 것이 실질적으로 중요할 때.
+2. **다른 effort 또는 모델 tier가 실제로 필요할 때** — 예: 한 부분은
+   `investigation` 성격 작업이고 나머지는 `mechanical` 작업일 때.
+3. **위험 범위 격리** — 위험한 변경을 안전한 변경과 독립적으로 리뷰하고
+   싶을 때.
+4. **진짜로 독립적인 검증 가능한 결과물들** — 억지로 하나의 계약에 묶으면
+   개별적으로 리뷰하거나 되돌리기가 더 어려워질 때.
+
+"더 작은 diff"나 "더 깔끔한 작업 ID" 같은 이유만으로는 절대 충분하지
+않습니다. 활성 프로필의 `director.max_batch_agents`(기본값 4)를 넘는
+배치는, 충돌 도메인 검사를 아무리 깔끔하게 통과하더라도 스폰되기 전에
+사용자의 명시적 승인이 필요합니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)
+4단계를 참고하세요.
+
 ## 잘못된 사용 (안티패턴)
 
 - **계약 없이 "UI 고쳐줘"를 위임하기.** 모호한 요청은 작업 계약이 아닙니다.
