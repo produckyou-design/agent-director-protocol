@@ -219,7 +219,7 @@ agent-director-protocol/
 │  ├─ COMPLETION-STANDARD.md
 ├─ claude/                       Claude Code adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
-│  ├─ CLAUDE.md.example          profiles/{opus-director,fable-director}.yaml
+│  ├─ CLAUDE.md.example          profiles/default.yaml
 │  └─ INSTALL.md
 ├─ codex/                        OpenAI Codex adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
@@ -321,17 +321,26 @@ Codex에는 "director/implementer"라는 개념이 네이티브로 존재하지 
 
 ## 설정 및 모델 프로필
 
-프로필(`claude/profiles/*.yaml`, `codex/profiles/sol-director.yaml`)은 Claude
-Code나 Codex가 강제하는 메커니즘이 아니라 **스킬 자체의 지침이 읽는 관례**입니다.
-각 프로필은 역할별 선호 모델을 지정하며, 이번 버전에서 새로 추가된 것으로 —
-director가 매 스폰마다 반드시 적용해야 하는 작업 종류별 추론 노력 표가
-있습니다.
+각 플랫폼은 **기본 프로필 하나**만 제공합니다(`claude/profiles/default.yaml`,
+`codex/profiles/sol-director.yaml`) — Claude Code나 Codex가 강제하는
+메커니즘이 아니라 **스킬 자체의 지침이 읽는 관례**입니다. 자동으로
+적용되며, 따로 선택할 게 없습니다.
+
+**이 프로필이 누가 director인지 결정하지 않습니다.** director는 항상 지금
+이 세션을 실행 중인 모델입니다 — 프로젝트 도중 `/model`로 모델을 바꾸면
+director도 그 즉시 같이 바뀌고, 별도로 고칠 파일이 없습니다. 프로필이 실제로
+담고 있는 건 오늘 누가 director 자리에 있든 그대로 유지돼야 하는 운영
+정책입니다: 스폰되는 implementer가 작업 종류별로 받는 모델/노력 수준,
+서브에이전트 배치가 사용자 승인 없이 도달할 수 있는 최대 크기
+(`max_batch_agents`), 그리고 한 작업에서 몇 번 실패해야 구조 프로토콜
+분류가 시작되는지(`failure_threshold`)입니다:
 
 ```yaml
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
 director:
-  preferred_models: [opus-5]
+  preferred_models: [opus-5, fable-5]  # 이 역할에 권장되는 등급일 뿐, 반드시 골라야 하는 선택지가 아님
   effort: high        # optional hint; adapters map to platform mechanism or omit
+  max_batch_agents: 4  # 이 크기를 넘는 배치는 스폰 전에 사용자 승인 필요
 implementer:
   preferred_models: [sonnet-5]
   effort_by_task_kind:
@@ -341,17 +350,21 @@ implementer:
     pipeline: medium       # release/deploy execution — procedure fidelity, not creativity
     mechanical: low        # version bumps, doc sync, single-line edits
   effort_default: medium
+  failure_threshold: 2   # 구조 프로토콜 분류 전까지 허용되는 실패 루프 횟수
 reviewer:
   inherit: director   # default: reviewer == director
 ```
 
 모델 이름은 환경 별칭(alias)이므로 여러분의 플랫폼이 실제로 어떤 모델로
 해석하든 자유롭게 바꿔도 됩니다. `core/`는 어떤 모델 이름도 언급하지 않으며,
-오직 `*/profiles/*.yaml`만 언급합니다. 프로필을 바꾸려면 YAML 파일을 직접
-편집하거나, (Claude Code) 선택한 파일을 `SKILL.md` 옆의 `profile.yaml`로
-복사하거나, (Codex) `preferred_models`/`effort`/`effort_by_task_kind` 필드를
-각 플랫폼의 `INSTALL.md`에서 설명하는 대로 여러분의 `config.toml` / 이름 있는
-프로필로 번역하면 됩니다.
+오직 `*/profiles/*.yaml`만 언급합니다. **프로젝트가 다른 정책을 원할 때만
+프로필을 오버라이드하세요** — 예를 들어 더 엄격한 프로젝트는
+`max_batch_agents`를 낮추고, implementer 실행 비용이 저렴한 프로젝트는
+`failure_threshold`를 올립니다(Codex 기본값이 이미 그렇게 돼있습니다 —
+`codex/profiles/sol-director.yaml` 참고). 오버라이드하려면: 파일을 복사해서
+직접 편집하거나, (Claude Code) `CLAUDE.md`에서 다른 이름의 프로필 파일을
+가리키게 하거나, (Codex) 필드를 각 플랫폼의 `INSTALL.md`에서 설명하는 대로
+여러분의 `config.toml` / 이름 있는 프로필로 번역하면 됩니다.
 
 ## 새 프로젝트에 적용하기
 

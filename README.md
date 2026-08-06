@@ -228,7 +228,7 @@ agent-director-protocol/
 │  ├─ COMPLETION-STANDARD.md
 ├─ claude/                       Claude Code adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
-│  ├─ CLAUDE.md.example          profiles/{opus-director,fable-director}.yaml
+│  ├─ CLAUDE.md.example          profiles/default.yaml
 │  └─ INSTALL.md
 ├─ codex/                        OpenAI Codex adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
@@ -328,17 +328,27 @@ profile-to-`config.toml` mapping) are in [`codex/INSTALL.md`](codex/INSTALL.md).
 
 ## Configuration & model profiles
 
-Profiles (`claude/profiles/*.yaml`, `codex/profiles/sol-director.yaml`) are a
-**convention read by the skill's own instructions**, not a mechanism enforced
-by Claude Code or Codex. Each profile names preferred models per role, and —
-new in this version — a per-task-kind reasoning-effort table the director
-must apply on every spawn:
+Each platform ships **one default profile** (`claude/profiles/default.yaml`,
+`codex/profiles/sol-director.yaml`) — a **convention read by the skill's own
+instructions**, not a mechanism enforced by Claude Code or Codex. It applies
+automatically; there is nothing to select.
+
+**The profile does not determine who the director is.** The director is
+always whichever model is running the current session — switch models
+mid-project with `/model` and the director switches with you, live, no file
+to touch. What the profile actually holds is operational policy that should
+stay stable regardless of which model happens to be in the director seat
+today: which model/effort a spawned implementer gets per kind of task, how
+large a subagent batch can get before it needs your approval
+(`max_batch_agents`), and how many failed loops on one task trigger Rescue
+Protocol classification (`failure_threshold`):
 
 ```yaml
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
 director:
-  preferred_models: [opus-5]
+  preferred_models: [opus-5, fable-5]  # recommended tiers for this role, not a selection you must make
   effort: high        # optional hint; adapters map to platform mechanism or omit
+  max_batch_agents: 4  # batch above this size needs your approval before it spawns
 implementer:
   preferred_models: [sonnet-5]
   effort_by_task_kind:
@@ -348,16 +358,20 @@ implementer:
     pipeline: medium       # release/deploy execution — procedure fidelity, not creativity
     mechanical: low        # version bumps, doc sync, single-line edits
   effort_default: medium
+  failure_threshold: 2   # counted failed loops before Rescue Protocol classification
 reviewer:
   inherit: director   # default: reviewer == director
 ```
 
 Model names are environment aliases — swap them for whatever your platform
 resolves them to. `core/` never mentions a model name; only `*/profiles/*.yaml`
-do. To switch profiles, edit the YAML directly, or (Claude Code) copy the
-chosen file to `profile.yaml` next to `SKILL.md`, or (Codex) translate the
-`preferred_models`/`effort`/`effort_by_task_kind` fields into your own
-`config.toml` / named profile, as described in each platform's `INSTALL.md`.
+do. **Only override the profile if a project wants different policy** — e.g. a
+stricter project lowers `max_batch_agents`, or a project running cheap/fast
+implementer passes raises `failure_threshold` (Codex's default already does
+this — see `codex/profiles/sol-director.yaml`). To override: copy the file and
+edit your copy, or (Claude Code) point `CLAUDE.md` at a differently-named
+profile file, or (Codex) translate the fields into your own `config.toml` /
+named profile — as described in each platform's `INSTALL.md`.
 
 ## Applying this to a new project
 

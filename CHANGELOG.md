@@ -7,7 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-06
+
 ### Changed
+
+- **Merged `claude/profiles/opus-director.yaml` and `fable-director.yaml`
+  into one `claude/profiles/default.yaml`.** The split implied you had to
+  "pick a director model" by choosing a file, but the director was never
+  determined by the profile — it is always whichever model is running the
+  current session, and switching models with `/model` changes the director
+  live, with no file to update. The two files differed only in
+  `director.preferred_models`, a non-enforced hint; everything that actually
+  matters operationally (`max_batch_agents`, `failure_threshold`,
+  `effort_by_task_kind`) was identical between them. `default.yaml` now lists
+  both tiers as recommendations and states explicitly what the profile is and
+  is not for.
+- `claude/INSTALL.md` ("Selecting a model profile" → "The default profile"),
+  `claude/CLAUDE.md.example`, and both READMEs' "Configuration & model
+  profiles" sections rewritten to match — the previous wording ("use
+  `profiles/opus-director.yaml` for this project") asked users to designate a
+  profile with no guidance on which one or why, which was the actual
+  friction: a director with no profile reference in `CLAUDE.md` had no
+  concrete source for `max_batch_agents` at all.
+- `.claude-plugin/plugin.json` version 0.4.0 → 0.4.1.
+
+
 
 - `.github/workflows/validate.yml`: `actions/checkout@v4` → `v5`,
   `actions/setup-python@v5` → `v6` — both were running on a Node.js 20 runtime

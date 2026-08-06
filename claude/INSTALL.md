@@ -148,26 +148,38 @@ into the project's `CLAUDE.md` (or your user-global `~/.claude/CLAUDE.md`).
 That snippet tells Claude to load the `agent-director` skill for multi-task
 work and to avoid coding directly before delegation has been attempted.
 
-## Selecting a model profile
+## The default profile (and why you usually don't need to touch it)
 
-Profiles (`profiles/opus-director.yaml`, `profiles/fable-director.yaml`) are
-a **convention read by the skill's own instructions** — they are not a
-native Claude Code mechanism. There is no built-in "active profile" concept
-in Claude Code itself; you make one active by either:
+`profiles/default.yaml` applies automatically — it is a **convention read by
+the skill's own instructions**, not a native Claude Code mechanism, and there
+is only one file, so there is nothing to select. It does **not** determine who
+the director is: the director is always whoever is running the current
+session, and that changes live if you switch models with `/model` — no file
+update needed for that. What the profile actually holds is operational
+policy that should stay stable regardless of which model happens to be
+director today:
 
-- copying the chosen profile YAML to
-  `<install-location>/skills/agent-director/profile.yaml` next to `SKILL.md`
-  so the skill's own guidance can point to a single, predictable file, or
-- referencing the chosen profile file's path directly from your project's
-  `CLAUDE.md` (e.g. "use `profiles/opus-director.yaml` for this project").
+- `implementer.preferred_models` / `effort_by_task_kind` — which model and
+  reasoning tier a spawned subagent gets, per kind of task.
+- `director.max_batch_agents` — how large a disclosed subagent batch can get
+  before it needs your approval (see [DELEGATION-PROTOCOL.md](../core/DELEGATION-PROTOCOL.md) step 7).
+- `implementer.failure_threshold` — how many failed loops on one task trigger
+  Rescue Protocol classification (see [RESCUE-PROTOCOL.md](../core/RESCUE-PROTOCOL.md)).
 
-Either way, the profile only records *preferred model names* per role
-(director / implementer / reviewer). Actually steering a subagent to a
-specific model uses the Task/Agent tool's own `model` parameter when the
-harness exposes one; when it does not, the director simply notes the
-intended model in its own delegation prompt as a hint. Nothing in this
-protocol depends on any specific model name existing — profiles list
-aliases you are free to rename or replace.
+**Only override it if a project wants different policy** — e.g. a stricter
+project lowers `max_batch_agents` to 2, or a project running cheap/fast
+implementer runs raises `failure_threshold`. To override:
+
+- copy `default.yaml` to `<install-location>/skills/agent-director/profile.yaml`
+  next to `SKILL.md` and edit your copy, or
+- reference a differently-named profile file's path directly from your
+  project's `CLAUDE.md` (e.g. "use `profiles/strict.yaml` for this project").
+
+Actually steering a subagent to a specific model uses the Task/Agent tool's
+own `model` parameter when the harness exposes one; when it does not, the
+director simply notes the intended model in its own delegation prompt as a
+hint. Nothing in this protocol depends on any specific model name existing —
+`preferred_models` lists aliases you are free to rename or replace.
 
 ## Uninstall
 

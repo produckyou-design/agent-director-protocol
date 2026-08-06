@@ -1,6 +1,17 @@
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
+#
+# ONE default profile, not one per director model. The director is always
+# whoever is running this session right now — if you switch models mid-project
+# with /model, the director switches with you live; there is no file to update
+# for that. This profile does not select who the director is. It sets
+# operational policy that should hold steady regardless of which model is
+# currently in the director seat: how large a subagent batch can get before it
+# needs your approval, how many implementer failures trigger Rescue Protocol
+# classification, and what reasoning effort the implementer gets per task
+# kind. Copy this file and edit it (or point CLAUDE.md at your copy) only when
+# a project wants different policy values — not to "pick a director model."
 director:
-  preferred_models: [opus-5]
+  preferred_models: [opus-5, fable-5]  # recommended tiers for this role, not a selection you must make
   effort: high        # optional hint; adapters map to platform mechanism or omit
   # Above this many subagents in one disclosed batch (DELEGATION-PROTOCOL.md
   # step 7), the agent-composition disclosure also becomes an approval

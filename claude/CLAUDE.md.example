@@ -17,11 +17,12 @@ the skill's takeover template.
 
 - Skill location: `.claude/skills/agent-director/` (project) or
   `~/.claude/skills/agent-director/` (user-global).
-- Model profile for this project: see `profiles/` next to the skill (or
-  wherever you copied the chosen profile YAML, e.g.
-  `.claude/skills/agent-director/profile.yaml`). Profiles only set
-  preferred model names per role — they are a convention read from these
-  instructions, not a Claude Code native mechanism.
+- The default profile (`profiles/default.yaml` next to the skill) applies
+  automatically — no selection needed. It does not pick which model is
+  director (that's always whichever model is running this session); it sets
+  policy: `max_batch_agents`, `failure_threshold`, `effort_by_task_kind`. Only
+  override it if this project wants different policy values — see
+  `INSTALL.md` → "The default profile."
 - For a single small fix with no ambiguity, plain direct coding is fine;
   director mode is for work that benefits from an explicit contract, an
   independent review, and possibly parallel implementers.
