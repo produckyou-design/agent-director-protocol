@@ -217,7 +217,8 @@ agent-director-protocol/
 
 **권장 — 플러그인으로 설치.** 스스로 업데이트되는 유일한 설치 방식입니다.
 Claude Code가 백그라운드에서 마켓플레이스를 갱신하며,
-`/plugin update agent-director`로 즉시 최신 릴리스를 받을 수도 있습니다.
+`/plugin update agent-director@agent-director-protocol`로 즉시 최신 릴리스를
+받을 수도 있습니다(반드시 전체 이름으로 — 짧은 이름은 인식되지 않습니다).
 
 ```
 /plugin marketplace add produckyou-design/agent-director-protocol

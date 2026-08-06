@@ -224,7 +224,8 @@ agent-director-protocol/
 
 **Recommended — install as a plugin.** This is the only install that updates
 itself: Claude Code refreshes marketplaces in the background, and
-`/plugin update agent-director` pulls a new release on demand.
+`/plugin update agent-director@agent-director-protocol` pulls a new release on
+demand (use the fully qualified name — the bare one is not found).
 
 ```
 /plugin marketplace add produckyou-design/agent-director-protocol

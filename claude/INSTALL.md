@@ -40,12 +40,13 @@ Claude Code refreshes marketplaces in the background, so an installed plugin
 picks up new releases on its own. To update immediately:
 
 ```
-/plugin update agent-director
+/plugin marketplace update agent-director-protocol
+/plugin update agent-director@agent-director-protocol
 ```
 
-```
-/plugin marketplace update agent-director-protocol
-```
+**Use the fully qualified `agent-director@agent-director-protocol`, not the
+bare plugin name** — the bare name fails with `Plugin "agent-director" not
+found` even when it is installed. Updating requires a restart to take effect.
 
 Updates are delivered when this repository's `version` field changes (see
 `.claude-plugin/plugin.json`), which happens on every tagged release. Note
@@ -53,13 +54,15 @@ that background refresh can fail for private repositories, where Git
 credential helpers are disabled during pulls; this repository is public, so
 that limitation does not apply here.
 
+If you previously installed by copying files into `~/.claude/skills/`, remove
+that copy — Claude Code reports the name as already taken and refuses to load
+it, since the installed plugin takes precedence. Keeping both means the copy
+silently never runs.
+
 ### Uninstalling a plugin install
 
 ```
-/plugin uninstall agent-director
-```
-
-```
+/plugin uninstall agent-director@agent-director-protocol
 /plugin marketplace remove agent-director-protocol
 ```
 

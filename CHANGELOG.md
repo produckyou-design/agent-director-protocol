@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Install docs gave `/plugin update agent-director`, which fails with
+  `Plugin "agent-director" not found` even when installed — verified against a
+  real install. The fully qualified `agent-director@agent-director-protocol`
+  is required, and updating needs a restart to take effect. Also documented
+  that a pre-existing manual copy under `~/.claude/skills/` is refused as a
+  duplicate name once the plugin is installed, so it must be removed rather
+  than left in place silently not loading.
+
 ## [0.4.0] - 2026-08-06
 
 ### Added
