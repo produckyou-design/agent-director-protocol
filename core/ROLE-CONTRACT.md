@@ -13,7 +13,7 @@ A single session may host multiple implementers working on different tasks. A pr
 one director acting at a time for a given task tree.
 
 A "Rescue Agent" ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)) is not a fourth role. It is the `implementer` role, filled
-with a stronger model or higher reasoning effort for one already-failed task, under stricter scope
+at a higher reasoning effort — never a different model — for one already-failed task, under stricter scope
 and attempt limits than an ordinary implementer assignment. It answers to the same director, is
 reviewed under the same [REVIEW-GATES.md](REVIEW-GATES.md), and does not get a lighter check for being better-resourced.
 
@@ -44,10 +44,19 @@ cannot be safely decomposed to an implementer. Its responsibilities are:
   re-issuing the same instruction. See [FAILURE-LOOP.md](FAILURE-LOOP.md).
 - **Completion judgment** — declaring a task or project done. See [COMPLETION-STANDARD.md](COMPLETION-STANDARD.md).
 
-### Core rule: the director does not write product code
+### Core rule: the director does not write product code — or run state-changing operations
 
 The director MUST NOT write product code. All product code is written by an implementer, inside a
 task contract, under implementer responsibility.
+
+**The same rule covers execution, not just authorship.** Running a deployment, applying a database
+migration, executing a release pipeline, or any other operation that changes state outside the
+repository is delegated the same way: a task contract, an implementer, and a review against
+[REVIEW-GATES.md](REVIEW-GATES.md). A director that "only ran the deploy" has bypassed exactly the
+checks this protocol exists to impose — nothing was contracted, nothing was reviewed, and the
+evidence trail is whatever the director chooses to report about itself. Read-only inspection
+(reading logs, querying status, running tests to verify someone else's work) is not covered by this
+rule; it is part of the director's review duty.
 
 The single exception is takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md), which is permitted only when the implementer
 demonstrably cannot perform the task, or when a [Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion
@@ -101,6 +110,23 @@ Platforms MAY assign the reviewer role to a separate agent for independence (for
 pass by a different context). When they do, the reviewer's verdict is still subject to the
 director's final completion judgment; the reviewer does not have unilateral authority to declare a
 project complete.
+
+### The director MUST NOT review its own work
+
+Reviewing an implementer's output is already independent — a different agent, a different context —
+so the director performs it directly, and that is the ordinary case.
+
+**Where the director itself produced the artifact, the review MUST go to a separate reviewer
+agent.** In practice this means [takeover](TAKEOVER-PROTOCOL.md) code, and any other diff the
+director wrote with its own hands. Telling the director to hold itself to the same standard is an
+instruction, not a control: the same context that produced the change also produced the reasoning
+for why it is correct, so it cannot supply the adversarial pressure the ten gates assume.
+
+The separate reviewer runs at **the director's own model and reasoning effort** — the review must
+not be weaker than the work — but from a **fresh context** that did not participate in writing the
+change. The tier is not the point; the independent context is. Its verdict is recorded exactly like
+any other [review result](../schemas/review-result.schema.json), and the director still owns the
+final completion judgment.
 
 ## Summary of boundaries
 

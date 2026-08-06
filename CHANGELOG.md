@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-07
+
+Follow-through on 0.6.0. Removing the model axis from the Rescue Agent left three
+things stale or newly load-bearing; this release fixes them.
+
+### Fixed
+
+- **The director must not review its own work.** `TAKEOVER-PROTOCOL.md` previously
+  told the director to review its own takeover diff "with the same rigor as if an
+  implementer had produced it" — an instruction, not a control. The context that
+  produced a change also produced the reasoning for why it is correct, so it cannot
+  supply the adversarial pressure the ten gates assume. Director-authored diffs now
+  go to a **separate reviewer agent at the director's own model and reasoning
+  effort, from a fresh context**. Ordinary implementer reviews are unchanged: a
+  different agent with a different context is already independent, so the director
+  performs those directly. New `ROLE-CONTRACT.md` section, referenced from
+  `REVIEW-GATES.md` and `TAKEOVER-PROTOCOL.md`, with `reviewer.independent_for_director_authored_work`
+  in the profile.
+- **The no-direct-work rule now covers execution, not just authorship.**
+  `ROLE-CONTRACT.md` said only that the director must not *write* product code, so
+  running a deployment, applying a migration, or executing a release pipeline fell
+  outside it — nothing contracted, nothing reviewed, and an evidence trail consisting
+  of whatever the director reported about itself. State-changing operations are now
+  delegated like any other work. Read-only inspection (reading logs, checking status,
+  re-running tests to verify a report) is explicitly still part of reviewing.
+- **README claim corrected.** Both READMEs said a secondary effect was that "the
+  expensive model spends its turns on design and review instead of mechanical edits."
+  With the implementer on the same tier as the director that is no longer true. The
+  real, still-true benefit is stated instead: the director's context stays on design
+  and review rather than filling with file contents and test output, and each
+  implementer works from a clean context scoped to one task. The stale "a stronger
+  model or higher reasoning effort" description of a Rescue Agent was corrected in the
+  same pass.
+
+### Changed
+
+- `claude/profiles/default.yaml`: `implementer.preferred_models` is now a **single**
+  entry, `[opus-5]`. Nothing in the protocol selects between list entries — a Rescue
+  Agent only raises effort, and a model change is a user decision — so a two-entry
+  list left a director guessing which to use with no rule to consult. To run cheaper,
+  swap the alias wholesale. `codex/profiles/sol-director.yaml` is untouched.
+- The `mechanical` effort tier gained a real definition rather than examples: the
+  contract fully determines the change **and** a command verifies it; if the
+  implementer has to decide anything, it is not mechanical. Also notes that `low`
+  leaves the most room to climb, and that a "mechanical" task needing high effort is
+  a misclassification signal rather than a reason to raise the default.
+
 ## [0.6.0] - 2026-08-07
 
 Supersedes the escalation design shipped hours earlier in 0.5.0. That release made

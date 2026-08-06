@@ -82,9 +82,15 @@ the director does not simply expand the takeover in place.
 ## After takeover
 
 Takeover changes are still subject to the same review gates as any other change (see [REVIEW-GATES.md](REVIEW-GATES.md)), performed
-with the same rigor as if an implementer had produced the diff. The director reviewing its own
-takeover code does not get a lighter check; if anything, the absence of an independent implementer
-makes independent evidence more important, not less.
+with the same rigor as if an implementer had produced the diff.
+
+**The director does not review its own takeover code.** Per [ROLE-CONTRACT.md](ROLE-CONTRACT.md) → "The director MUST
+NOT review its own work," the review goes to a separate reviewer agent running at the director's own
+model and reasoning effort, from a fresh context that did not participate in writing the change.
+Earlier versions of this document asked the director to hold itself to the same standard here; that
+was an instruction, not a control — the context that produced the change also produced the reasoning
+for why it is correct, and so cannot supply the adversarial pressure the ten gates assume. The
+absence of an independent implementer is precisely why an independent reviewer is required.
 
 A takeover record and its resulting change do not themselves reset the failure-loop counter for the
 task — they close out the specific two loops that triggered the takeover. Any further work on the

@@ -53,10 +53,11 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | 실패한 시도가 `git checkout .`으로 날아가면서 증거까지 같이 사라짐 | [상태 안전성](core/STATE-SAFETY.md): 실패한 작업은 검토 전까지 보존되고, 체크포인트는 실제 커밋 SHA |
 | 모호한 지시("UI 고쳐줘")를 넘겼더니 엉뚱한 게 돌아옴 | 위임 전에 `current_state`, `target_behavior`, 객관적 `completion_criteria`를 갖춘 [작업 계약](core/TASK-CONTRACT.md)이 필수 |
 
-측정치가 아니라 기대 효과로서의 부수적 효과 두 가지: 비싼 모델이 기계적인
-편집 대신 설계와 검수에 턴을 쓰게 되고, 모든 결정이 문서로 남습니다(작업
-계약, 검수 결과, 실패 루프 기록, 인수인계 기록) — 무엇이 바뀌었는지뿐 아니라
-*왜* 그렇게 했는지를 나중에 추적할 수 있습니다.
+측정치가 아니라 기대 효과로서의 부수적 효과 두 가지: 디렉터의 컨텍스트가
+파일 내용과 테스트 출력으로 차오르지 않고 설계·검수에 남아있게 되고(구현자는
+작업 하나로 범위가 좁혀진 깨끗한 컨텍스트에서 일합니다), 모든 결정이 문서로
+남습니다(작업 계약, 검수 결과, 실패 루프 기록, 인수인계 기록) — 무엇이
+바뀌었는지뿐 아니라 *왜* 그렇게 했는지를 나중에 추적할 수 있습니다.
 
 **안 쓰는 게 나을 때:** 파일 하나짜리 스크립트, 버리는 프로토타입, 또는
 검수 결과를 읽느니 diff를 직접 보는 게 빠른 작업. 이 프로토콜은 실제로
@@ -95,12 +96,20 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | reviewer | 아니오 | 아니오 | 아니오 (director에게 조언) |
 
 **구조 에이전트(Rescue Agent)**는 네 번째 역할이 아닙니다 — 이미 실패한 하나의
-작업에 대해, 더 강한 모델이나 더 높은 추론 노력으로 채워지는 implementer 역할이며,
-더 좁은 범위와 엄격한 시도 횟수 제한 아래 놓입니다. 다른 implementer 산출물과
-완전히 동일하게 검토됩니다. reviewer는 반드시 별도의 참여자가 아니라 하나의
-역할이며, 기본적으로 director가 수행합니다. 전체 정의, 경계, "director는 제품
-코드를 작성하지 않는다"는 규칙은 [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md)에
-있습니다.
+작업을 **더 높은 추론 수준으로(모델은 절대 바꾸지 않고)** 다시 돌리는 implementer
+역할이며, 더 좁은 범위와 엄격한 시도 횟수 제한 아래 놓입니다. 다른 implementer
+산출물과 완전히 동일하게 검토됩니다.
+
+**reviewer**는 반드시 별도의 참여자가 아니라 하나의 역할입니다. implementer의
+산출물을 검수하는 건 이미 독립적이라 director가 직접 합니다. 예외는 director가
+직접 작성한 것 — 기록된 인수인계(takeover) — 이며, 이때는 **director와 같은
+모델·같은 추론 수준의 별도 리뷰어를 새 컨텍스트로** 띄웁니다. director는 자기
+diff를 자기가 검수하지 않습니다. "같은 기준으로 엄격하게 하라"는 건 지시일 뿐
+통제 장치가 아니니까요.
+
+"director는 제품 코드를 작성하지 않는다"는 규칙은 **실행**에도 적용됩니다 —
+배포, 마이그레이션, 릴리스 파이프라인도 다른 작업과 똑같이 위임됩니다. 전체
+정의와 경계는 [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md)에 있습니다.
 
 ## 동작 방식
 
@@ -353,7 +362,7 @@ director:
   effort: high        # optional hint; adapters map to platform mechanism or omit
   max_batch_agents: 4  # 이 크기를 넘는 배치는 스폰 전에 사용자 승인 필요
 implementer:
-  preferred_models: [opus-5, sonnet-5]  # 토큰당이 아니라 완료된 작업당 비용으로 선택
+  preferred_models: [opus-5]   # 한 개 — 프로토콜이 항목 사이에서 고르는 일은 없습니다
   effort_by_task_kind:
     investigation: high   # root-cause hunts, competing hypotheses, design judgement
     audit: high            # pre-release compliance / security review

@@ -14,7 +14,10 @@ on any section below.
 
 - **Director** — the main conversation model (this session). Plans,
   decomposes, delegates, and reviews. Never writes product code itself except
-  after a recorded takeover (see below).
+  after a recorded takeover (see below) — and the same rule covers *running*
+  state-changing operations (deploys, migrations, release pipelines), which
+  are delegated like any other work. Read-only inspection is fine; it is part
+  of reviewing.
 - **Implementer** — a subagent spawned with the Task/Agent tool. Default
   model is Sonnet-class, per `implementer.preferred_models` in the active
   profile under [`../../profiles/`](../../profiles/) (see also
@@ -288,6 +291,11 @@ implementer fails the configured number of times (failure_threshold, default 2 c
    loop.
 2. Record it (e.g. in the task's example/audit trail).
 3. Only then may the director write product code directly, bounded to `modification_scope`.
+4. **Send the resulting diff to a separate reviewer — do not review your own code.** Spawn a
+   reviewer subagent at *your own* model and effort, with a fresh context that did not participate
+   in writing the change, and have it score the ten gates. Same rigor, no inherited blind spots.
+   See [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md) → "The director MUST NOT review its own
+   work."
 
 "The task is small or simple" is never a valid takeover reason, and "the implementer hit the failure
 threshold" is never a valid takeover reason **by itself** — it must have gone through classification

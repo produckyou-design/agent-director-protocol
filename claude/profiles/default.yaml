@@ -22,13 +22,20 @@ director:
   # larger disclosed batches in this project.
   max_batch_agents: 4
 implementer:
-  # Measure cost per completed task, not per token. A cheaper-per-token model
-  # that needs more steps, more retries, and more supervision can cost more to
-  # finish the same work — and the per-token gap is usually smaller than the
-  # sticker suggests once an introductory rate expires. Pick the tier whose
-  # total cost to *done* is lowest for your workload, then verify on your own
-  # tasks rather than trusting anyone's benchmark (including this comment).
-  preferred_models: [opus-5, sonnet-5]
+  # ONE tier, deliberately. Nothing in the protocol picks between entries:
+  # a Rescue Agent only ever raises reasoning effort, and a model change is a
+  # user decision (see core/RESCUE-PROTOCOL.md). A list of two would leave a
+  # director guessing which to use for which task, with no rule to consult.
+  # To run cheaper, swap this alias wholesale — do not add a second entry
+  # hoping the director will choose per task; it will not.
+  #
+  # Why the higher tier is the default: measure cost per completed task, not
+  # per token. A cheaper-per-token model that needs more steps, more retries,
+  # and more supervision can cost more to finish the same work — and the
+  # per-token gap is usually smaller than the sticker suggests once an
+  # introductory rate expires. Verify on your own tasks rather than trusting
+  # anyone's benchmark (including this comment).
+  preferred_models: [opus-5]
   # Per-task-kind reasoning effort. The director MUST pass the matching value
   # on every spawn; omitting it silently inherits the session default, which
   # under-powers investigation work and over-powers mechanical work.
@@ -48,7 +55,13 @@ implementer:
     audit: high           # pre-release compliance / security review
     implementation: medium
     pipeline: medium      # release/deploy execution — procedure fidelity, not creativity
-    mechanical: low       # version bumps, doc sync, single-line edits
+    # mechanical: the contract fully determines the change AND a command
+    # verifies it. If the implementer has to *decide* anything, it is not
+    # mechanical — classify it as implementation. Effort matters least here
+    # (precise instruction-following, not reasoning), and starting at `low`
+    # leaves the most room to climb. A "mechanical" task that needs high
+    # effort is a misclassification signal, not a reason to raise the default.
+    mechanical: low
   effort_default: medium
   # How many counted failed loops (FAILURE-LOOP.md) on the same task before
   # RESCUE-PROTOCOL.md classification kicks in. Default 2; raise it only if
@@ -56,4 +69,12 @@ implementer:
   # below 1. See core/RESCUE-PROTOCOL.md "The default flow".
   failure_threshold: 2
 reviewer:
-  inherit: director   # default: reviewer == director
+  # Reviewing an implementer's output is already independent: a different
+  # agent, a different context. The director does that directly.
+  inherit: director
+  # But the director must never review an artifact it produced itself — that
+  # is self-review, and "be extra rigorous" is not a control. When the
+  # director authored the diff (takeover), spawn a SEPARATE reviewer at the
+  # director's own model and effort, with a fresh context. Same rigor, no
+  # inherited blind spots. See core/REVIEW-GATES.md.
+  independent_for_director_authored_work: true

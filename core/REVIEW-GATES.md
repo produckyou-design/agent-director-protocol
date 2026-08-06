@@ -10,6 +10,12 @@ an assertion, not evidence. Every review MUST record a `result` (`pass`, `fail`,
 `not_applicable`) and concrete `evidence` for each of the ten checks below before a `verdict` is
 issued. "I read the summary and it sounded right" is not evidence.
 
+**The gates assume a reviewer who did not write the change.** Reviewing an implementer's output
+satisfies that by construction — different agent, different context — which is why the director
+performs it directly. When the director itself authored the diff (a [takeover](TAKEOVER-PROTOCOL.md)), it does not
+review its own work: the review goes to a separate reviewer agent at the director's own model and
+effort, from a fresh context. See [ROLE-CONTRACT.md](ROLE-CONTRACT.md) → "The director MUST NOT review its own work."
+
 ## The ten checks
 
 1. **`code_actually_changed`** — Inspect the actual diff or file contents, not the summary.

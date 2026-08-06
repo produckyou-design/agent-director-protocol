@@ -1,7 +1,7 @@
 {
   "name": "agent-director",
   "displayName": "Agent Director Protocol (ADP)",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "A platform-neutral director/implementer operating protocol for AI coding agents. One high-capability director plans, decomposes, delegates, and reviews; implementer subagents write the actual code. Includes a defined escalation path (Rescue Agent promotion, then takeover) instead of leaving stuck implementers to chance.",
   "skills": "./claude/skills",
   "author": {

@@ -56,10 +56,11 @@ probably do not need this repository.
 | Vague work ("fix the UI") gets handed off and comes back as something else | A [task contract](core/TASK-CONTRACT.md) with `current_state`, `target_behavior`, and objective `completion_criteria` is required before delegation |
 
 Two secondary effects, stated as expectations rather than measurements: the
-expensive model spends its turns on design and review instead of mechanical
-edits, and every decision leaves a written artifact — task contract, review
-result, failure loop, takeover record — so you can audit *why* something was
-done, not just what changed.
+director's context stays on design and review instead of filling up with file
+contents and test output — each implementer works from a clean context scoped
+to one task — and every decision leaves a written artifact (task contract,
+review result, failure loop, takeover record), so you can audit *why*
+something was done, not just what changed.
 
 **When it isn't worth it:** a one-file script, a throwaway prototype, or any
 task where you'd rather read the diff yourself than read a review of it. The
@@ -98,12 +99,21 @@ mechanism fits your project, and judge the outcome yourself.
 | implementer | yes, within contract scope | yes | no (self-reports status only) |
 | reviewer | no | no | no (advises the director) |
 
-A **Rescue Agent** is not a fourth role — it's the implementer role, filled by
-a stronger model or higher reasoning effort for one already-failed task, under
-tighter scope and a hard attempt limit. It is reviewed exactly like any other
-implementer output. Reviewer is a role, not necessarily a separate participant
-— by default the director performs it. Full definitions, boundaries, and the
-"director never writes product code" rule:
+A **Rescue Agent** is not a fourth role — it's the implementer role run at a
+higher reasoning effort (never a different model) for one already-failed task,
+under tighter scope and a hard attempt limit. It is reviewed exactly like any
+other implementer output.
+
+**Reviewer** is a role, not necessarily a separate participant: reviewing an
+implementer's output is already independent, so the director does it directly.
+The exception is work the director wrote itself — a recorded takeover — which
+goes to a **separate reviewer agent at the director's own model and effort,
+from a fresh context.** The director never reviews its own diff; "hold yourself
+to the same standard" is an instruction, not a control.
+
+The "director never writes product code" rule also covers *running*
+state-changing operations — deploys, migrations, release pipelines are
+delegated like any other work. Full definitions and boundaries:
 [`core/ROLE-CONTRACT.md`](core/ROLE-CONTRACT.md).
 
 ## How it works
@@ -360,7 +370,7 @@ director:
   effort: high        # optional hint; adapters map to platform mechanism or omit
   max_batch_agents: 4  # batch above this size needs your approval before it spawns
 implementer:
-  preferred_models: [opus-5, sonnet-5]  # pick by cost per completed task, not per token
+  preferred_models: [opus-5]   # one tier — nothing in the protocol picks between entries
   effort_by_task_kind:
     investigation: high   # root-cause hunts, competing hypotheses, design judgement
     audit: high            # pre-release compliance / security review
