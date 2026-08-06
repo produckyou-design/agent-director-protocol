@@ -87,6 +87,26 @@ def minimal_implementation_report(status: str = "complete") -> dict:
     }
 
 
+def minimal_agent_composition_disclosure() -> dict:
+    return {
+        "director_model": "opus-5",
+        "director_effort": "high",
+        "subagent_count": 1,
+        "subagents": [
+            {
+                "role": "implementer",
+                "task": "T-001",
+                "model": "sonnet-5",
+                "effort": "medium",
+                "justification": "Isolated, independently verifiable outcome per the task contract.",
+            }
+        ],
+        "parallel": False,
+        "rescue_agent_available": True,
+        "within_preapproved_range": True,
+    }
+
+
 def minimal_takeover_record() -> dict:
     return {
         "task_id": "T-001",
@@ -144,6 +164,32 @@ class TestNegativeValidation(unittest.TestCase):
 
         broken = copy.deepcopy(instance)
         broken["test_executions"] = []
+        with self.assertRaises(ValidationError):
+            validator.validate(broken)
+
+    def test_agent_composition_disclosure_subagent_missing_justification_fails(self):
+        schema = load_schema("agent-composition-disclosure.schema.json")
+        validator = Draft7Validator(schema)
+
+        instance = minimal_agent_composition_disclosure()
+        validator.validate(instance)  # sanity: valid as-is
+
+        broken = copy.deepcopy(instance)
+        del broken["subagents"][0]["justification"]
+        with self.assertRaises(ValidationError):
+            validator.validate(broken)
+
+    def test_agent_composition_disclosure_out_of_range_without_approval_status_fails(self):
+        schema = load_schema("agent-composition-disclosure.schema.json")
+        validator = Draft7Validator(schema)
+
+        instance = minimal_agent_composition_disclosure()
+        instance["within_preapproved_range"] = False
+        instance["approval_status"] = "pending"
+        validator.validate(instance)  # sanity: valid with approval_status present
+
+        broken = copy.deepcopy(instance)
+        del broken["approval_status"]
         with self.assertRaises(ValidationError):
             validator.validate(broken)
 

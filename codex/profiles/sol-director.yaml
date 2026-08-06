@@ -6,6 +6,14 @@
 director:
   preferred_models: [sol]
   effort: high        # maps to Codex's model_reasoning_effort; use xhigh for heavy design/decomposition passes
+  # Above this many codex exec workers in one disclosed batch
+  # (core/DELEGATION-PROTOCOL.md step 7), the agent-composition disclosure
+  # also becomes an approval request — dispatch waits for the user to grant
+  # it. This is a volume control independent of the conflict-domain check in
+  # core/CONCURRENCY-RULES.md, which only checks safety, not size. Each
+  # codex exec run is a separate OS process, so going over budget here is
+  # also a real resource cost, not just a review-fatigue concern.
+  max_batch_agents: 4
 implementer:
   preferred_models: [configured-subagent-model]
   # Per-task-kind reasoning effort (maps to model_reasoning_effort per codex

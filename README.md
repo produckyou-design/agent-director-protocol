@@ -416,6 +416,17 @@ enough to force sequencing. Full rule and worked examples:
 - **Running parallel tasks that share a file.** Even if every other conflict
   domain is independent, two implementers touching the same file concurrently
   is always blocked — sequence them instead.
+- **Over-decomposing into many narrow subagents "just to be safe."** The
+  default is the fewest tasks that satisfy the verifiable-unit rule, not the
+  most. Every disclosed subagent needs a stated `justification`, and a batch
+  above `director.max_batch_agents` requires the user's approval before
+  anything spawns — passing the conflict-domain check makes a batch *safe* to
+  parallelize, not *sized appropriately*. See `core/DELEGATION-PROTOCOL.md`
+  step 4 and `core/CONCURRENCY-RULES.md`.
+- **An implementer spawning its own subagents.** Only the director delegates.
+  An implementer that decides mid-task it needs more help reports that as a
+  blocked/out-of-scope finding — it does not act on it. See
+  `core/ROLE-CONTRACT.md`.
 
 ## Limitations
 

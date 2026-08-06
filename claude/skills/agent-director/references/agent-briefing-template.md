@@ -25,6 +25,9 @@ One entry per subagent about to be spawned:
 - `task` — task_id or short description this subagent owns.
 - `model`
 - `effort` — `low` / `medium` / `high` / `xhigh` / `max`.
+- `justification` — why this piece needs its own subagent rather than folding into another task in
+  this batch. "Smaller diffs" or "tidier task IDs" alone is not sufficient — see
+  `DELEGATION-PROTOCOL.md` step 4's minimality principle.
 
 ### parallel
 
@@ -35,6 +38,16 @@ sequentially.
 
 Whether a Rescue Agent promotion is actually reachable in this session/environment if a task fails
 twice — e.g. whether a stronger model tier exists to promote to.
+
+### within_preapproved_range
+
+`true` if `subagent_count` is within the active profile's `director.max_batch_agents` → notify and
+proceed. `false` → this disclosure is also an approval request; do not spawn anything until
+`approval_status` becomes `granted`.
+
+### approval_status (required when within_preapproved_range is false)
+
+`not_required` / `pending` / `granted` / `denied`.
 
 ---
 

@@ -62,16 +62,34 @@ on any section below.
    a hypothesis the director expected, **raise effort one step on
    re-delegation** instead of merely restating the same instruction — see
    [`FAILURE-LOOP.md`](../../../core/FAILURE-LOOP.md).
-5. **Disclose the agent composition before spawning anything.** Once per batch — not per individual
+5. **Decompose to the fewest tasks that qualify, not the most.** Before disclosing anything, check
+   whether this really needs N subagents or whether some pieces belong in one broader task contract.
+   Splitting further than the minimum needs a concrete reason — genuine parallelism benefit, a
+   distinct effort/model tier for one part, blast-radius isolation, or genuinely independent
+   verifiable outcomes — not "smaller diffs." See
+   [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md) step 4.
+6. **Disclose the agent composition before spawning anything.** Once per batch — not per individual
    spawn — tell the user what is about to run, filling in
    [`references/agent-briefing-template.md`](references/agent-briefing-template.md) Part 1 (mirrors
    [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json)):
-   director model/effort, subagent count, each subagent's role/task/model/effort, whether they run in
-   parallel, and whether a Rescue Agent promotion is even reachable this session. Work does not start
-   until this has been stated. Mid-task promotions (Rescue Agent, or a granted escalation) get their
-   own separate notice later — see Escalation and Failure loop below — not folded into this upfront
-   disclosure.
-6. Full delegation mechanics:
+   director model/effort, subagent count, each subagent's role/task/model/effort **and
+   `justification`** (why this piece needs its own subagent, not folded into another task in the
+   batch), whether they run in parallel, and whether a Rescue Agent promotion is even reachable this
+   session. Work does not start until this has been stated. **If `subagent_count` exceeds the active
+   profile's `director.max_batch_agents`, this disclosure is also an approval request** —
+   `within_preapproved_range: false`, `approval_status: pending` — and dispatch waits for
+   `approval_status: granted`, the same pattern a Rescue Agent promotion outside the pre-approved
+   range uses. A conflict-free batch is still subject to this cap; passing the conflict-domain check
+   means the batch is *safe* to run in parallel, not that its size needs no sign-off — see
+   [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md). Mid-task promotions (Rescue Agent, or a granted
+   escalation) get their own separate notice later — see Escalation and Failure loop below — not
+   folded into this upfront disclosure, and do not count against `max_batch_agents`.
+7. **A subagent must never spawn its own subagents.** If one reports mid-task that it thinks the work
+   needs splitting further, that comes back to you as an out-of-scope/blocked finding — you decide
+   whether to re-decompose, per step 5. This is the containment boundary that keeps a disclosed,
+   approved batch from silently multiplying past what the user saw. See
+   [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md).
+8. Full delegation mechanics:
    [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md).
 
 ## Reviewing (never trust the report)

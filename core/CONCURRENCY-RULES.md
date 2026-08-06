@@ -88,3 +88,13 @@ A conflict-check failure is not the same as a `depends_on` relationship — the 
 logical dependency on each other's output, only a resource collision. In that case the director
 sequences them (either order is valid) rather than declaring a false dependency. `depends_on` is
 reserved for genuine "B needs A's output" relationships from [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md)'s ordering step.
+
+## This is a correctness gate, not a volume control
+
+Passing the conflict check makes parallel dispatch *safe*; it does not make a large batch
+*appropriate*. A decomposition where every task is genuinely independent will pass this check
+regardless of whether it is 3 tasks or 30 — the check has nothing to say about whether 30 subagents
+should exist in the first place. That question belongs to [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md) step 4 (prefer the
+fewest tasks that satisfy the verifiable-unit rule) and step 7 (a batch above the active profile's
+`director.max_batch_agents` requires disclosed, user-granted approval before dispatch, independent of
+how cleanly it passes the conflict check here).

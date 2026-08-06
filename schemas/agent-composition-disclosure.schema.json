@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/agent-composition-disclosure.schema.json",
   "title": "Agent Composition Disclosure",
-  "description": "What the director tells the user BEFORE dispatching any implementer for a batch of tasks. One disclosure per batch, not per individual spawn. See DELEGATION-PROTOCOL.md. Work does not start until this has been stated.",
+  "description": "What the director tells the user BEFORE dispatching any implementer for a batch of tasks. One disclosure per batch, not per individual spawn. See DELEGATION-PROTOCOL.md. Work does not start until this has been stated. If subagent_count exceeds the active profile's director.max_batch_agents, this notice also doubles as an approval request — dispatch does not start until approval_status is granted.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -11,7 +11,8 @@
     "subagent_count",
     "subagents",
     "parallel",
-    "rescue_agent_available"
+    "rescue_agent_available",
+    "within_preapproved_range"
   ],
   "properties": {
     "director_model": { "type": "string" },
@@ -28,7 +29,7 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role", "task", "model", "effort"],
+        "required": ["role", "task", "model", "effort", "justification"],
         "properties": {
           "role": { "type": "string", "description": "e.g. implementer, reviewer-second-pass." },
           "task": { "type": "string", "description": "task_id or short description this subagent owns." },
@@ -36,6 +37,11 @@
           "effort": {
             "type": "string",
             "enum": ["low", "medium", "high", "xhigh", "max"]
+          },
+          "justification": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Why this task needs its own subagent — not foldable into another task in this same batch, and not better handled as part of one broader task contract. 'Smaller diffs' or 'tidier task IDs' alone is not sufficient; see DELEGATION-PROTOCOL.md's minimality principle."
           }
         }
       },
@@ -48,6 +54,21 @@
     "rescue_agent_available": {
       "type": "boolean",
       "description": "Whether a Rescue Agent promotion (RESCUE-PROTOCOL.md) is actually available in this session/environment if a task fails twice — e.g. whether a stronger model tier is reachable at all."
+    },
+    "within_preapproved_range": {
+      "type": "boolean",
+      "description": "True if subagent_count is within the active profile's director.max_batch_agents. If false, this notice is also an approval request — see approval_status."
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": ["not_required", "pending", "granted", "denied"],
+      "description": "not_required when within_preapproved_range is true. Otherwise starts at 'pending' and dispatch does not start until it becomes 'granted'."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "within_preapproved_range": { "const": false } } },
+      "then": { "required": ["approval_status"] }
+    }
+  ]
 }

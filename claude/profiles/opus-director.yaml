@@ -2,6 +2,14 @@
 director:
   preferred_models: [opus-5]
   effort: high        # optional hint; adapters map to platform mechanism or omit
+  # Above this many subagents in one disclosed batch (DELEGATION-PROTOCOL.md
+  # step 7), the agent-composition disclosure also becomes an approval
+  # request — dispatch waits for the user to grant it. This is a volume
+  # control independent of the conflict-domain check in
+  # core/CONCURRENCY-RULES.md, which only checks safety, not size. Lower it
+  # if you want to review every batch above e.g. 2; raise it if you trust
+  # larger disclosed batches in this project.
+  max_batch_agents: 4
 implementer:
   preferred_models: [sonnet-5]
   # Per-task-kind reasoning effort. The director MUST pass the matching value

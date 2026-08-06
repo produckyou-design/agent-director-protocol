@@ -70,6 +70,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contract and re-delegates (ordinary re-planning, self-escalating first if confidence
   is low or the risk is architectural/security/deployment/data-loss). Step 3 applies
   only if that revised contract also fails.
+- **Agent-spawn volume controls**, addressing a real over-delegation pattern (too many
+  subagents dispatched for the actual scope of work):
+  - **Decomposition minimality** (`DELEGATION-PROTOCOL.md` step 4): the director now
+    defaults to the fewest tasks that satisfy the verifiable-unit rule. Splitting
+    further requires a stated reason — parallelism benefit, a distinct effort/model
+    tier, blast-radius isolation, or genuinely independent outcomes — not "smaller
+    diffs" or "tidier task IDs."
+  - **Per-subagent `justification`** (new required field on
+    `agent-composition-disclosure.schema.json`'s `subagents[]` items): every disclosed
+    subagent must state why it needs its own slot rather than folding into another task
+    in the same batch.
+  - **`director.max_batch_agents`** (new profile field, default 4): above this many
+    subagents in one disclosed batch, the agent-composition disclosure also becomes an
+    approval request (`within_preapproved_range` / `approval_status`, mirroring the
+    Rescue Agent promotion pattern) — dispatch waits for the user to grant it. A
+    conflict-free batch is still subject to this cap; `CONCURRENCY-RULES.md` gates
+    safety, not size.
+  - **Implementers cannot spawn subagents** (`ROLE-CONTRACT.md`): an explicit
+    containment boundary — an implementer that judges a task needs further splitting
+    reports that back to the director as an out-of-scope finding instead of acting on
+    it. This closes the main path by which a correctly-sized, disclosed batch could
+    silently multiply past what the user approved.
 
 ### Changed
 

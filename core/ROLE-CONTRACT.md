@@ -70,9 +70,19 @@ The implementer executes the work described in a task contract. Its responsibili
 - Report out-of-scope problems it notices. It MUST NOT fix them itself; out-of-scope fixes are new
   work that requires its own task contract.
 
-An implementer that expands scope without authorization, invents test output, or claims completion
-without running tests has violated this contract regardless of whether the resulting code happens to
-work.
+**An implementer MUST NOT itself spawn further subagents or delegate any part of its task to
+another agent — only the director delegates.** If an implementer judges mid-task that the work
+actually needs to be split further (for example, it discovers the task is larger or more coupled
+than the contract assumed), it does not act on that judgment. It stops and reports the finding back
+to the director as a blocked/out-of-scope condition, the same as any other out-of-scope problem —
+the director decides whether and how to re-decompose, per [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md)'s minimality
+principle. This is a hard containment boundary, not a preference: without it, a batch that the
+director correctly sized and disclosed can silently multiply — each implementer spawning its own
+helpers — past what was ever disclosed to or approved by the user.
+
+An implementer that expands scope without authorization, invents test output, claims completion
+without running tests, or spawns its own subagents has violated this contract regardless of whether
+the resulting code happens to work.
 
 ## Reviewer
 

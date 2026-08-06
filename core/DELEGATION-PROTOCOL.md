@@ -12,11 +12,29 @@ The director MUST follow this sequence for any nontrivial change:
    statement of current behavior and target behavior.
 3. **Design.** Decide the overall shape of the solution: what changes, in what order, and why.
    Design happens before decomposition; tasks are not invented ad hoc as work proceeds.
-4. **Decompose into tasks.** Split the design into units of work, each of which is either a
-   verifiable user flow (something a user or caller can observe working end to end) or an
+4. **Decompose into tasks — fewest first.** Split the design into units of work, each of which is
+   either a verifiable user flow (something a user or caller can observe working end to end) or an
    independent technical outcome (something checkable in isolation, such as "this module compiles
    and its unit tests pass"). A task that cannot be phrased as one of these two things is not yet
    ready for delegation — return to design.
+
+   **Default to the fewest tasks that satisfy the rule above, not the most.** Splitting further than
+   that minimum requires a concrete reason, stated in the task's `objective` or the batch disclosure
+   (below) — one of:
+   - genuine parallelism benefit: the pieces have disjoint `conflict_domains` (see
+     [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md)) and finishing sooner materially matters;
+   - a distinct effort or model tier is actually warranted for one part (e.g. one piece is an
+     `investigation` task, the rest is `mechanical`);
+   - isolating blast radius: a risky change should be reviewable independently of a safe one;
+   - the pieces are genuinely independent verifiable outcomes that would otherwise force unrelated
+     work into a single contract, making it harder to review or revert in isolation.
+
+   "Smaller diffs" or "tidier task IDs" alone do not justify a split. When in doubt, prefer one
+   broader task contract over several narrow ones — a task contract can cover multiple files and
+   steps as long as it remains one verifiable outcome. This is not a suggestion about style; it is
+   the primary control on how many implementers a director ends up spawning for one request. See
+   also step 7's `subagents[].justification` requirement, which makes this principle checkable per
+   agent, not just aspirational.
 5. **Order by dependency.** Determine which tasks require another task's output first, and which are
    independent. Independent tasks are candidates for parallel dispatch; see [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md).
 6. **Write a task contract per task.** Every delegated unit of work gets its own task contract,
@@ -24,12 +42,28 @@ The director MUST follow this sequence for any nontrivial change:
 7. **Disclose the agent composition, then assign.** Before spawning any implementer, tell the user
    what is about to run, matching [`../schemas/agent-composition-disclosure.schema.json`](../schemas/agent-composition-disclosure.schema.json)
    field for field: `director_model`, `director_effort`, `subagent_count`, `subagents` (each one's
-   role, task, model, and effort), `parallel`, and `rescue_agent_available`. This happens once, for
-   the whole batch of tasks about to be dispatched, not per individual spawn. Only then does the
-   director hand each task contract to an implementer. Do not assign a task before its `depends_on`
-   tasks have been reviewed and approved. (Mid-task promotions — [Rescue Agent](RESCUE-PROTOCOL.md) promotion or
-   a granted [escalation](ESCALATION-PROTOCOL.md) — get their own notice when they happen; see RESCUE-PROTOCOL.md.
-   They are not folded into this upfront disclosure.)
+   role, task, model, effort, and — required per entry — `justification`: why this piece needs its
+   own subagent rather than folding into another task in this batch, per step 4's minimality
+   principle), `parallel`, and `rescue_agent_available`. This happens once, for the whole batch of
+   tasks about to be dispatched, not per individual spawn.
+
+   **If `subagent_count` exceeds the active profile's `director.max_batch_agents`, this disclosure
+   is also an approval request** — set `within_preapproved_range: false` and `approval_status:
+   pending`, the same pattern [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) uses for an out-of-range promotion. Do not spawn
+   anything until `approval_status` becomes `granted`. This is a volume control, separate from step
+   4's per-task justification: even a batch where every task is individually well-justified and
+   genuinely conflict-free can still be large enough that the user should see it and confirm before
+   it starts — see [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md) on why conflict-freedom alone does not imply an
+   unbounded batch size is fine.
+
+   Only then does the director hand each task contract to an implementer. Do not assign a task
+   before its `depends_on` tasks have been reviewed and approved. **An implementer must not itself
+   spawn further subagents** — see [ROLE-CONTRACT.md](ROLE-CONTRACT.md); if it judges a task needs splitting further, it
+   reports that back to the director as an out-of-scope issue instead of acting on it. (Mid-task
+   promotions — [Rescue Agent](RESCUE-PROTOCOL.md) promotion or a granted [escalation](ESCALATION-PROTOCOL.md) — get their own notice
+   when they happen; see RESCUE-PROTOCOL.md. They are not folded into this upfront disclosure, and
+   they do not count against `director.max_batch_agents` since they replace, not add to, an
+   already-disclosed subagent's slot.)
 8. **Review.** Every implementation report is reviewed against evidence before being accepted. See
    [REVIEW-GATES.md](REVIEW-GATES.md).
 
