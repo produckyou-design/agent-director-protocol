@@ -16,6 +16,28 @@ It is a protocol, not a framework — Markdown rules, JSON Schemas, and thin
 adapters for **Claude Code** and **OpenAI Codex**. No runtime, no dependency
 to install into your project.
 
+## Install
+
+**Claude Code** — two commands in any session, and it updates itself from then
+on:
+
+```
+/plugin marketplace add produckyou-design/agent-director-protocol
+/plugin install agent-director@agent-director-protocol
+```
+
+Then ask Claude to act as director on something small: *"delegate this instead
+of coding it yourself."* You should see a task contract before any file is
+touched.
+
+**OpenAI Codex** — copy `core/`, `schemas/`, and `codex/` into your repo and
+reference the skill from `AGENTS.md`; see [`codex/INSTALL.md`](codex/INSTALL.md).
+
+Full options — user-global vs. per-project, manual copy without the plugin,
+model profiles, updating, uninstall — are in
+[`claude/INSTALL.md`](claude/INSTALL.md) and the
+[quick install](#quick-install--claude-code) section below.
+
 ## What this gets you
 
 No percentages — here are the specific failure modes the protocol is built to

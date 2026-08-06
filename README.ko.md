@@ -16,6 +16,26 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 **Claude Code**와 **OpenAI Codex**용 얇은 어댑터. 런타임도, 프로젝트에 설치할
 의존성도 없습니다.
 
+## 설치
+
+**Claude Code** — 아무 세션에서나 두 줄이면 끝이고, 이후로는 알아서
+업데이트됩니다:
+
+```
+/plugin marketplace add produckyou-design/agent-director-protocol
+/plugin install agent-director@agent-director-protocol
+```
+
+그다음 작은 작업 하나를 시켜보세요: *"직접 코딩하지 말고 위임해서 처리해."*
+파일을 건드리기 전에 작업 계약(task contract)이 먼저 나와야 정상입니다.
+
+**OpenAI Codex** — `core/`, `schemas/`, `codex/`를 대상 저장소에 복사하고
+`AGENTS.md`에서 스킬을 참조하세요. [`codex/INSTALL.md`](codex/INSTALL.md) 참고.
+
+전체 옵션(사용자 전역 vs 프로젝트 단위, 플러그인 없이 수동 복사, 모델 프로필,
+업데이트, 제거)은 [`claude/INSTALL.md`](claude/INSTALL.md)와 아래
+[빠른 설치](#빠른-설치--claude-code) 절에 있습니다.
+
 ## 이걸 쓰면 뭐가 좋은가
 
 퍼센트 수치는 없습니다. 대신 이 프로토콜이 잡으려고 만들어진 구체적인 실패
