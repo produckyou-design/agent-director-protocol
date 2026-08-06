@@ -1,5 +1,76 @@
 # Installing the agent-director skill in Claude Code
 
+There are two ways to install. **Plugin install is recommended** — it is the
+only one that can update itself later.
+
+| | Plugin install | Manual copy |
+|---|---|---|
+| Setup | two commands | copy 3 directories per project |
+| Updates | background refresh + `/plugin update` | none — you re-copy by hand |
+| Scope | user-wide (or per project with `--scope project`) | wherever you copied it |
+| Requires | Claude Code with plugin support | any Claude Code |
+
+## Plugin install (recommended)
+
+From inside a Claude Code session:
+
+```
+/plugin marketplace add produckyou-design/agent-director-protocol
+```
+
+```
+/plugin install agent-director@agent-director-protocol
+```
+
+Or from a shell:
+
+```bash
+claude plugin marketplace add produckyou-design/agent-director-protocol
+claude plugin install agent-director@agent-director-protocol
+```
+
+The plugin ships the skill together with `core/` and `schemas/`, so its
+internal links resolve without any extra copying. Verify by asking Claude to
+act as director on a small feature — it should produce a task contract before
+touching code.
+
+### Updating
+
+Claude Code refreshes marketplaces in the background, so an installed plugin
+picks up new releases on its own. To update immediately:
+
+```
+/plugin update agent-director
+```
+
+```
+/plugin marketplace update agent-director-protocol
+```
+
+Updates are delivered when this repository's `version` field changes (see
+`.claude-plugin/plugin.json`), which happens on every tagged release. Note
+that background refresh can fail for private repositories, where Git
+credential helpers are disabled during pulls; this repository is public, so
+that limitation does not apply here.
+
+### Uninstalling a plugin install
+
+```
+/plugin uninstall agent-director
+```
+
+```
+/plugin marketplace remove agent-director-protocol
+```
+
+---
+
+## Manual copy install
+
+Use this if you want the files vendored into a specific project, or your
+Claude Code build has no plugin support. **There is no update mechanism for a
+manual copy — you re-copy when a new release lands.**
+
 This adapter is a normal Claude Code skill directory
 (`skills/agent-director/`, containing `SKILL.md` and `references/`). Claude
 Code discovers skills under `.claude/skills/` in a project, or under

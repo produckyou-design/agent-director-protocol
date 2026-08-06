@@ -103,6 +103,27 @@ updates will fail `scripts/check_repository.py` and should not be merged.
 Every example JSON document must validate against its schema at all times —
 there is no "the docs will catch up later" state.
 
+## Cutting a release
+
+The repository is distributed as a Claude Code plugin, and Claude Code only
+delivers an update to installed users when `version` in
+`.claude-plugin/plugin.json` changes. Pushing commits without bumping it ships
+nothing — installed users stay on their old copy and `/plugin update` reports
+they are already current.
+
+So a release is three steps, in order:
+
+1. Move the accumulated `[Unreleased]` entries in `CHANGELOG.md` under a new
+   `## [x.y.z] - YYYY-MM-DD` heading, and re-open an empty `[Unreleased]`.
+2. Set `version` in `.claude-plugin/plugin.json` to the same `x.y.z`.
+   `tests/test_skill_structure.py` enforces this match, so a mismatch fails
+   CI rather than silently shipping nothing.
+3. Tag the release commit (`git tag -a vx.y.z`) and push the tag, then publish
+   a GitHub Release with the changelog section as its notes.
+
+Update `SECURITY.md`'s supported-versions table in the same commit when the
+supported line moves.
+
 ## Adding a new platform adapter
 
 If you propose a third adapter (beyond Claude Code and Codex), follow the

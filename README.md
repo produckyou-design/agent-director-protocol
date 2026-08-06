@@ -2,36 +2,19 @@
 
 *[한국어](README.ko.md)*
 
-A platform-neutral operating protocol for AI coding agents: one high-capability
-**director** plans, decomposes, delegates, and reviews; **implementer**
-subagents write the actual code. When an implementer gets stuck, the protocol
-has a defined escalation path — a bounded **Rescue Agent** promotion, then
-takeover — instead of leaving "the model just tries harder" to chance. The
-core protocol is platform-agnostic; thin adapters bind it to Claude Code and
-OpenAI Codex.
+**Stop taking "Done!" at face value from an agent that graded its own homework.**
 
-## The problem
+ADP turns one coding agent into a **director** that plans, delegates, and then
+*verifies* — against the actual diff and the actual test output — before
+anything counts as finished. Implementation goes to **implementer** subagents
+working from written, checkable contracts. A stuck implementer escalates with
+evidence instead of guessing a third time; a promotion to a stronger model is
+bounded and disclosed, never silent; and nothing spawns a swarm of subagents
+behind your back.
 
-A single top-tier model working alone tends to do everything itself: read the
-code, design the change, write it, test it, and grade its own homework, all in
-one uninterrupted pass. That burns the most capable (and most expensive)
-model's attention on mechanical edits, and it removes the one thing that
-catches silent failures — an independent check between "I wrote the code" and
-"the task is done." A model that both implements and reviews its own work has
-no adversarial pressure forcing it to look for what it got wrong. And when it
-does get stuck, "try again" and "just use a bigger model for everything" are
-both bad defaults — one burns turns on a repeated mistake, the other burns
-budget on tasks that never needed it.
-
-This repository does not claim a magic percentage improvement in quality or
-cost. It describes a mechanism instead: split the work into a role that
-**plans, delegates, and reviews** and a role that **implements**, force every
-delegated unit of work through a written, checkable contract, require the
-reviewing role to verify evidence — actual diffs, actual test output — rather
-than trust a self-reported "done," and give a stuck implementer a structured,
-disclosed way to ask for more power instead of guessing a third time. The
-result is a workflow, not a benchmark claim: read the docs, decide whether the
-mechanism fits your project, and judge the outcome yourself.
+It is a protocol, not a framework — Markdown rules, JSON Schemas, and thin
+adapters for **Claude Code** and **OpenAI Codex**. No runtime, no dependency
+to install into your project.
 
 ## What this gets you
 
@@ -61,6 +44,29 @@ task where you'd rather read the diff yourself than read a review of it. The
 protocol adds real overhead — contracts, disclosures, evidence — and that
 overhead only pays for itself on work that is large enough, or risky enough,
 that a silent failure would cost more than the ceremony.
+
+## The problem
+
+A single top-tier model working alone tends to do everything itself: read the
+code, design the change, write it, test it, and grade its own homework, all in
+one uninterrupted pass. That burns the most capable (and most expensive)
+model's attention on mechanical edits, and it removes the one thing that
+catches silent failures — an independent check between "I wrote the code" and
+"the task is done." A model that both implements and reviews its own work has
+no adversarial pressure forcing it to look for what it got wrong. And when it
+does get stuck, "try again" and "just use a bigger model for everything" are
+both bad defaults — one burns turns on a repeated mistake, the other burns
+budget on tasks that never needed it.
+
+This repository does not claim a magic percentage improvement in quality or
+cost. It describes a mechanism instead: split the work into a role that
+**plans, delegates, and reviews** and a role that **implements**, force every
+delegated unit of work through a written, checkable contract, require the
+reviewing role to verify evidence — actual diffs, actual test output — rather
+than trust a self-reported "done," and give a stuck implementer a structured,
+disclosed way to ask for more power instead of guessing a third time. The
+result is a workflow, not a benchmark claim: read the docs, decide whether the
+mechanism fits your project, and judge the outcome yourself.
 
 ## Roles
 
@@ -216,9 +222,24 @@ agent-director-protocol/
 
 ## Quick install — Claude Code
 
-Copy the skill into a project (or your user-global skills directory), then
-merge the director-mode snippet from [`claude/CLAUDE.md.example`](claude/CLAUDE.md.example)
-into your `CLAUDE.md`. Commands below are copied from [`claude/INSTALL.md`](claude/INSTALL.md).
+**Recommended — install as a plugin.** This is the only install that updates
+itself: Claude Code refreshes marketplaces in the background, and
+`/plugin update agent-director` pulls a new release on demand.
+
+```
+/plugin marketplace add produckyou-design/agent-director-protocol
+/plugin install agent-director@agent-director-protocol
+```
+
+The plugin ships `core/` and `schemas/` alongside the skill, so nothing else
+needs copying. Full details, shell equivalents, and uninstall:
+[`claude/INSTALL.md`](claude/INSTALL.md).
+
+**Or copy the files manually** — vendored into one project, with no update
+path (you re-copy on each release). Copy the skill into a project (or your
+user-global skills directory), then merge the director-mode snippet from
+[`claude/CLAUDE.md.example`](claude/CLAUDE.md.example) into your `CLAUDE.md`.
+Commands below are copied from [`claude/INSTALL.md`](claude/INSTALL.md).
 
 ```bash
 # Project install (macOS/Linux)

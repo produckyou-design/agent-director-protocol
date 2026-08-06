@@ -7,8 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-06
+
 ### Added
 
+- **Installable as a Claude Code plugin, with updates.** New
+  `.claude-plugin/marketplace.json` at the repository root makes the repo a
+  plugin marketplace, so it can be installed with
+  `/plugin marketplace add produckyou-design/agent-director-protocol` followed
+  by `/plugin install agent-director@agent-director-protocol`. Installed users
+  get updates via Claude Code's background marketplace refresh, or on demand
+  with `/plugin update agent-director` — replacing the previous copy-the-files
+  install, which had no update path at all.
+- **Version guard test** (`tests/test_skill_structure.py`): `plugin.json`'s
+  `version` must equal the newest released version in `CHANGELOG.md`. Claude
+  Code only ships an update to installed users when that field changes, so a
+  stale value silently delivers nothing; CI now fails instead.
 - **"What this gets you"** section in `README.md` / `README.ko.md`: a table
   mapping concrete failure modes (a "done!" report for code never wired into
   the call path, invented test output, retry loops, unapproved subagent
@@ -18,6 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against unverifiable metrics is unchanged; this states which failures the
   mechanism addresses, and adds an explicit "when it isn't worth it" note
   (one-file scripts, throwaway prototypes) so the overhead is stated honestly.
+
+### Changed
+
+- `README.md` / `README.ko.md` open with the value proposition and the
+  failure-mode table rather than a structural description — the previous lede
+  explained what the protocol *is* before saying why anyone would want it.
+- `.claude-plugin/plugin.json` moved from `claude/skills/agent-director/` to
+  the repository root and gained a `skills: "./claude/skills"` field. The
+  plugin root is now the repo root, so the skill's relative links into `core/`
+  and `schemas/` resolve inside an installed plugin; scoped to the old
+  subdirectory they pointed outside it. Version bumped 0.1.0 → 0.4.0 (it had
+  been left at 0.1.0 through two releases).
 
 ## [0.3.0] - 2026-08-06
 

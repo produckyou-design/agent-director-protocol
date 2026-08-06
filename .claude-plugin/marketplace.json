@@ -1,0 +1,14 @@
+{
+  "name": "agent-director-protocol",
+  "owner": {
+    "name": "produckyou-design",
+    "url": "https://github.com/produckyou-design"
+  },
+  "plugins": [
+    {
+      "name": "agent-director",
+      "source": "./",
+      "description": "Director/implementer operating protocol for AI coding agents: contracts before delegation, ten evidence-based review gates before anything counts as done, bounded escalation instead of retry loops, and disclosed limits on subagent spawning."
+    }
+  ]
+}

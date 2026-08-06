@@ -7,6 +7,8 @@ the caller's current working directory.
 
 from __future__ import annotations
 
+import json
+import re
 import sys
 import unittest
 from pathlib import Path
@@ -118,6 +120,50 @@ class TestSkillFrontmatter(unittest.TestCase):
                     list(profiles_dir.glob("*.yaml")),
                     f"{profiles_dir} must contain at least one *.yaml profile",
                 )
+
+
+class TestPluginManifests(unittest.TestCase):
+    """Guards for the Claude Code plugin/marketplace manifests.
+
+    The version guard matters operationally: Claude Code only delivers a plugin
+    update to installed users when `version` in plugin.json changes. Pushing
+    commits without bumping it is silently a no-op for everyone who installed
+    the plugin, so a stale version here means shipping nothing.
+    """
+
+    def _load(self, name: str) -> dict:
+        path = REPO_ROOT / ".claude-plugin" / name
+        self.assertTrue(path.is_file(), f"missing {path}")
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_plugin_manifest_shape(self):
+        plugin = self._load("plugin.json")
+        self.assertEqual(plugin["name"], "agent-director")
+        # `skills` must point at a real directory containing the skill.
+        skills_rel = plugin["skills"].lstrip("./")
+        skill_md = REPO_ROOT / skills_rel / "agent-director" / "SKILL.md"
+        self.assertTrue(skill_md.is_file(), f"plugin `skills` path does not reach {skill_md}")
+
+    def test_marketplace_manifest_shape(self):
+        market = self._load("marketplace.json")
+        self.assertIn("name", market)
+        self.assertIn("name", market["owner"])
+        entries = market["plugins"]
+        self.assertTrue(entries, "marketplace.json lists no plugins")
+        names = {e["name"] for e in entries}
+        self.assertIn(self._load("plugin.json")["name"], names)
+
+    def test_plugin_version_matches_latest_changelog_release(self):
+        plugin_version = self._load("plugin.json")["version"]
+        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        released = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.M)
+        self.assertTrue(released, "no released versions found in CHANGELOG.md")
+        self.assertEqual(
+            plugin_version,
+            released[0],
+            "plugin.json version must match the newest released CHANGELOG version — "
+            "otherwise installed users receive no update for this release",
+        )
 
 
 if __name__ == "__main__":
