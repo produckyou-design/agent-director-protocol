@@ -33,12 +33,16 @@ implementer:
   # on every spawn; omitting it silently inherits the session default, which
   # under-powers investigation work and over-powers mechanical work.
   #
-  # These sit one notch lower than you might expect because a capable model at
-  # a modest effort tier is often the efficient point: it spends a fraction of
-  # the tokens and latency while holding quality, and effort defaults carried
-  # over from an older model rarely transfer. Sweep your own tasks before
-  # changing them — and note that raising effort *up front* on agentic work
-  # sometimes lowers total cost by cutting the number of turns.
+  # These sit one notch lower than you might expect for two reasons. First, a
+  # capable model at a modest effort tier is often the efficient point: it
+  # spends a fraction of the tokens and latency while holding quality, and
+  # effort defaults carried over from an older model rarely transfer. Second,
+  # effort is the *only* lever a Rescue Agent pulls when a task gets stuck —
+  # it climbs this ladder on the same model and never swaps the model itself
+  # (see core/RESCUE-PROTOCOL.md). Starting at the top tier leaves no ladder
+  # to climb. Sweep your own tasks before changing them — and note that
+  # raising effort *up front* on agentic work sometimes lowers total cost by
+  # cutting the number of turns.
   effort_by_task_kind:
     investigation: high   # root-cause hunts, competing hypotheses, design judgement
     audit: high           # pre-release compliance / security review

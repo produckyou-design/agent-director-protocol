@@ -49,7 +49,7 @@ probably do not need this repository.
 | "Done!" — but the code was never wired into the real call path, or the test never ran | Ten mandatory [review gates](core/REVIEW-GATES.md) scored against the actual diff and actual test output; an implementer's `status` field starts a review, it never ends one |
 | A stub, hardcoded return, or invented test output presented as a working feature | `placeholder_implementation` / `fake_success` are named, objective [failure reasons](core/FAILURE-LOOP.md) — not judgment calls |
 | The agent burns turns retrying the same broken fix on a loop | A third guess-based fix at the same root cause is forbidden; it must [escalate with evidence](core/ESCALATION-PROTOCOL.md) instead |
-| Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) is one task, ≤2 attempts, one axis raised at a time — **reasoning effort first, a stronger model only if that fails** — and only for a genuine reasoning/capability gap; a contradictory spec routes to re-planning instead |
+| Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) raises **reasoning effort only, never the model** — one task, ≤2 attempts, and only for a genuine reasoning/capability gap. A model change needs the user's say-so; when effort runs out the protocol escalates the *director* (the plan is the likely suspect), not the implementer |
 | A model quietly upgrades itself, or spawns a swarm of subagents you never approved | Every promotion and every batch is disclosed *before* it runs, with a per-subagent `justification`; above `max_batch_agents` it becomes an approval request, and implementers cannot spawn subagents at all |
 | Two parallel agents clobber the same file | An eight-domain [conflict check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
 | A failed attempt gets `git checkout .`-ed away, taking the evidence with it | [State safety](core/STATE-SAFETY.md): failed work is preserved until reviewed, and the checkpoint is a real commit SHA |
@@ -184,11 +184,10 @@ forbidden.**
    stronger model doesn't fix a contradictory task contract or broken CI.
 3. **A genuine reasoning/capability gap → Rescue Agent**: a one-shot promotion,
    scoped to this one task, capped at two attempts (tracked separately from
-   the implementer's own loop count), that raises **one axis at a time, effort
-   first** — attempt 1 keeps the model and raises reasoning effort (cheaper,
-   and often enough on its own); attempt 2 adds a stronger model. Leading with
-   the model is reserved for the case where the implementer was already at its
-   highest available effort. It works from an isolated last-passing checkpoint with an
+   the implementer's own loop count), that raises **reasoning effort only —
+   never the model** (e.g. `medium` → `high` → `xhigh`). A model change is a
+   cost decision reserved for the user, reached through step 4; auto-promoting
+   to a pricier tier is the reflex this protocol exists to prevent. It works from an isolated last-passing checkpoint with an
    explicit `forbidden_scope` and does not redesign the project. A
    `requirement_conflict`, by contrast, never gets a Rescue Agent — the
    director revises the task contract and re-delegates instead, as ordinary
@@ -199,12 +198,22 @@ forbidden.**
    every outcome, success or failure, gets a matching notice when it ends.
    Nothing here is silent. See
    [`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md).
-4. **Only if the Rescue Agent also fails** (or the cause was never a
-   reasoning/capability gap) does the director choose: direct intervention
-   (takeover — still gated by a written record, still the last resort, never
-   the automatic next step), roll back, escalate to the user, reduce scope, or
+4. **Only once the effort ladder is exhausted** (or the cause was never a
+   reasoning/capability gap) does the director choose: escalate to the user,
+   direct intervention (takeover — still gated by a written record, still the
+   last resort, never the automatic next step), roll back, reduce scope, or
    convert the task into a read-only investigation. See
    [`core/TAKEOVER-PROTOCOL.md`](core/TAKEOVER-PROTOCOL.md).
+
+   **Escalating after an exhausted effort ladder means raising the *director*,
+   not the implementer.** An implementer failing at high effort is evidence
+   about the plan rather than the coder — the design, the decomposition, or
+   the task contract is the leading suspect. So the request asks the user to
+   raise the director's own model and effort; if granted, the upgraded
+   director **re-judges the task on its own standard and issues a revised task
+   contract** rather than re-delegating the one that kept failing. The revised
+   contract is a fresh task with its own loop count. A stronger implementer
+   model is something the user may grant here — never an automatic promotion.
 
 Three schemas make the disclosure requirement checkable rather than aspirational:
 [`agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)

@@ -25,8 +25,11 @@ implementer:
   # invocation; omitting it silently inherits the session default, which
   # under-powers investigation work and over-powers mechanical work.
   #
-  # Raising effort is the first escalation lever, ahead of a stronger model —
-  # see core/RESCUE-PROTOCOL.md "Escalate one axis at a time". Sweep these on
+  # Effort is the *only* lever a Rescue Agent pulls — it climbs this ladder on
+  # the worker's existing model and never swaps the model itself (see
+  # core/RESCUE-PROTOCOL.md "The Rescue Agent raises reasoning effort, not the
+  # model"). So leave headroom above the default: starting at the top tier
+  # means there is no ladder to climb when a task gets stuck. Sweep these on
   # your own tasks; effort defaults carried over from an older model rarely
   # transfer unchanged.
   effort_by_task_kind:

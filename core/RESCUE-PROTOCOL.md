@@ -90,38 +90,48 @@ contract, once tried, also fails; `environment_issue` routes straight to Step 3.
 
 ## Step 2 — Rescue Agent (reasoning_gap / model_capability_gap only)
 
-A Rescue Agent is a **single task's** one-shot promotion, not a standing tier. It uses a higher
-reasoning effort or a stronger model than the implementer that failed — the director assigns this
-explicitly (from the active profile's model/effort options); it is never automatic.
+A Rescue Agent is a **single task's** one-shot promotion, not a standing tier. It keeps the failed
+implementer's model and raises its **reasoning effort** — the director assigns the tier explicitly
+(from the active profile's effort options); it is never automatic.
 
-### Escalate one axis at a time — reasoning effort first
+### The Rescue Agent raises reasoning effort, not the model
 
-The Rescue Agent's first attempt raises only one axis, holding the other fixed. A combined jump on
-attempt 1 tells the director nothing about which axis actually mattered, and **raising reasoning
-effort is the cheaper and more often sufficient move** — a capable model given more room to reason
-usually closes the gap without a model change at all:
+**A Rescue Agent never swaps the implementer's model on its own.** Both of its attempts climb the
+effort ladder on the model the implementer was already running:
 
-- **`reasoning_gap`** → attempt 1 keeps the failed implementer's model and raises only the effort
-  tier. Only if attempt 1 also fails does attempt 2 add a stronger model on top of that higher
-  effort tier.
-- **`model_capability_gap`** → the same order applies unless the effort tier is already at the
-  model's ceiling. Attempt 1 raises effort on the current model; attempt 2 moves to a stronger
-  model. Skip straight to the stronger model on attempt 1 only when the implementer was **already
-  running at its highest available effort** — in that case there is no effort headroom left to
-  test, and `promotion_reason` should say so.
+```
+implementer default (e.g. medium)
+  → Rescue attempt 1: one step up (e.g. high)
+  → Rescue attempt 2: one step up again (e.g. xhigh)
+  → still failing: Step 3 — the director escalates to the user
+```
 
-**Prefer an effort escalation request over a model escalation request.** When an implementer or the
-director asks for more power ([ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md)), the default ask is
-`EFFORT_ESCALATION_REQUEST`. `MODEL_ESCALATION_REQUEST` is for the case where effort is already
-maxed out, or where the evidence points at a capability the current model tier does not have at any
-effort setting.
+Two reasons the model axis is excluded:
+
+- **Reasoning effort is the cheaper and more often sufficient lever.** A capable model given more
+  room to reason usually closes the gap without any model change, and effort is a per-call
+  parameter that reliably applies where a model swap may not be available at all.
+- **A model change is a cost and policy decision that belongs to the user.** Auto-promoting to a
+  higher-priced tier is exactly the "throw the biggest model at everything" reflex this protocol
+  exists to prevent. The user can still grant one — through Step 3, below.
+
+The Step 1 classification decides **how far to climb before handing off**, not which axis to use:
+
+- **`reasoning_gap`** → use both attempts (two effort steps). The evidence says more reasoning
+  should close the gap, so give it the room.
+- **`model_capability_gap`** → use one attempt to confirm, then go to Step 3. The evidence already
+  says effort is not the missing ingredient; a second effort step mostly burns tokens to re-learn
+  that. State this reasoning in `promotion_reason`.
+
+If the implementer was **already at its model's highest effort**, there is no ladder to climb —
+skip Step 2 entirely and go to Step 3, noting that effort headroom was exhausted before the Rescue
+Agent could run.
 
 Each attempt is its own [`rescue-agent-task.schema.json`](../schemas/rescue-agent-task.schema.json) document
-(`attempt_number: 1` or `2`) with its own `assigned_model` / `assigned_effort`, and its own
+(`attempt_number: 1` or `2`) with its own `assigned_effort` (and `assigned_model`, unchanged from
+the implementer's unless the user granted a change), plus its own
 [promotion notice](../schemas/promotion-notice.schema.json) — attempt 2's notice states plainly what
-changed from attempt 1's. A director MAY assign both axes on attempt 1 instead, when the evidence
-already makes a single-axis attempt clearly futile — but then `promotion_reason` must say why
-staging was skipped, not leave it unstated.
+changed from attempt 1's.
 
 **Every promotion is announced to the user at the time it happens — never a silent internal
 decision.** The director sends a promotion notice matching
@@ -195,6 +205,12 @@ director-reviewed, evidence-checked result is integrated (same rule as takeover'
 
 ## Step 3 — if the Rescue Agent also fails (or was never applicable)
 
+**Read the exhausted effort ladder as a signal about where the problem is.** When an implementer
+has climbed to its model's high effort tiers and still cannot complete the task, the defect is
+usually not in the implementation — it is upstream, in the design, the decomposition, or the task
+contract the director wrote. Option **C** is therefore the default choice at this point, not a
+last resort; the other four are for cases where the evidence points somewhere specific.
+
 The director chooses exactly one:
 
 - **A. Director direct intervention.** Allowed ONLY when all four hold: the root cause is
@@ -203,8 +219,17 @@ The director chooses exactly one:
   takeover record is still required before any code is touched. The director does not write
   speculative code when the root cause is still unclear.
 - **B. Roll back to the last known-passing checkpoint.**
-- **C. Escalate to the user for judgment** — per [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md)'s director self-escalation path when
-  the block is a design/architecture/security/data-loss judgment call.
+- **C. Escalate to the user for judgment** — a `DIRECTOR_ESCALATION_REQUEST` per
+  [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md)'s director self-escalation path. Use this when the block is a
+  design/architecture/security/data-loss judgment call, **and as the default once the implementer's
+  effort ladder is exhausted.** In that case the request is specifically to raise *the director's*
+  model and reasoning effort — repeated implementation failure at high effort points at the plan,
+  and a better-resourced director re-examining the design is the move that addresses it. **If the
+  user grants it, the upgraded director re-judges the task on its own standard and issues a revised
+  task contract** — it does not re-delegate the contract the implementer kept failing against; see
+  [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) → "An upgraded director re-judges, then re-contracts." The user may
+  also grant a stronger implementer model in response; that is a user decision, never an automatic
+  Rescue Agent promotion.
 - **D. Reduce task scope** — split off the part that is achievable and re-delegate it normally;
   park the rest.
 - **E. Convert to an investigation task** — when the real problem is that too little is known to
@@ -241,14 +266,16 @@ The director chooses exactly one:
    `reverted_to_baseline`, so the return to the normal tier is stated, not left for the user to infer
    from a later report. Neither direction is a silent internal decision. This applies to a granted
    mid-task escalation request the same as to a Rescue Agent promotion.
-9. A Rescue Agent's first attempt raises exactly one axis, and **reasoning effort is the axis that
-   goes first** — a stronger model is attempt 2, or attempt 1 only when the implementer was already
-   at its highest available effort. Any deviation (a combined jump, or leading with the model while
-   effort headroom remains) must be justified in `promotion_reason`. See Step 2, "Escalate one axis
-   at a time — reasoning effort first."
-10. The failure count that triggers this document is the active profile's
+9. **A Rescue Agent raises reasoning effort only — it never swaps the implementer's model.** A model
+    change is a user decision, reached through Step 3's escalation, not an automatic promotion. See
+    Step 2, "The Rescue Agent raises reasoning effort, not the model."
+10. **When the implementer's effort ladder is exhausted, escalate the director — not the
+    implementer.** Repeated failure at high effort points upstream, at the design or the task
+    contract, so the default Step 3 choice is a `DIRECTOR_ESCALATION_REQUEST` asking the user to
+    raise the director's own model and effort.
+11. The failure count that triggers this document is the active profile's
     `implementer.failure_threshold`, not a hardcoded constant — a profile may set it above or below
     two, but never below one, and the count still requires objective `counted_as_failure: true`
     loops per [FAILURE-LOOP.md](FAILURE-LOOP.md), not a raw retry tally.
-9. A promotion notice outside the user's pre-approved model/effort range, or requiring extra cost, is
-   also an approval request — the Rescue Agent does not start until approval is granted.
+12. A promotion notice outside the user's pre-approved model/effort range, or requiring extra cost, is
+    also an approval request — the Rescue Agent does not start until approval is granted.

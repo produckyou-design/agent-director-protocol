@@ -79,21 +79,21 @@ step. The director reads the real diff, failing tests, and logs for both attempt
 cause into exactly one of `diagnosis_gap`, `reasoning_gap`, `model_capability_gap`,
 `requirement_conflict`, `environment_issue`, `rollback_needed` — see [RESCUE-PROTOCOL.md](../../../core/RESCUE-PROTOCOL.md) Step 1.
 
-- **`reasoning_gap` / `model_capability_gap`** → promote to a **Rescue Agent**, raising *one axis at a
-  time* across its (at most two) `codex exec` attempts — **reasoning effort first**, since more
-  reasoning room on the same model is the cheaper move and is often enough on its own:
+- **`reasoning_gap` / `model_capability_gap`** → promote to a **Rescue Agent**, which raises
+  `model_reasoning_effort` only. **It never passes `-c model=...`** — both attempts climb the effort
+  ladder on the worker's existing model:
   ```bash
-  # attempt 1 — keep the failed worker's model, raise effort only
+  # attempt 1 — same model, one step up the effort ladder
   codex exec --profile sol-director -c model_reasoning_effort=high "<rescue task>"
 
-  # attempt 2 (only if attempt 1 also fails) — keep the raised effort, now
-  # also move to a stronger model
-  codex exec --profile sol-director -c model=<stronger-model> -c model_reasoning_effort=high "<rescue task>"
+  # attempt 2 (only if attempt 1 also fails) — one more step, still same model
+  codex exec --profile sol-director -c model_reasoning_effort=xhigh "<rescue task>"
   ```
-  Lead with `-c model=...` on attempt 1 only when the failed worker was **already at its highest
-  available `model_reasoning_effort`** — no effort headroom is left to test, and `promotion_reason`
-  must say so. Assigning both axes on attempt 1 is likewise allowed when the evidence already makes
-  a single-axis attempt clearly futile — state why in `promotion_reason` when you do.
+  A model change is a cost decision that belongs to the user, reached through the escalation below —
+  never an automatic promotion. The classification decides **how far to climb before handing off**:
+  `reasoning_gap` uses both attempts; `model_capability_gap` uses one to confirm, then escalates
+  (say so in `promotion_reason`). If the worker was already at its model's top
+  `model_reasoning_effort`, skip the Rescue Agent entirely and escalate.
   Before attempt 1 launches, send the [promotion notice](references/agent-briefing-template.md)
   (mirrors [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)) — if the rescue model/effort falls
   outside the user's pre-approved range or needs a config change, this notice is also an approval
@@ -115,8 +115,18 @@ cause into exactly one of `diagnosis_gap`, `reasoning_gap`, `model_capability_ga
   revision attempt — a stronger model does not fix broken tooling or a task contract that was never
   the problem. Go straight to the choice below.
 - **On a verified Rescue Agent success**, review the real diff and re-run the real tests exactly as for any ordinary implementation report — the director still does not write code.
-- **If the Rescue Agent also fails, the revised contract also fails, or a cause never routed to
-  either**, the director chooses exactly one: director direct intervention (takeover, below — the only door into it), roll back to the last-passing checkpoint, escalate to the user, reduce task scope, or convert the task into a read-only investigation worker.
+- **If the Rescue Agent's effort ladder is exhausted, the revised contract also fails, or a cause
+  never routed to either**, the director chooses exactly one: **escalate to the user** (the default
+  when the effort ladder ran out), director direct intervention (takeover, below — the only door into it), roll back to the last-passing checkpoint, reduce task scope, or convert the task into a read-only investigation worker.
+- **Escalating because effort ran out means asking to raise *the director's* model and effort, not
+  the worker's.** A worker failing at high `model_reasoning_effort` is evidence about the plan, not
+  the coder — the design, the decomposition, or the contract the director wrote is the leading
+  suspect. If the user grants it, the upgraded director **re-judges the task on its own standard and
+  issues a revised task contract**, delegated as a fresh `codex exec` run with its own failure-loop
+  count — it does not re-run the contract the worker kept failing against. The old contract is
+  evidence about what was tried; `current_state`, `target_behavior`, `completion_criteria`, and the
+  file scope are all open to change. A stronger worker model is something the user may grant in
+  response, never an automatic promotion.
 
 **Takeover** requires, before any code is touched: a written takeover record ([TAKEOVER-PROTOCOL.md](../../../core/TAKEOVER-PROTOCOL.md), schema at [`../../../schemas/takeover-record.schema.json`](../../../schemas/takeover-record.schema.json), template at [`references/takeover-template.md`](references/takeover-template.md)) — its `second_failure_evidence` is whichever step actually ran its course: the Rescue Agent's second attempt (`reasoning_gap`/`model_capability_gap`), or the revised task contract's failed re-delegation (`requirement_conflict`) — never the original worker's second loop. "The task is small" is never sufficient justification, and neither is "hit the failure threshold" standing alone — it must have gone through classification and, where applicable, a Rescue Agent or a revised contract first. Takeover means the director edits files directly in its own session — there is no special Codex mechanism for this; it is simply the director not delegating.
 

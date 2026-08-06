@@ -7,23 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-07
+
+Supersedes the escalation design shipped hours earlier in 0.5.0. That release made
+reasoning effort the *first* axis but still let a Rescue Agent reach for a stronger
+model on its second attempt; in review that left the model axis as an automatic
+promotion path, which is the behavior this protocol is supposed to prevent. The model
+axis is now removed from the Rescue Agent entirely.
+
+### Changed
+
+- **The Rescue Agent now raises reasoning effort only — it never swaps the
+  implementer's model.** In 0.5.0 attempt 1 raised effort and attempt 2 added a
+  stronger model. Both attempts now climb the effort ladder on the model already in use
+  (e.g. `medium` → `high` → `xhigh`). Effort is a per-call parameter that reliably
+  applies, it is the cheaper lever, and — decisively — auto-promoting to a
+  higher-priced tier is the "throw the biggest model at everything" reflex this
+  protocol exists to prevent. A model change is now always a user decision.
+  The Step 1 classification survives, but it decides **how far to climb before
+  handing off** rather than which axis to use: `reasoning_gap` uses both attempts,
+  `model_capability_gap` uses one to confirm and then escalates.
+- **When the effort ladder is exhausted, the protocol escalates the *director*, not
+  the implementer.** Repeated implementation failure at high effort is evidence about
+  the plan rather than the coder, so `RESCUE-PROTOCOL.md` Step 3's "escalate to the
+  user" is now the *default* choice at that point, and the request asks to raise the
+  director's own model and reasoning effort. New director self-escalation trigger in
+  `ESCALATION-PROTOCOL.md` covers it.
+- **A granted director escalation re-judges and re-contracts.** New
+  `ESCALATION-PROTOCOL.md` section "An upgraded director re-judges, then
+  re-contracts": the upgraded director does not hand the same task contract back to a
+  new implementer — re-running an unchanged specification at a higher director tier
+  changes nothing about the specification the implementer kept failing against, and
+  that specification is the leading suspect. It re-examines the blocked task on its
+  own judgment (not as an edit to its predecessor's), then issues a **revised task
+  contract** delegated as a fresh task with its own failure-loop count.
+  `current_state`, `target_behavior`, `completion_criteria`, and the file scope are
+  all open to change; the rest of the task tree and `forbidden_scope` stay untouched.
+- Correspondingly `EFFORT_ESCALATION_REQUEST` is the default request type and the
+  only one a director can grant alone; `MODEL_ESCALATION_REQUEST` is forwarded to the
+  user as a `DIRECTOR_ESCALATION_REQUEST`. Updated `core/RESCUE-PROTOCOL.md`,
+  `core/ESCALATION-PROTOCOL.md`, both platform `SKILL.md` files (including the Codex
+  `codex exec -c` command examples, which no longer pass `-c model=...`), both
+  `escalation-template.md` references, and both READMEs.
+- Profile effort tables gained a note that the default tier must leave **headroom**:
+  effort is now the only ladder a stuck task can climb, so starting an implementer at
+  its model's top tier means there is nothing left to escalate to.
+
 ## [0.5.0] - 2026-08-07
 
 ### Changed
 
-- **Escalation now raises reasoning effort before reaching for a stronger model.**
+- **Escalation raises reasoning effort before reaching for a stronger model.**
   Previously the first Rescue Agent attempt raised whichever axis matched the Step 1
   classification, so a `model_capability_gap` jumped straight to a bigger model.
-  Effort is now the first lever in both cases: attempt 1 keeps the failed
-  implementer's model and raises effort, attempt 2 adds the stronger model. Leading
-  with the model is reserved for the case where the implementer was already at its
-  highest available effort — no headroom left to test — and must be stated in
-  `promotion_reason`. Correspondingly, `EFFORT_ESCALATION_REQUEST` is now the default
-  request type; `MODEL_ESCALATION_REQUEST` requires effort to be maxed out or a
-  capability the tier lacks at any setting. Updated `core/RESCUE-PROTOCOL.md`,
-  `core/ESCALATION-PROTOCOL.md`, both platform `SKILL.md` files (including the Codex
-  `codex exec -c` command examples), both `escalation-template.md` references, and
-  both READMEs.
+  Effort became the first lever in both cases: attempt 1 keeps the failed
+  implementer's model and raises effort, attempt 2 adds the stronger model.
+  (Superseded by 0.6.0, which removes the model axis from the Rescue Agent
+  altogether.) `EFFORT_ESCALATION_REQUEST` became the default request type.
 - **Implementer profiles list a higher-capability tier first, with the reason stated
   as a principle rather than a benchmark.** `claude/profiles/default.yaml` now has
   `implementer.preferred_models: [opus-5, sonnet-5]`. The accompanying guidance —

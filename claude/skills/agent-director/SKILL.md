@@ -205,15 +205,18 @@ re-review) as failures — merely re-asking or regenerating an answer does not c
 ```
 implementer fails the configured number of times (failure_threshold, default 2 counted loops)
   → director reads the real diff/tests/logs and classifies the cause
-      reasoning_gap / model_capability_gap → promote a Rescue Agent (one-shot, ≤2 attempts,
-                                              ONE axis raised per attempt — see step 2)
+      reasoning_gap / model_capability_gap → Rescue Agent: raise EFFORT only, same model
+                                              (e.g. medium → high → xhigh; never a model swap)
                                                   succeeds → review + integrate, done, no director coding
-                                                  fails again → director picks ONE:
-      requirement_conflict → director revises the task                direct intervention (takeover, last resort)
-      contract & re-delegates (ordinary planning,                     roll back
-      not a Step 4 choice — self-escalate first if                    escalate to the user
+                                                  effort ladder exhausted → default: escalate to the
+                                                    user to raise THE DIRECTOR's model/effort.
+                                                    Granted → upgraded director re-judges and issues
+                                                    a REVISED task contract (fresh loop count).
+      requirement_conflict → director revises the task              other step-4 choices:
+      contract & re-delegates (ordinary planning,                     direct intervention (takeover, last resort)
+      not a step-4 choice — self-escalate first if                    roll back
       confidence is low). Fails too → picks ONE ↴                     reduce scope
-                                                                        convert to an investigation task
+                                                                      convert to an investigation task
       diagnosis_gap / environment_issue / rollback_needed
       → skip the Rescue Agent, go straight to the
         same director-picks-ONE choice
@@ -222,12 +225,14 @@ implementer fails the configured number of times (failure_threshold, default 2 c
 1. **Classify** the failure into exactly one cause (`diagnosis_gap`, `reasoning_gap`,
    `model_capability_gap`, `requirement_conflict`, `environment_issue`, `rollback_needed`) using the
    actual diffs, failing tests, and logs from both attempts — not the implementer's summary.
-2. **`reasoning_gap` / `model_capability_gap` → Rescue Agent, one axis at a time, effort first.**
-   Attempt 1 keeps the failed implementer's model and raises only the reasoning effort — the cheaper
-   move, and often sufficient on its own. Attempt 2 adds a stronger model on top. Lead with the
-   model on attempt 1 only when the implementer was **already at its highest available effort**
-   (no headroom left to test) — and say so in `promotion_reason`. Never both axes on attempt 1
-   unless the evidence makes a combined jump clearly necessary, again stated in `promotion_reason`. Before attempt 1 runs, send the
+2. **`reasoning_gap` / `model_capability_gap` → Rescue Agent, which raises reasoning effort only.**
+   It **never swaps the implementer's model** — both attempts climb the effort ladder on the model
+   already in use (e.g. `medium` → `high` → `xhigh`). A model change is a cost decision that
+   belongs to the user, reached through step 4, not an automatic promotion. The classification
+   decides how far to climb before handing off: `reasoning_gap` uses both attempts;
+   `model_capability_gap` uses one to confirm, then goes to step 4 (say so in `promotion_reason`).
+   If the implementer was already at its model's top effort, skip the Rescue Agent entirely and go
+   to step 4. Before attempt 1 runs, send the
    [promotion notice](references/agent-briefing-template.md) (mirrors
    [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)):
    task, prior model/effort, failure count, what each failed attempt tried, the promotion reason, the
@@ -253,11 +258,21 @@ implementer fails the configured number of times (failure_threshold, default 2 c
    before finalizing it. Only if the *revised* contract also fails does this go to step 4.
    `environment_issue` and `diagnosis_gap`/`rollback_needed` never get a Rescue Agent or a revision
    attempt — go straight to step 4 (rollback_needed defaults to "roll back").
-4. **If the Rescue Agent also fails, or the revised contract also fails, or a cause never routed to
-   either,** choose exactly one: director direct intervention (still requires the takeover record
-   below — this is the ONLY door into takeover, not a parallel option), roll back to the last-passing
-   checkpoint, escalate to the user, reduce task scope, or convert the task into a read-only
-   investigation.
+4. **If the Rescue Agent's effort ladder is exhausted, the revised contract also fails, or a cause
+   never routed to either,** choose exactly one: **escalate to the user** (the default when the
+   effort ladder ran out), director direct intervention (still requires the takeover record below —
+   the ONLY door into takeover), roll back to the last-passing checkpoint, reduce task scope, or
+   convert the task into a read-only investigation.
+
+   **When you escalate because effort ran out, ask to raise *your own* model and effort — not the
+   implementer's.** An implementer failing at high effort is evidence about the plan, not the coder:
+   the design, the decomposition, or the contract you wrote is the leading suspect. If the user
+   grants it, the upgraded director **re-judges the task on its own standard and issues a revised
+   task contract** — do not re-delegate the contract that kept failing. Treat the old contract as
+   evidence about what was tried; `current_state`, `target_behavior`, `completion_criteria`, and the
+   file scope are all open to change, and the task may be split or narrowed. The revised contract is
+   a fresh task with its own failure-loop count. A stronger *implementer* model is something the
+   user may grant in response — never something you promote to on your own.
 5. **On a verified Rescue Agent success, the director does not write code anyway.** Review the real
    diff and re-run the real tests exactly as for any other implementation, then integrate.
 
