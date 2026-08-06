@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **"What this gets you"** section in `README.md` / `README.ko.md`: a table
+  mapping concrete failure modes (a "done!" report for code never wired into
+  the call path, invented test output, retry loops, unapproved subagent
+  fan-out, parallel agents clobbering a file, a failed attempt discarded along
+  with its evidence, vague delegation) to the specific rule that catches each
+  one. Deliberately no percentage claims — the repository's existing stance
+  against unverifiable metrics is unchanged; this states which failures the
+  mechanism addresses, and adds an explicit "when it isn't worth it" note
+  (one-file scripts, throwaway prototypes) so the overhead is stated honestly.
+
 ## [0.3.0] - 2026-08-06
 
 ### Added

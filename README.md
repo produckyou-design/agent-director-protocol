@@ -33,6 +33,35 @@ disclosed way to ask for more power instead of guessing a third time. The
 result is a workflow, not a benchmark claim: read the docs, decide whether the
 mechanism fits your project, and judge the outcome yourself.
 
+## What this gets you
+
+No percentages — here are the specific failure modes the protocol is built to
+catch, and the rule that catches each one. If you have not hit these, you
+probably do not need this repository.
+
+| Failure mode you've probably seen | What stops it |
+|---|---|
+| "Done!" — but the code was never wired into the real call path, or the test never ran | Ten mandatory [review gates](core/REVIEW-GATES.md) scored against the actual diff and actual test output; an implementer's `status` field starts a review, it never ends one |
+| A stub, hardcoded return, or invented test output presented as a working feature | `placeholder_implementation` / `fake_success` are named, objective [failure reasons](core/FAILURE-LOOP.md) — not judgment calls |
+| The agent burns turns retrying the same broken fix on a loop | A third guess-based fix at the same root cause is forbidden; it must [escalate with evidence](core/ESCALATION-PROTOCOL.md) instead |
+| Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) is one task, ≤2 attempts, one axis raised at a time (model *or* effort), and only for a genuine reasoning/capability gap — a contradictory spec routes to re-planning instead |
+| A model quietly upgrades itself, or spawns a swarm of subagents you never approved | Every promotion and every batch is disclosed *before* it runs, with a per-subagent `justification`; above `max_batch_agents` it becomes an approval request, and implementers cannot spawn subagents at all |
+| Two parallel agents clobber the same file | An eight-domain [conflict check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
+| A failed attempt gets `git checkout .`-ed away, taking the evidence with it | [State safety](core/STATE-SAFETY.md): failed work is preserved until reviewed, and the checkpoint is a real commit SHA |
+| Vague work ("fix the UI") gets handed off and comes back as something else | A [task contract](core/TASK-CONTRACT.md) with `current_state`, `target_behavior`, and objective `completion_criteria` is required before delegation |
+
+Two secondary effects, stated as expectations rather than measurements: the
+expensive model spends its turns on design and review instead of mechanical
+edits, and every decision leaves a written artifact — task contract, review
+result, failure loop, takeover record — so you can audit *why* something was
+done, not just what changed.
+
+**When it isn't worth it:** a one-file script, a throwaway prototype, or any
+task where you'd rather read the diff yourself than read a review of it. The
+protocol adds real overhead — contracts, disclosures, evidence — and that
+overhead only pays for itself on work that is large enough, or risky enough,
+that a silent failure would cost more than the ceremony.
+
 ## Roles
 
 | Role | Writes product code | Writes tests | Declares completion |
