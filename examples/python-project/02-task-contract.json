@@ -1,44 +1,76 @@
 {
-  "task_id": "T-101",
-  "title": "Build CLI expense tracker: add, list, total commands",
-  "objective": "Deliver a working command-line expense tracker so a single user can record expenses and see a running total, with data persisted between runs.",
-  "current_state": "Empty repository. No source files, no tests, no packaging metadata exist yet.",
-  "target_behavior": "Running `expense add <amount> <category> [--note TEXT]` appends a persisted record and exits 0. Running `expense list [--category TEXT]` prints all recorded expenses newest-first, one per line. Running `expense total [--category TEXT]` prints the sum of matching amounts formatted to exactly two decimal places.",
-  "must_read_files": [
-    "README.md"
-  ],
-  "editable_files": [
-    "src/expense_tracker/__init__.py",
-    "src/expense_tracker/__main__.py",
-    "src/expense_tracker/cli.py",
-    "src/expense_tracker/storage.py",
-    "tests/test_cli.py",
-    "tests/test_storage.py",
-    "pyproject.toml"
-  ],
-  "forbidden_files": [],
-  "interfaces_to_preserve": [],
-  "input_format": "CLI arguments via argparse: `add AMOUNT CATEGORY [--note TEXT]`, `list [--category TEXT]`, `total [--category TEXT]`. AMOUNT is a decimal string, e.g. '12.50'.",
-  "output_format": "Plain text to stdout. `list` prints one line per record as 'DATE  AMOUNT  CATEGORY  NOTE', newest first. `total` prints a single line: the decimal sum formatted to two places.",
-  "error_handling": [
-    "A non-numeric or unparsable AMOUNT must print an error to stderr and exit with code 1, without writing a record.",
-    "A negative AMOUNT must be rejected with an error message and exit code 1.",
-    "If the data file is missing, create a new empty one instead of failing.",
-    "If the data file exists but contains a corrupted line, skip that line, continue processing the rest, and print a warning to stderr."
-  ],
-  "preservation_conditions": [],
-  "completion_criteria": [
-    "`expense add 12.50 food --note lunch` appends a record to the data file and exits 0.",
-    "`expense list` prints all recorded expenses newest-first, including the one just added.",
-    "`expense total` prints the correct decimal sum of all recorded amounts, formatted to two decimal places.",
-    "`pytest tests/ -v` passes with zero failures."
-  ],
-  "test_commands": [
-    "pytest tests/ -v"
-  ],
-  "manual_verification": [
-    "Run `python -m expense_tracker add 12.50 food --note lunch` then `python -m expense_tracker list` and confirm the new entry appears at the top.",
-    "Run `python -m expense_tracker add -5 food` and confirm it is rejected with a non-zero exit code."
-  ],
-  "report_format": "implementation-report.schema.json"
+    "task_id":  "T-101",
+    "title":  "Build CLI expense tracker: add, list, total commands",
+    "objective":  "Deliver a working command-line expense tracker so a single user can record expenses and see a running total, with data persisted between runs.",
+    "current_state":  "Empty repository. No source files, no tests, no packaging metadata exist yet.",
+    "target_behavior":  "Running `expense add \u003camount\u003e \u003ccategory\u003e [--note TEXT]` appends a persisted record and exits 0. Running `expense list [--category TEXT]` prints all recorded expenses newest-first, one per line. Running `expense total [--category TEXT]` prints the sum of matching amounts formatted to exactly two decimal places.",
+    "must_read_files":  [
+                            "README.md"
+                        ],
+    "editable_files":  [
+                           "src/expense_tracker/__init__.py",
+                           "src/expense_tracker/__main__.py",
+                           "src/expense_tracker/cli.py",
+                           "src/expense_tracker/storage.py",
+                           "tests/test_cli.py",
+                           "tests/test_storage.py",
+                           "pyproject.toml"
+                       ],
+    "forbidden_files":  [
+
+                        ],
+    "interfaces_to_preserve":  [
+
+                               ],
+    "input_format":  "CLI arguments via argparse: `add AMOUNT CATEGORY [--note TEXT]`, `list [--category TEXT]`, `total [--category TEXT]`. AMOUNT is a decimal string, e.g. \u002712.50\u0027.",
+    "output_format":  "Plain text to stdout. `list` prints one line per record as \u0027DATE  AMOUNT  CATEGORY  NOTE\u0027, newest first. `total` prints a single line: the decimal sum formatted to two places.",
+    "error_handling":  [
+                           "A non-numeric or unparsable AMOUNT must print an error to stderr and exit with code 1, without writing a record.",
+                           "A negative AMOUNT must be rejected with an error message and exit code 1.",
+                           "If the data file is missing, create a new empty one instead of failing.",
+                           "If the data file exists but contains a corrupted line, skip that line, continue processing the rest, and print a warning to stderr."
+                       ],
+    "preservation_conditions":  [
+
+                                ],
+    "completion_criteria":  [
+                                "`expense add 12.50 food --note lunch` appends a record to the data file and exits 0.",
+                                "`expense list` prints all recorded expenses newest-first, including the one just added.",
+                                "`expense total` prints the correct decimal sum of all recorded amounts, formatted to two decimal places.",
+                                "`pytest tests/ -v` passes with zero failures."
+                            ],
+    "test_commands":  [
+                          "pytest tests/ -v"
+                      ],
+    "manual_verification":  [
+                                "Run `python -m expense_tracker add 12.50 food --note lunch` then `python -m expense_tracker list` and confirm the new entry appears at the top.",
+                                "Run `python -m expense_tracker add -5 food` and confirm it is rejected with a non-zero exit code."
+                            ],
+    "report_format":  "implementation-report.schema.json",
+    "delegation":  {
+                       "role":  "implementer",
+                       "model":  "configured-worker-model",
+                       "model_ceiling":  "configured-worker-model-ceiling",
+                       "reasoning_effort":  "medium",
+                       "execution":  "sequential",
+                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "spawn_authority":  "director"
+                   },
+    "conflict_domains":  {
+                             "files":  [
+                                           "src/expense_tracker/__init__.py",
+                                           "src/expense_tracker/__main__.py",
+                                           "src/expense_tracker/cli.py",
+                                           "src/expense_tracker/storage.py",
+                                           "tests/test_cli.py",
+                                           "tests/test_storage.py",
+                                           "pyproject.toml"
+                                       ],
+                             "interfaces":  [
+
+                                            ],
+                             "user_flows":  [
+
+                                            ]
+                         }
 }

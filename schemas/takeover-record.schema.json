@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/takeover-record.schema.json",
   "title": "Takeover Record",
-  "description": "Mandatory record the director must write BEFORE writing product code directly. Takeover is allowed only after two failed revision loops, or when the implementer demonstrably cannot perform the task. 'The task is small or simple' is never a valid justification.",
+  "description": "Mandatory record the director must write BEFORE writing product code directly. Takeover is allowed only after the active profile's failure threshold and required rescue/revision path, or when the implementer demonstrably cannot perform the task. 'The task is small or simple' is never a valid justification.",
   "type": "object",
   "additionalProperties": false,
   "required": [

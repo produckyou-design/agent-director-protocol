@@ -60,6 +60,7 @@ def minimal_review_result() -> dict:
         "task_id": "T-001",
         "loop_number": 1,
         "verdict": "approved",
+        "review_context": "director_review_of_worker_output",
         "checks": {key: minimal_check() for key in TEN_CHECK_KEYS},
     }
 
@@ -67,6 +68,10 @@ def minimal_review_result() -> dict:
 def minimal_implementation_report(status: str = "complete") -> dict:
     return {
         "task_id": "T-001",
+        "assigned_model": "configured-worker-model",
+        "model_ceiling": "configured-worker-model-ceiling",
+        "assigned_effort": "medium",
+        "spawn_authority": "director",
         "status": status,
         "summary": "Implemented the requested change end to end.",
         "files_changed": [],
@@ -89,21 +94,33 @@ def minimal_implementation_report(status: str = "complete") -> dict:
 
 def minimal_agent_composition_disclosure() -> dict:
     return {
-        "director_model": "opus-5",
+        "director_model": "configured-director-model",
         "director_effort": "high",
+        "director_model_source": "user_selected_session",
         "subagent_count": 1,
         "subagents": [
             {
                 "role": "implementer",
                 "task": "T-001",
-                "model": "sonnet-5",
+                "model": "configured-worker-model",
+                "model_ceiling": "configured-worker-model-ceiling",
                 "effort": "medium",
                 "justification": "Isolated, independently verifiable outcome per the task contract.",
+                "model_source": "native_custom_agent",
+                "conflict_domains": {"files": ["src/widget.py"]},
             }
         ],
-        "parallel": False,
+        "execution_mode": "sequential",
         "rescue_agent_available": True,
         "within_preapproved_range": True,
+        "approval_status": "not_required",
+        "spawn_budget": {
+            "already_spawned_count": 0,
+            "this_batch_count": 1,
+            "total_after_spawn": 1,
+            "max_total_spawned_agents_per_request": 12,
+            "within_limit": True,
+        },
     }
 
 

@@ -1,89 +1,95 @@
 {
-  "task_id": "T-101",
-  "status": "complete",
-  "summary": "Implemented the expense tracker package from scratch: a Decimal-based storage module backed by a newline-delimited JSON file, an argparse-based CLI with add/list/total subcommands, a __main__ entry point, and unit tests covering all three commands plus storage edge cases.",
-  "files_changed": [
-    {
-      "path": "src/expense_tracker/__init__.py",
-      "change_type": "added",
-      "description": "Package marker, exposes __version__."
-    },
-    {
-      "path": "src/expense_tracker/storage.py",
-      "change_type": "added",
-      "description": "append_record(), read_records(), and total() functions backed by a newline-delimited JSON file (~/.expense_tracker/data.jsonl by default). Amounts are stored and parsed as Decimal. Corrupted lines are skipped with a stderr warning; a missing file is created lazily on first write."
-    },
-    {
-      "path": "src/expense_tracker/cli.py",
-      "change_type": "added",
-      "description": "argparse entry point registering add/list/total subcommands, wired to storage.py. Validates amount is a positive Decimal before writing."
-    },
-    {
-      "path": "src/expense_tracker/__main__.py",
-      "change_type": "added",
-      "description": "Enables `python -m expense_tracker` to invoke cli.main()."
-    },
-    {
-      "path": "tests/test_storage.py",
-      "change_type": "added",
-      "description": "Tests append_and_read round-trip, total() aggregation, and recovery from a corrupted line."
-    },
-    {
-      "path": "tests/test_cli.py",
-      "change_type": "added",
-      "description": "Tests add/list/total subcommands end-to-end via subprocess-style argparse invocation, including the negative-amount and non-numeric-amount rejection paths."
-    },
-    {
-      "path": "pyproject.toml",
-      "change_type": "added",
-      "description": "Minimal packaging metadata (name, version, entry point) so `pip install -e .` works."
-    }
-  ],
-  "tests_added": [
-    "tests/test_storage.py::test_append_and_read_round_trip",
-    "tests/test_storage.py::test_total_sums_matching_category",
-    "tests/test_storage.py::test_missing_file_is_created",
-    "tests/test_storage.py::test_corrupted_line_is_skipped_with_warning",
-    "tests/test_cli.py::test_add_then_list_shows_newest_first",
-    "tests/test_cli.py::test_total_formats_two_decimals",
-    "tests/test_cli.py::test_rejects_negative_amount",
-    "tests/test_cli.py::test_rejects_non_numeric_amount"
-  ],
-  "test_executions": [
-    {
-      "command": "pytest tests/ -v",
-      "exit_code": 0,
-      "passed": 8,
-      "failed": 0,
-      "skipped": 0,
-      "output_excerpt": "tests/test_cli.py::test_add_then_list_shows_newest_first PASSED\ntests/test_cli.py::test_total_formats_two_decimals PASSED\ntests/test_cli.py::test_rejects_negative_amount PASSED\ntests/test_cli.py::test_rejects_non_numeric_amount PASSED\ntests/test_storage.py::test_append_and_read_round_trip PASSED\ntests/test_storage.py::test_total_sums_matching_category PASSED\ntests/test_storage.py::test_missing_file_is_created PASSED\ntests/test_storage.py::test_corrupted_line_is_skipped_with_warning PASSED\n8 passed in 0.41s"
-    }
-  ],
-  "completion_criteria_status": [
-    {
-      "criterion": "`expense add 12.50 food --note lunch` appends a record to the data file and exits 0.",
-      "met": true,
-      "evidence": "Manual run: `python -m expense_tracker add 12.50 food --note lunch` exited 0; data.jsonl gained one line: {\"date\": \"2026-08-03T00:00:00\", \"amount\": \"12.50\", \"category\": \"food\", \"note\": \"lunch\"}"
-    },
-    {
-      "criterion": "`expense list` prints all recorded expenses newest-first, including the one just added.",
-      "met": true,
-      "evidence": "Manual run: `python -m expense_tracker list` printed the just-added lunch record as the first line."
-    },
-    {
-      "criterion": "`expense total` prints the correct decimal sum of all recorded amounts, formatted to two decimal places.",
-      "met": true,
-      "evidence": "Manual run after adding 12.50 and 7.25: `python -m expense_tracker total` printed '19.75'."
-    },
-    {
-      "criterion": "`pytest tests/ -v` passes with zero failures.",
-      "met": true,
-      "evidence": "8 passed in 0.41s, exit code 0."
-    }
-  ],
-  "out_of_scope_issues": [
-    "storage.py reads the entire data file into memory on every call; fine for the expected single-user data volume, but would need a streaming approach if the tool were extended to shared/large datasets."
-  ],
-  "deviations": [],
-  "notes": "Used Decimal end-to-end (never float) to avoid rounding error in the running total, per the error-handling requirement."
+    "task_id":  "T-101",
+    "status":  "complete",
+    "summary":  "Implemented the expense tracker package from scratch: a Decimal-based storage module backed by a newline-delimited JSON file, an argparse-based CLI with add/list/total subcommands, a __main__ entry point, and unit tests covering all three commands plus storage edge cases.",
+    "files_changed":  [
+                          {
+                              "path":  "src/expense_tracker/__init__.py",
+                              "change_type":  "added",
+                              "description":  "Package marker, exposes __version__."
+                          },
+                          {
+                              "path":  "src/expense_tracker/storage.py",
+                              "change_type":  "added",
+                              "description":  "append_record(), read_records(), and total() functions backed by a newline-delimited JSON file (~/.expense_tracker/data.jsonl by default). Amounts are stored and parsed as Decimal. Corrupted lines are skipped with a stderr warning; a missing file is created lazily on first write."
+                          },
+                          {
+                              "path":  "src/expense_tracker/cli.py",
+                              "change_type":  "added",
+                              "description":  "argparse entry point registering add/list/total subcommands, wired to storage.py. Validates amount is a positive Decimal before writing."
+                          },
+                          {
+                              "path":  "src/expense_tracker/__main__.py",
+                              "change_type":  "added",
+                              "description":  "Enables `python -m expense_tracker` to invoke cli.main()."
+                          },
+                          {
+                              "path":  "tests/test_storage.py",
+                              "change_type":  "added",
+                              "description":  "Tests append_and_read round-trip, total() aggregation, and recovery from a corrupted line."
+                          },
+                          {
+                              "path":  "tests/test_cli.py",
+                              "change_type":  "added",
+                              "description":  "Tests add/list/total subcommands end-to-end via subprocess-style argparse invocation, including the negative-amount and non-numeric-amount rejection paths."
+                          },
+                          {
+                              "path":  "pyproject.toml",
+                              "change_type":  "added",
+                              "description":  "Minimal packaging metadata (name, version, entry point) so `pip install -e .` works."
+                          }
+                      ],
+    "tests_added":  [
+                        "tests/test_storage.py::test_append_and_read_round_trip",
+                        "tests/test_storage.py::test_total_sums_matching_category",
+                        "tests/test_storage.py::test_missing_file_is_created",
+                        "tests/test_storage.py::test_corrupted_line_is_skipped_with_warning",
+                        "tests/test_cli.py::test_add_then_list_shows_newest_first",
+                        "tests/test_cli.py::test_total_formats_two_decimals",
+                        "tests/test_cli.py::test_rejects_negative_amount",
+                        "tests/test_cli.py::test_rejects_non_numeric_amount"
+                    ],
+    "test_executions":  [
+                            {
+                                "command":  "pytest tests/ -v",
+                                "exit_code":  0,
+                                "passed":  8,
+                                "failed":  0,
+                                "skipped":  0,
+                                "output_excerpt":  "tests/test_cli.py::test_add_then_list_shows_newest_first PASSED\ntests/test_cli.py::test_total_formats_two_decimals PASSED\ntests/test_cli.py::test_rejects_negative_amount PASSED\ntests/test_cli.py::test_rejects_non_numeric_amount PASSED\ntests/test_storage.py::test_append_and_read_round_trip PASSED\ntests/test_storage.py::test_total_sums_matching_category PASSED\ntests/test_storage.py::test_missing_file_is_created PASSED\ntests/test_storage.py::test_corrupted_line_is_skipped_with_warning PASSED\n8 passed in 0.41s"
+                            }
+                        ],
+    "completion_criteria_status":  [
+                                       {
+                                           "criterion":  "`expense add 12.50 food --note lunch` appends a record to the data file and exits 0.",
+                                           "met":  true,
+                                           "evidence":  "Manual run: `python -m expense_tracker add 12.50 food --note lunch` exited 0; data.jsonl gained one line: {\"date\": \"2026-08-03T00:00:00\", \"amount\": \"12.50\", \"category\": \"food\", \"note\": \"lunch\"}"
+                                       },
+                                       {
+                                           "criterion":  "`expense list` prints all recorded expenses newest-first, including the one just added.",
+                                           "met":  true,
+                                           "evidence":  "Manual run: `python -m expense_tracker list` printed the just-added lunch record as the first line."
+                                       },
+                                       {
+                                           "criterion":  "`expense total` prints the correct decimal sum of all recorded amounts, formatted to two decimal places.",
+                                           "met":  true,
+                                           "evidence":  "Manual run after adding 12.50 and 7.25: `python -m expense_tracker total` printed \u002719.75\u0027."
+                                       },
+                                       {
+                                           "criterion":  "`pytest tests/ -v` passes with zero failures.",
+                                           "met":  true,
+                                           "evidence":  "8 passed in 0.41s, exit code 0."
+                                       }
+                                   ],
+    "out_of_scope_issues":  [
+                                "storage.py reads the entire data file into memory on every call; fine for the expected single-user data volume, but would need a streaming approach if the tool were extended to shared/large datasets."
+                            ],
+    "deviations":  [
+
+                   ],
+    "notes":  "Used Decimal end-to-end (never float) to avoid rounding error in the running total, per the error-handling requirement.",
+    "assigned_model":  "configured-worker-model",
+    "model_ceiling":  "configured-worker-model-ceiling",
+    "assigned_effort":  "medium",
+    "spawn_authority":  "director"
 }

@@ -7,6 +7,10 @@
   "additionalProperties": false,
   "required": [
     "task_id",
+    "assigned_model",
+    "model_ceiling",
+    "assigned_effort",
+    "spawn_authority",
     "status",
     "summary",
     "files_changed",
@@ -19,6 +23,26 @@
     "task_id": {
       "type": "string",
       "pattern": "^T-[0-9]{3,}$"
+    },
+    "assigned_model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The actual worker model used for this task."
+    },
+    "model_ceiling": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The adapter worker model ceiling recorded in the Task Contract."
+    },
+    "assigned_effort": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "xhigh", "max"],
+      "description": "The actual reasoning effort used for this task."
+    },
+    "spawn_authority": {
+      "type": "string",
+      "const": "director",
+      "description": "Workers cannot spawn children; the director owns dispatch."
     },
     "status": {
       "type": "string",

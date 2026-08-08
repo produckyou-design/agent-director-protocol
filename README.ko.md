@@ -29,12 +29,16 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 그다음 작은 작업 하나를 시켜보세요: *"직접 코딩하지 말고 위임해서 처리해."*
 파일을 건드리기 전에 작업 계약(task contract)이 먼저 나와야 정상입니다.
 
-**OpenAI Codex** — `core/`, `schemas/`, `codex/`를 대상 저장소에 복사하고
-`AGENTS.md`에서 스킬을 참조하세요. [`codex/INSTALL.md`](codex/INSTALL.md) 참고.
+**OpenAI Codex** — 작업별 명시적 스위치가 필요하면 Codex 플러그인을 설치하고
+`$agent-director`를 호출하세요. 프로젝트 기본값을 지속시키려면 director 섹션을
+`AGENTS.md`에 병합하고 네이티브 `.codex/config.toml`과
+`.codex/agents/*.toml` 템플릿을 저장소에 복사하세요. 네이티브 서브에이전트
+스레드가 기본 경로입니다. 자세한 내용은 [`codex/INSTALL.md`](codex/INSTALL.md)를
+참고하세요.
 
 전체 옵션(사용자 전역 vs 프로젝트 단위, 플러그인 없이 수동 복사, 모델 프로필,
-업데이트, 제거)은 [`claude/INSTALL.md`](claude/INSTALL.md)와 아래
-[빠른 설치](#빠른-설치--claude-code) 절에 있습니다.
+업데이트, 제거)은 플랫폼별 설치 가이드([`claude/INSTALL.md`](claude/INSTALL.md),
+[`codex/INSTALL.md`](codex/INSTALL.md))와 아래 빠른 설치 절에 있습니다.
 
 ## 이걸 쓰면 뭐가 좋은가
 
@@ -243,8 +247,11 @@ agent-director-protocol/
 │  └─ INSTALL.md
 ├─ codex/                        OpenAI Codex adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
-│  ├─ AGENTS.md.example          profiles/sol-director.yaml
+│  ├─ AGENTS.md.example          profiles/default.yaml
+│  ├─ config.toml.example        agents/*.toml.example
 │  └─ INSTALL.md
+├─ plugins/agent-director/       명시적 Codex 플러그인 ($agent-director)
+├─ .agents/plugins/              저장소 마켓플레이스 매니페스트
 ├─ schemas/                      11 JSON Schema (draft-07) documents
 ├─ examples/                     4 worked, schema-valid scenarios
 │  ├─ python-project/  web-project/  existing-codebase/  new-project/
@@ -298,28 +305,57 @@ Copy-Item -Recurse "schemas" "<project>\schemas"
 
 ## 빠른 설치 — Codex
 
-`core/`, `schemas/`, `codex/`를 대상 저장소에 복사한 다음,
-[`codex/AGENTS.md.example`](codex/AGENTS.md.example)의 director-mode 섹션을
-해당 저장소의 `AGENTS.md`에 추가하세요. 아래 명령어는
-[`codex/INSTALL.md`](codex/INSTALL.md)에서 그대로 가져온 것입니다.
+`core/`와 `schemas/`를 복사하고 canonical 스킬을 대상 저장소의
+`.agents/skills/`에 설치한 다음, 네이티브 설정/역할 템플릿을 `.codex/`에
+복사하세요. 그 후 [`codex/AGENTS.md.example`](codex/AGENTS.md.example)의
+director-mode 섹션을 해당 저장소의 `AGENTS.md`에 병합하세요. 전체 명령은
+[`codex/INSTALL.md`](codex/INSTALL.md)에 있습니다.
 
 ```bash
 cp -r agent-director-protocol/core target-repo/core
 cp -r agent-director-protocol/schemas target-repo/schemas
-cp -r agent-director-protocol/codex target-repo/codex
+mkdir -p target-repo/.agents/skills target-repo/.codex/agents
+cp -r agent-director-protocol/codex/skills/agent-director target-repo/.agents/skills/agent-director
+cp agent-director-protocol/codex/config.toml.example target-repo/.codex/config.toml
+for file in agent-director-protocol/codex/agents/*.toml.example; do
+  cp "$file" "target-repo/.codex/agents/$(basename "${file%.example}")"
+done
 ```
 
 ```powershell
 Copy-Item -Recurse agent-director-protocol\core target-repo\core
 Copy-Item -Recurse agent-director-protocol\schemas target-repo\schemas
-Copy-Item -Recurse agent-director-protocol\codex target-repo\codex
+New-Item -ItemType Directory -Force target-repo\.agents\skills | Out-Null
+New-Item -ItemType Directory -Force target-repo\.codex\agents | Out-Null
+Copy-Item -Recurse agent-director-protocol\codex\skills\agent-director target-repo\.agents\skills\agent-director
+Copy-Item agent-director-protocol\codex\config.toml.example target-repo\.codex\config.toml
+Get-ChildItem agent-director-protocol\codex\agents\*.toml.example | ForEach-Object {
+  Copy-Item $_.FullName target-repo\.codex\agents\$($_.BaseName)
+}
 ```
 
-Codex에는 "director/implementer"라는 개념이 네이티브로 존재하지 않습니다. 이
-어댑터는 프로토콜을 `AGENTS.md`, `codex exec` 워커 실행, 그리고 이름이 지정된
-프로필 위에 매핑합니다. 전체 단계(선택적인 네이티브 `.agents/skills` 검색 경로와
-프로필-`config.toml` 매핑 포함)는 [`codex/INSTALL.md`](codex/INSTALL.md)에
-있습니다.
+Codex의 현재 세션이 director이고, 네이티브 서브에이전트 스레드가 기본 위임
+경로입니다. 실제 프로젝트 설정은 `.codex/config.toml`과
+`.codex/agents/*.toml`에 있으며, `codex exec`는 비대화형/프로세스 격리가
+필요할 때만 쓰는 fallback입니다. `codex/profiles/default.yaml`은 Codex가
+불러오는 프로필이 아니라 정책 메타데이터입니다.
+
+**명시적 Codex 플러그인 스위치** — 특정 작업에서 프로토콜을 켜고 싶을 때
+저장소 마켓플레이스 플러그인을 설치하세요.
+
+```text
+codex plugin marketplace add produckyou-design/agent-director-protocol
+codex plugin add agent-director@agent-director-protocol-plugins
+```
+
+새 task/thread에서 `$agent-director`를 호출하거나 “Director mode on”이라고
+말하면 됩니다. 이 플러그인은 현재 세션을 director로 선언하고 네이티브
+서브에이전트를 사용하게 하는 지침 스위치입니다. 현재 세션의 선택 모델을
+바꾸거나 프로젝트 파일을 설치하거나, 이미 실행 중인 task를 소급해 다시
+로드하지는 않습니다. 정확한 경계는
+[`plugins/agent-director/README.md`](plugins/agent-director/README.md),
+프로젝트에 지속 설정하는 방법은 [`codex/INSTALL.md`](codex/INSTALL.md)를
+참고하세요.
 
 ## 3분 만에 시작하기
 
@@ -341,10 +377,11 @@ Codex에는 "director/implementer"라는 개념이 네이티브로 존재하지 
 
 ## 설정 및 모델 프로필
 
-각 플랫폼은 **기본 프로필 하나**만 제공합니다(`claude/profiles/default.yaml`,
-`codex/profiles/sol-director.yaml`) — Claude Code나 Codex가 강제하는
-메커니즘이 아니라 **스킬 자체의 지침이 읽는 관례**입니다. 자동으로
-적용되며, 따로 선택할 게 없습니다.
+각 플랫폼은 정책 메타데이터를 제공합니다(`claude/profiles/default.yaml`,
+`codex/profiles/default.yaml`). 이는 Claude Code나 Codex가 자동으로 읽는
+네이티브 프로필이 아니라 **스킬 자체의 지침이 참고하는 관례**입니다. Codex의
+실제 프로젝트 설정은 `.codex/config.toml`의 `[agents]`와
+`.codex/agents/`의 개별 파일입니다.
 
 **이 프로필이 누가 director인지 결정하지 않습니다.** director는 항상 지금
 이 세션을 실행 중인 모델입니다 — 프로젝트 도중 `/model`로 모델을 바꾸면
@@ -377,7 +414,7 @@ reviewer:
 
 모델 이름은 환경 별칭(alias)이므로 여러분의 플랫폼이 실제로 어떤 모델로
 해석하든 자유롭게 바꿔도 됩니다. `core/`는 어떤 모델 이름도 언급하지 않으며,
-오직 `*/profiles/*.yaml`만 언급합니다.
+어댑터 정책 메타데이터와 네이티브 설정 파일에 실제 모델 설정을 둡니다.
 
 **implementer 등급 선택: 토큰당이 아니라 완료된 작업당 비용으로 판단하세요.**
 토큰 단가가 낮은 모델이라도 같은 일을 끝내는 데 더 많은 단계, 더 많은 재시도,
@@ -393,8 +430,8 @@ reviewer:
 
 **프로젝트가 다른 정책을 원할 때만 프로필을 오버라이드하세요** — 예를 들어 더 엄격한 프로젝트는
 `max_batch_agents`를 낮추고, implementer 실행 비용이 저렴한 프로젝트는
-`failure_threshold`를 올립니다(Codex 기본값이 이미 그렇게 돼있습니다 —
-`codex/profiles/sol-director.yaml` 참고). 오버라이드하려면: 파일을 복사해서
+`failure_threshold`를 올립니다(Codex 정책 메타데이터는
+`codex/profiles/default.yaml` 참고). 오버라이드하려면: 파일을 복사해서
 직접 편집하거나, (Claude Code) `CLAUDE.md`에서 다른 이름의 프로필 파일을
 가리키게 하거나, (Codex) 필드를 각 플랫폼의 `INSTALL.md`에서 설명하는 대로
 여러분의 `config.toml` / 이름 있는 프로필로 번역하면 됩니다.

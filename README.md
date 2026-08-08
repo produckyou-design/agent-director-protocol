@@ -30,13 +30,16 @@ Then ask Claude to act as director on something small: *"delegate this instead
 of coding it yourself."* You should see a task contract before any file is
 touched.
 
-**OpenAI Codex** — copy `core/`, `schemas/`, and `codex/` into your repo and
-reference the skill from `AGENTS.md`; see [`codex/INSTALL.md`](codex/INSTALL.md).
+**OpenAI Codex** — for an explicit per-task switch, install the Codex plugin
+and invoke `$agent-director`; for persistent project defaults, merge the
+director section into `AGENTS.md` and copy the native `.codex/config.toml` and
+`.codex/agents/*.toml` templates into your repo. Native subagent threads are
+the default; see [`codex/INSTALL.md`](codex/INSTALL.md).
 
 Full options — user-global vs. per-project, manual copy without the plugin,
-model profiles, updating, uninstall — are in
-[`claude/INSTALL.md`](claude/INSTALL.md) and the
-[quick install](#quick-install--claude-code) section below.
+model profiles, updating, and uninstall — are in the platform-specific
+installation guides ([`claude/INSTALL.md`](claude/INSTALL.md) and
+[`codex/INSTALL.md`](codex/INSTALL.md)) and the quick install sections below.
 
 ## What this gets you
 
@@ -252,8 +255,11 @@ agent-director-protocol/
 │  └─ INSTALL.md
 ├─ codex/                        OpenAI Codex adapter
 │  ├─ skills/agent-director/SKILL.md + references/*.md (7 templates)
-│  ├─ AGENTS.md.example          profiles/sol-director.yaml
+│  ├─ AGENTS.md.example          profiles/default.yaml
+│  ├─ config.toml.example        agents/*.toml.example
 │  └─ INSTALL.md
+├─ plugins/agent-director/       explicit Codex plugin ($agent-director)
+├─ .agents/plugins/              repository marketplace manifest
 ├─ schemas/                      11 JSON Schema (draft-07) documents
 ├─ examples/                     4 worked, schema-valid scenarios
 │  ├─ python-project/  web-project/  existing-codebase/  new-project/
@@ -307,26 +313,56 @@ profile selection, and uninstall instructions in
 
 ## Quick install — Codex
 
-Copy `core/`, `schemas/`, and `codex/` into the target repo, then add the
-director-mode section from [`codex/AGENTS.md.example`](codex/AGENTS.md.example)
-to the repo's `AGENTS.md`. Commands below are copied from [`codex/INSTALL.md`](codex/INSTALL.md).
+Copy `core/` and `schemas/`, install the canonical skill under the target's
+`.agents/skills/`, and copy the native config/role templates under `.codex/`.
+Then merge the director-mode section from
+[`codex/AGENTS.md.example`](codex/AGENTS.md.example) into the repo's
+`AGENTS.md`. The complete commands are in [`codex/INSTALL.md`](codex/INSTALL.md).
 
 ```bash
 cp -r agent-director-protocol/core target-repo/core
 cp -r agent-director-protocol/schemas target-repo/schemas
-cp -r agent-director-protocol/codex target-repo/codex
+mkdir -p target-repo/.agents/skills target-repo/.codex/agents
+cp -r agent-director-protocol/codex/skills/agent-director target-repo/.agents/skills/agent-director
+cp agent-director-protocol/codex/config.toml.example target-repo/.codex/config.toml
+for file in agent-director-protocol/codex/agents/*.toml.example; do
+  cp "$file" "target-repo/.codex/agents/$(basename "${file%.example}")"
+done
 ```
 
 ```powershell
 Copy-Item -Recurse agent-director-protocol\core target-repo\core
 Copy-Item -Recurse agent-director-protocol\schemas target-repo\schemas
-Copy-Item -Recurse agent-director-protocol\codex target-repo\codex
+New-Item -ItemType Directory -Force target-repo\.agents\skills | Out-Null
+New-Item -ItemType Directory -Force target-repo\.codex\agents | Out-Null
+Copy-Item -Recurse agent-director-protocol\codex\skills\agent-director target-repo\.agents\skills\agent-director
+Copy-Item agent-director-protocol\codex\config.toml.example target-repo\.codex\config.toml
+Get-ChildItem agent-director-protocol\codex\agents\*.toml.example | ForEach-Object {
+  Copy-Item $_.FullName target-repo\.codex\agents\$($_.BaseName)
+}
 ```
 
-Codex has no native "director/implementer" concept — this adapter maps the
-protocol onto `AGENTS.md`, `codex exec` worker runs, and named profiles. Full
-steps (including the optional native `.agents/skills` discovery path and the
-profile-to-`config.toml` mapping) are in [`codex/INSTALL.md`](codex/INSTALL.md).
+Codex's main session is the director and native subagent threads are the normal
+delegation path. `.codex/config.toml` and `.codex/agents/*.toml` are the actual
+project-scoped settings; `codex exec` is only the documented fallback for
+non-interactive or process-isolated work. `codex/profiles/default.yaml` is
+policy metadata, not a profile Codex loads.
+
+**Explicit Codex plugin switch** — install the repository marketplace plugin
+when you want to turn the protocol on for a particular task:
+
+```text
+codex plugin marketplace add produckyou-design/agent-director-protocol
+codex plugin add agent-director@agent-director-protocol-plugins
+```
+
+In a new task/thread, invoke `$agent-director` or say “Director mode on”. The
+plugin is an instruction switch: it announces the current session as Director
+and uses native subagents, but it cannot change the current session's selected
+model, install project files, or retroactively reload an already-running task.
+Use [`plugins/agent-director/README.md`](plugins/agent-director/README.md) for
+the exact boundary and [`codex/INSTALL.md`](codex/INSTALL.md) for persistent
+project installation.
 
 ## 3-minute quick start
 
@@ -348,10 +384,11 @@ profile-to-`config.toml` mapping) are in [`codex/INSTALL.md`](codex/INSTALL.md).
 
 ## Configuration & model profiles
 
-Each platform ships **one default profile** (`claude/profiles/default.yaml`,
-`codex/profiles/sol-director.yaml`) — a **convention read by the skill's own
-instructions**, not a mechanism enforced by Claude Code or Codex. It applies
-automatically; there is nothing to select.
+Each platform ships policy metadata (`claude/profiles/default.yaml`,
+`codex/profiles/default.yaml`) — a **convention read by the skill's own
+instructions**, not a native profile automatically loaded by Claude Code or
+Codex. Codex's actual project settings are the `[agents]` keys in
+`.codex/config.toml` and the standalone files in `.codex/agents/`.
 
 **The profile does not determine who the director is.** The director is
 always whichever model is running the current session — switch models
@@ -384,8 +421,8 @@ reviewer:
 ```
 
 Model names are environment aliases — swap them for whatever your platform
-resolves them to. `core/` never mentions a model name; only `*/profiles/*.yaml`
-do.
+resolves them to. `core/` never mentions a model name; adapter policy metadata
+and native configuration are where model settings belong.
 
 **Choosing an implementer tier: measure cost per completed task, not per
 token.** A model with a lower per-token price that needs more steps, more
@@ -401,8 +438,8 @@ and effort levels on your own tasks and compare the cost to *done*.
 
 **Only override the profile if a project wants different policy** — e.g. a
 stricter project lowers `max_batch_agents`, or a project running cheap/fast
-implementer passes raises `failure_threshold` (Codex's default already does
-this — see `codex/profiles/sol-director.yaml`). To override: copy the file and
+implementer passes raises `failure_threshold` (the Codex policy metadata is in
+`codex/profiles/default.yaml`). To override: copy the policy file and
 edit your copy, or (Claude Code) point `CLAUDE.md` at a differently-named
 profile file, or (Codex) translate the fields into your own `config.toml` /
 named profile — as described in each platform's `INSTALL.md`.

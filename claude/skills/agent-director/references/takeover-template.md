@@ -1,69 +1,36 @@
-# Takeover Record Template
+# Takeover record template
 
-Mandatory record the director must complete **before** writing any product
-code directly. Mirrors
-[`takeover-record.schema.json`](../../../../schemas/takeover-record.schema.json)
-field for field. Takeover is allowed only after two failed revision loops,
-or when the implementer demonstrably cannot perform the task — "the task is
-small or simple" is never a valid justification. Full rule:
-[`TAKEOVER-PROTOCOL.md`](../../../../core/TAKEOVER-PROTOCOL.md).
+Write this **before** touching any product code directly. Fields mirror
+[`schemas/takeover-record.schema.json`](../../../../schemas/takeover-record.schema.json) exactly.
+See [TAKEOVER-PROTOCOL.md](../../../../core/TAKEOVER-PROTOCOL.md) — takeover is allowed only after the
+active profile's failure threshold (two full failed revision loops by default), or when the
+implementer demonstrably cannot perform the task.
+**"The task is small or simple" is never a valid justification.**
 
-## task_id
-
-`T-###`
-
-## original_requirement
-
-The requirement as originally delegated (min 10 characters).
-
-## first_failure_evidence
-
-Concrete evidence of the first failure: test output, error message, or
-reviewed diff (min 10 characters).
-
-```
-<verbatim evidence>
+```json
+{
+  "task_id": "T-001",
+  "original_requirement": "",
+  "first_failure_evidence": "",
+  "first_revision_instruction": "",
+  "second_failure_evidence": "",
+  "second_revision_instruction": "",
+  "repeated_failure_cause": "",
+  "takeover_justification": "",
+  "files_to_modify": [],
+  "modification_scope": "",
+  "notes": ""
+}
 ```
 
-## first_revision_instruction
+## Field notes
 
-The evidence-based revision instruction given after the first failure (min
-10 characters).
+- `original_requirement` — the requirement exactly as first delegated, not a revised version.
+- `first_failure_evidence` / `second_failure_evidence` — concrete evidence from the required failure-loop records (test output, error message, or reviewed diff), each at least 10 characters and drawn from the corresponding [`failure-loop.schema.json`](../../../../schemas/failure-loop.schema.json) records.
+- `first_revision_instruction` / `second_revision_instruction` — the evidence-based instructions actually given after each failure.
+- `repeated_failure_cause` — the director's own analysis of *why* both loops failed the same way, not a restatement of the symptoms.
+- `takeover_justification` — why direct intervention is required now. Reject any draft that reduces to "it's a small fix."
+- `files_to_modify` — at least one file; the exact, bounded set the director will touch directly.
+- `modification_scope` — the bounded scope of the direct change. Anything discovered beyond this scope during takeover goes back through a new task contract and delegation — it is not absorbed into the takeover.
 
-## second_failure_evidence
-
-Concrete evidence of the second failure, after the revision loop was fully
-executed (min 10 characters).
-
-```
-<verbatim evidence>
-```
-
-## second_revision_instruction
-
-The evidence-based revision instruction given after the second failure (min
-10 characters).
-
-## repeated_failure_cause
-
-The director's analysis of why the loops kept failing (min 10 characters).
-
-## takeover_justification
-
-Why direct intervention is required now. Must NOT be "the task is small or
-simple" (min 10 characters).
-
-## files_to_modify
-
-The exact files the director will change directly (at least one required).
-
-- `path/to/file`
-
-## modification_scope
-
-The bounded scope of the direct changes (min 10 characters). Anything
-beyond this scope goes back through delegation to an implementer.
-
-## notes (optional)
-
-`...`
+\n

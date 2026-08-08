@@ -1,134 +1,99 @@
 # Agent Briefing Templates
 
-Three mandatory, never-silent notices to the user. Full rules:
-[`DELEGATION-PROTOCOL.md`](../../../../core/DELEGATION-PROTOCOL.md) step 7,
-[`RESCUE-PROTOCOL.md`](../../../../core/RESCUE-PROTOCOL.md) Step 2.
-
----
+These are mandatory, never-silent notices. Full rules are in
+[`DELEGATION-PROTOCOL.md`](../../../../core/DELEGATION-PROTOCOL.md) and
+[`RESCUE-PROTOCOL.md`](../../../../core/RESCUE-PROTOCOL.md). The JSON shapes
+mirror the schemas under `schemas/`.
 
 ## Part 1 — Agent composition disclosure
 
-Sent once per batch, **before** spawning any implementer. Work does not start until this has been
-stated. Mirrors
-[`agent-composition-disclosure.schema.json`](../../../../schemas/agent-composition-disclosure.schema.json)
-field for field.
+Send once per batch, **before** spawning any native subagent. Work does not
+start until it has been stated.
 
-### director_model / director_effort
+```json
+{
+  "director_model": "<actual user-selected model>",
+  "director_effort": "<low|medium|high|xhigh|max>",
+  "director_model_source": "user_selected_session",
+  "subagent_count": 2,
+  "subagents": [
+    {
+      "role": "investigator",
+      "task": "T-001 root-cause investigation",
+      "model": "gpt-5.6-luna",
+      "model_ceiling": "gpt-5.6-luna",
+      "effort": "max",
+      "justification": "An independent read-only root-cause result is required before implementation can be safely contracted.",
+      "model_source": "native_custom_agent",
+      "conflict_domains": {
+        "files": ["src/auth/*"],
+        "interfaces": ["POST /api/login"]
+      }
+    },
+    {
+      "role": "implementer",
+      "task": "T-002 session validation correction",
+      "model": "gpt-5.6-luna",
+      "model_ceiling": "gpt-5.6-luna",
+      "effort": "high",
+      "justification": "The correction is an independently verifiable bounded implementation after the investigation result.",
+      "model_source": "native_custom_agent",
+      "conflict_domains": {
+        "files": ["src/session/*"],
+        "interfaces": ["SessionService"]
+      }
+    }
+  ],
+  "execution_mode": "sequential",
+  "rescue_agent_available": true,
+  "within_preapproved_range": true,
+  "approval_status": "not_required",
+  "spawn_budget": {
+    "already_spawned_count": 0,
+    "this_batch_count": 2,
+    "total_after_spawn": 2,
+    "max_total_spawned_agents_per_request": 12,
+    "within_limit": true
+  }
+}
+```
 
-### subagent_count
-
-### subagents
-
-One entry per subagent about to be spawned:
-
-- `role` — e.g. implementer, reviewer-second-pass.
-- `task` — task_id or short description this subagent owns.
-- `model`
-- `effort` — `low` / `medium` / `high` / `xhigh` / `max`.
-- `justification` — why this piece needs its own subagent rather than folding into another task in
-  this batch. "Smaller diffs" or "tidier task IDs" alone is not sufficient — see
-  `DELEGATION-PROTOCOL.md` step 4's minimality principle.
-
-### parallel
-
-Whether these subagents run concurrently (per `CONCURRENCY-RULES.md` conflict-domain check) or
-sequentially.
-
-### rescue_agent_available
-
-Whether a Rescue Agent promotion is actually reachable in this session/environment if a task fails
-twice — e.g. whether a stronger model tier exists to promote to.
-
-### within_preapproved_range
-
-`true` if `subagent_count` is within the active profile's `director.max_batch_agents` → notify and
-proceed. `false` → this disclosure is also an approval request; do not spawn anything until
-`approval_status` becomes `granted`.
-
-### approval_status (required when within_preapproved_range is false)
-
-`not_required` / `pending` / `granted` / `denied`.
-
----
+`execution_mode` is `parallel` only after the conflict check proves the
+workers independent. `within_preapproved_range` concerns the batch limit;
+`spawn_budget.within_limit` concerns the cumulative request limit. These are
+separate controls.
 
 ## Part 2 — Promotion notice
 
-Sent the moment a task is promoted to a Rescue Agent (or a mid-task escalation request is granted) —
-never a silent decision. Mirrors
-[`promotion-notice.schema.json`](../../../../schemas/promotion-notice.schema.json)
-field for field.
+Send when a failed task is promoted to a Rescue Agent or a granted mid-task
+escalation begins. Rescue keeps the same model and raises effort only.
 
-### task
+Required fields:
 
-### prior_model / prior_effort
+- `task`
+- `prior_model` / `prior_effort`
+- `failure_count` — at least the active policy threshold
+- `failed_approaches`
+- `promotion_reason` — `reasoning_gap` or `model_capability_gap`
+- `rescue_model` — equal to `prior_model`
+- `model_ceiling`
+- `rescue_effort`
+- `editable_scope` / `forbidden_scope`
+- `task_scoped_only: true`
+- `within_preapproved_range` and conditional `approval_status`
 
-### failure_count
-
-At least 2 — the number of counted failed loops on this task.
-
-### failed_approaches
-
-- What each failed attempt actually tried — not "it didn't work."
-
-### promotion_reason
-
-The specific reason, tied to the RESCUE-PROTOCOL.md Step 1 classification (`reasoning_gap` or
-`model_capability_gap`).
-
-### rescue_model / rescue_effort
-
-### editable_scope / forbidden_scope
-
-### task_scoped_only
-
-Always `true` — this promotion applies to this failed task only, not the session's default
-subagent tier.
-
-### within_preapproved_range
-
-`true` → notify and proceed. `false` → this notice is also an approval request; do not start the
-Rescue Agent until `approval_status` becomes `granted`.
-
-### approval_status (required when within_preapproved_range is false)
-
-`not_required` / `pending` / `granted` / `denied`.
-
----
+If the worker is already at its model's maximum supported effort, do not emit a
+fake promotion; record that Rescue is unavailable and use the Core escalation
+path.
 
 ## Part 3 — Rescue outcome notice
 
-Sent when the Rescue Agent's work ends, success or failure — either way. Mirrors
-[`rescue-outcome-notice.schema.json`](../../../../schemas/rescue-outcome-notice.schema.json)
-field for field.
+Send when the Rescue Agent ends, whether it succeeds or fails. Include:
 
-### task
-
-### result
-
-`success` or `failure`.
-
-### files_changed
-
-### tests_run
-
-- `command` → verbatim `result`, not a paraphrase.
-
-### director_verification
-
-What the director itself independently checked (diff, re-run tests) — not a restatement of the
-Rescue Agent's own report.
-
-### integrated
-
-Only `true` if `result` is `success` and `director_verification` passed. A failed attempt is never
-integrated.
-
-### reverted_to_baseline
-
-Whether the task's promotion has ended and subsequent, unrelated tasks are back on the normal
-implementer tier. State this explicitly — never leave it for the user to infer.
-
-### next_step_if_failed (required when result is failure)
-
-One of: `director_direct_intervention` / `rollback` / `escalate_to_user` / `reduce_scope` /
-`convert_to_investigation` — the RESCUE-PROTOCOL.md Step 3 choice the director is making next.
+- `task` and `result` (`success` or `failure`);
+- actual `files_changed`;
+- `tests_run` with verbatim `result` for each command;
+- the director's independent diff/test verification;
+- `integrated` only after verification passes;
+- `reverted_to_baseline` explicitly;
+- `next_step_if_failed` when the result is failure.

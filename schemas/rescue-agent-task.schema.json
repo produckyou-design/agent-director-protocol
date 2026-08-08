@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/rescue-agent-task.schema.json",
   "title": "Rescue Agent Task Package",
-  "description": "The bounded scope package the director hands to a one-shot Rescue Agent after an implementer has failed the same task twice and the failure was classified as reasoning_gap or model_capability_gap. See RESCUE-PROTOCOL.md. Not a standing role — one task, at most two attempts.",
+  "description": "The bounded scope package the director hands to a one-shot Rescue Agent after an implementer reaches the active profile's failure threshold and the failure is classified as reasoning_gap or model_capability_gap. See RESCUE-PROTOCOL.md. Not a standing role — one task, at most two attempts.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -20,6 +20,7 @@
     "forbidden_scope",
     "completion_criteria",
     "assigned_model",
+    "model_ceiling",
     "assigned_effort",
     "max_attempts"
   ],
@@ -34,10 +35,26 @@
       "enum": ["reasoning_gap", "model_capability_gap"],
       "description": "Only these two classifications route to a Rescue Agent. diagnosis_gap, requirement_conflict, environment_issue, and rollback_needed never do — see RESCUE-PROTOCOL.md Step 1."
     },
-    "attempt_1": { "type": "string", "minLength": 10, "description": "What the first failed attempt actually changed." },
-    "attempt_1_result": { "type": "string", "minLength": 5, "description": "Verbatim evidence of the first attempt's outcome — test output or error, not a paraphrase." },
-    "attempt_2": { "type": "string", "minLength": 10, "description": "What the second failed attempt actually changed." },
-    "attempt_2_result": { "type": "string", "minLength": 5, "description": "Verbatim evidence of the second attempt's outcome." },
+    "attempt_1": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What the first failed attempt actually changed."
+    },
+    "attempt_1_result": {
+      "type": "string",
+      "minLength": 5,
+      "description": "Verbatim evidence of the first attempt's outcome — test output or error, not a paraphrase."
+    },
+    "attempt_2": {
+      "type": "string",
+      "minLength": 10,
+      "description": "What the second failed attempt actually changed."
+    },
+    "attempt_2_result": {
+      "type": "string",
+      "minLength": 5,
+      "description": "Verbatim evidence of the second attempt's outcome."
+    },
     "confirmed_facts": {
       "type": "array",
       "items": { "type": "string" },
@@ -79,12 +96,17 @@
     },
     "assigned_model": {
       "type": "string",
-      "description": "The director's explicit choice of a stronger model. Never automatic."
+      "description": "The director's explicit record of the implementer's existing model. Rescue does not swap models; any model change requires a separate user-approved escalation."
+    },
+    "model_ceiling": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The highest worker model permitted for this rescue under the active adapter policy."
     },
     "assigned_effort": {
       "type": "string",
       "enum": ["low", "medium", "high", "xhigh", "max"],
-      "description": "The director's explicit choice of a higher reasoning tier. Never automatic."
+      "description": "The director's explicit choice of a higher reasoning effort on the existing model. Never automatic."
     },
     "max_attempts": {
       "type": "integer",

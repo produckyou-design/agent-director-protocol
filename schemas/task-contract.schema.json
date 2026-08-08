@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/task-contract.schema.json",
   "title": "Task Contract",
-  "description": "The complete specification a director must provide before delegating any implementation task to an implementer. Vague scopes such as 'improve the feature' or 'fix the UI' are not valid task contracts.",
+  "description": "The complete specification a director must provide before delegating any implementation task. It includes the worker assignment, model ceiling, reasoning effort, execution mode, justification, and conflict domains.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -22,7 +22,9 @@
     "completion_criteria",
     "test_commands",
     "manual_verification",
-    "report_format"
+    "report_format",
+    "delegation",
+    "conflict_domains"
   ],
   "properties": {
     "task_id": {
@@ -43,7 +45,7 @@
     "current_state": {
       "type": "string",
       "minLength": 1,
-      "description": "Observed state of the code/behavior before this task."
+      "description": "Observed state of the code or behavior before this task."
     },
     "target_behavior": {
       "type": "string",
@@ -53,17 +55,17 @@
     "must_read_files": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Files the implementer must read before changing anything."
+      "description": "Files the worker must read before changing anything."
     },
     "editable_files": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Files (or glob patterns) the implementer is allowed to modify or create."
+      "description": "Files or globs the worker is allowed to modify or create."
     },
     "forbidden_files": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Files (or glob patterns) the implementer must not touch."
+      "description": "Files or globs the worker must not touch."
     },
     "interfaces_to_preserve": {
       "type": "array",
@@ -72,11 +74,11 @@
     },
     "input_format": {
       "type": "string",
-      "description": "Expected input shape for the changed behavior. Use 'n/a' when not applicable."
+      "description": "Expected input shape. Use 'n/a' when not applicable."
     },
     "output_format": {
       "type": "string",
-      "description": "Expected output shape for the changed behavior. Use 'n/a' when not applicable."
+      "description": "Expected output shape. Use 'n/a' when not applicable."
     },
     "error_handling": {
       "type": "array",
@@ -98,33 +100,92 @@
       "type": "array",
       "items": { "type": "string" },
       "minItems": 1,
-      "description": "Exact commands the implementer must run and report results for."
+      "description": "Exact commands the worker must run and report results for."
     },
     "manual_verification": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Manual verification steps, when automated tests are insufficient. May be empty."
+      "description": "Manual verification steps when automation is insufficient. May be empty."
     },
     "report_format": {
       "type": "string",
-      "description": "Required report format. Normally: 'implementation-report.schema.json'."
+      "description": "Required report format, normally implementation-report.schema.json."
+    },
+    "delegation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "role",
+        "model",
+        "model_ceiling",
+        "reasoning_effort",
+        "execution",
+        "justification",
+        "spawn_authority"
+      ],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["investigator", "implementer", "reviewer", "rescue"],
+          "description": "The bounded worker assignment. Rescue is a task-scoped implementer promotion."
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The worker model selected by adapter policy or explicit user policy."
+        },
+        "model_ceiling": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The maximum worker model allowed by the active adapter policy."
+        },
+        "reasoning_effort": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "xhigh", "max"],
+          "description": "The selected reasoning effort for this contract."
+        },
+        "execution": {
+          "type": "string",
+          "enum": ["parallel", "sequential"],
+          "description": "Whether this task is dispatched concurrently or in dependency order."
+        },
+        "justification": {
+          "type": "string",
+          "minLength": 10,
+          "description": "A concrete reason this task needs a separate worker rather than being folded into another contract."
+        },
+        "spawn_authority": {
+          "type": "string",
+          "const": "director",
+          "description": "Only the director may spawn a delegated worker."
+        }
+      },
+      "description": "The worker role, model policy, effort, execution mode, justification, and spawn authority disclosed before dispatch."
     },
     "depends_on": {
       "type": "array",
       "items": { "type": "string", "pattern": "^T-[0-9]{3,}$" },
-      "description": "Task IDs that must be completed and reviewed before this task starts."
+      "description": "Task IDs that must be reviewed before this task starts."
     },
+    "conflict_domains": {
+      "$ref": "#/definitions/conflict_domains",
+      "description": "Resources this task may read or write. Any overlap with an in-flight task forces sequential execution."
+    }
+  },
+  "definitions": {
     "conflict_domains": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Resources this task touches, used for the parallel-execution conflict check. Any overlap with another in-flight task forces sequential execution.",
       "properties": {
         "files": { "type": "array", "items": { "type": "string" } },
+        "code_regions": { "type": "array", "items": { "type": "string" } },
         "data_structures": { "type": "array", "items": { "type": "string" } },
         "interfaces": { "type": "array", "items": { "type": "string" } },
+        "schemas": { "type": "array", "items": { "type": "string" } },
         "db_entities": { "type": "array", "items": { "type": "string" } },
         "shared_configs": { "type": "array", "items": { "type": "string" } },
         "state_stores": { "type": "array", "items": { "type": "string" } },
+        "generated_artifacts": { "type": "array", "items": { "type": "string" } },
         "build_targets": { "type": "array", "items": { "type": "string" } },
         "user_flows": { "type": "array", "items": { "type": "string" } }
       }

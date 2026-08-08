@@ -18,9 +18,10 @@ on any section below.
   state-changing operations (deploys, migrations, release pipelines), which
   are delegated like any other work. Read-only inspection is fine; it is part
   of reviewing.
-- **Implementer** — a subagent spawned with the Task/Agent tool. Default
-  model is Sonnet-class, per `implementer.preferred_models` in the active
-  profile under [`../../profiles/`](../../profiles/) (see also
+- **Implementer** — a subagent spawned with the Task/Agent tool. Its model is
+  selected by the active adapter profile and recorded explicitly in the Task
+  Contract; the profile under [`../../profiles/`](../../profiles/) provides the
+  current default (see also
   [`CLAUDE.md.example`](../../CLAUDE.md.example) for how a project points at
   one).
 - **Reviewer** — the director itself, unless a profile sets
@@ -38,6 +39,7 @@ on any section below.
 2. Pass the **full contract**, not a summary, in the subagent prompt when
    invoking the Task/Agent tool. The implementer should never have to guess
    at `editable_files`, `forbidden_files`, `interfaces_to_preserve`,
+   `delegation`, `conflict_domains`,
    `completion_criteria`, or `test_commands`.
 3. Require the implementer to return an implementation report shaped like
    [`implementation-report.schema.json`](../../../schemas/implementation-report.schema.json)
@@ -75,10 +77,11 @@ on any section below.
    spawn — tell the user what is about to run, filling in
    [`references/agent-briefing-template.md`](references/agent-briefing-template.md) Part 1 (mirrors
    [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json)):
-   director model/effort, subagent count, each subagent's role/task/model/effort **and
-   `justification`** (why this piece needs its own subagent, not folded into another task in the
-   batch), whether they run in parallel, and whether a Rescue Agent promotion is even reachable this
-   session. Work does not start until this has been stated. **If `subagent_count` exceeds the active
+   director model/effort and source, subagent count, each subagent's role/task/model/model ceiling,
+   effort, model source, conflict domains, and **`justification`** (why this piece needs its own
+   subagent, not folded into another task in the batch), execution mode, spawn budget, and whether a
+   Rescue Agent promotion is even reachable this session. Work does not start until this has been
+   stated. **If `subagent_count` exceeds the active
    profile's `director.max_batch_agents`, this disclosure is also an approval request** —
    `within_preapproved_range: false`, `approval_status: pending` — and dispatch waits for
    `approval_status: granted`, the same pattern a Rescue Agent promotion outside the pre-approved

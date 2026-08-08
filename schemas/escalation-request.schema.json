@@ -16,6 +16,7 @@
     "confirmed_facts",
     "unresolved_points",
     "current_model",
+    "model_ceiling",
     "current_effort",
     "regression_risk",
     "exact_next_prompt"
@@ -72,6 +73,11 @@
       "description": "What remains uncertain or unexplained after both attempts."
     },
     "current_model": { "type": "string" },
+    "model_ceiling": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The worker model ceiling before any user-approved policy exception."
+    },
     "current_effort": {
       "type": "string",
       "enum": ["low", "medium", "high", "xhigh", "max"]

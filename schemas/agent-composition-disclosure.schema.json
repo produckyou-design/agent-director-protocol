@@ -2,23 +2,35 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/agent-composition-disclosure.schema.json",
   "title": "Agent Composition Disclosure",
-  "description": "What the director tells the user BEFORE dispatching any implementer for a batch of tasks. One disclosure per batch, not per individual spawn. See DELEGATION-PROTOCOL.md. Work does not start until this has been stated. If subagent_count exceeds the active profile's director.max_batch_agents, this notice also doubles as an approval request — dispatch does not start until approval_status is granted.",
+  "description": "What the director tells the user before dispatching any native subagent batch. One disclosure per batch, not per individual spawn. It records director selection, worker model ceilings, justifications, conflict domains, execution mode, concurrency, cumulative spawn budget, and approval state.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "director_model",
     "director_effort",
+    "director_model_source",
     "subagent_count",
     "subagents",
-    "parallel",
+    "execution_mode",
     "rescue_agent_available",
-    "within_preapproved_range"
+    "within_preapproved_range",
+    "approval_status",
+    "spawn_budget"
   ],
   "properties": {
-    "director_model": { "type": "string" },
+    "director_model": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The model selected by the user for the current director session."
+    },
     "director_effort": {
       "type": "string",
       "enum": ["low", "medium", "high", "xhigh", "max"]
+    },
+    "director_model_source": {
+      "type": "string",
+      "enum": ["user_selected_session", "explicit_user_cli_selection"],
+      "description": "The protocol never selects the director model."
     },
     "subagent_count": {
       "type": "integer",
@@ -29,11 +41,36 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["role", "task", "model", "effort", "justification"],
+        "required": [
+          "role",
+          "task",
+          "model",
+          "model_ceiling",
+          "effort",
+          "justification",
+          "model_source",
+          "conflict_domains"
+        ],
         "properties": {
-          "role": { "type": "string", "description": "e.g. implementer, reviewer-second-pass." },
-          "task": { "type": "string", "description": "task_id or short description this subagent owns." },
-          "model": { "type": "string" },
+          "role": {
+            "type": "string",
+            "enum": ["investigator", "implementer", "reviewer", "rescue"],
+            "description": "The bounded native custom-agent assignment."
+          },
+          "task": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Task ID or short description this subagent owns."
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model_ceiling": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The active worker model ceiling selected by the adapter policy or explicit user policy."
+          },
           "effort": {
             "type": "string",
             "enum": ["low", "medium", "high", "xhigh", "max"]
@@ -41,34 +78,90 @@
           "justification": {
             "type": "string",
             "minLength": 10,
-            "description": "Why this task needs its own subagent — not foldable into another task in this same batch, and not better handled as part of one broader task contract. 'Smaller diffs' or 'tidier task IDs' alone is not sufficient; see DELEGATION-PROTOCOL.md's minimality principle."
+            "description": "Why this work needs its own subagent rather than being folded into another contract."
+          },
+          "model_source": {
+            "type": "string",
+            "enum": ["native_custom_agent", "native_subagent", "explicit_spawn_override", "explicit_user_policy"],
+            "description": "How the worker model was selected."
+          },
+          "conflict_domains": {
+            "$ref": "#/definitions/conflict_domains",
+            "description": "All resources the worker may read or write."
           }
         }
       },
-      "description": "One entry per subagent about to be spawned, with the task each owns."
+      "description": "One entry per subagent about to be spawned."
     },
-    "parallel": {
-      "type": "boolean",
-      "description": "Whether these subagents run concurrently (per CONCURRENCY-RULES.md conflict-domain check) or sequentially."
+    "execution_mode": {
+      "type": "string",
+      "enum": ["parallel", "sequential"],
+      "description": "The planned batch execution mode after the conflict check."
     },
     "rescue_agent_available": {
       "type": "boolean",
-      "description": "Whether a Rescue Agent promotion (RESCUE-PROTOCOL.md) is actually available in this session/environment if a task fails twice — e.g. whether a stronger model tier is reachable at all."
+      "description": "True only when the same worker model has a supported higher effort step."
     },
     "within_preapproved_range": {
       "type": "boolean",
-      "description": "True if subagent_count is within the active profile's director.max_batch_agents. If false, this notice is also an approval request — see approval_status."
+      "description": "Whether the batch is within the configured max_batch_agents policy."
     },
     "approval_status": {
       "type": "string",
       "enum": ["not_required", "pending", "granted", "denied"],
-      "description": "not_required when within_preapproved_range is true. Otherwise starts at 'pending' and dispatch does not start until it becomes 'granted'."
+      "description": "Use not_required within the batch limit; otherwise dispatch waits for granted."
+    },
+    "spawn_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "already_spawned_count",
+        "this_batch_count",
+        "total_after_spawn",
+        "max_total_spawned_agents_per_request",
+        "within_limit"
+      ],
+      "properties": {
+        "already_spawned_count": { "type": "integer", "minimum": 0 },
+        "this_batch_count": { "type": "integer", "minimum": 0 },
+        "total_after_spawn": { "type": "integer", "minimum": 0 },
+        "max_total_spawned_agents_per_request": { "type": "integer", "minimum": 1 },
+        "within_limit": { "type": "boolean" }
+      },
+      "description": "Cumulative per-request spawn budget; not the simultaneous-thread limit."
     }
   },
   "allOf": [
     {
+      "if": { "properties": { "within_preapproved_range": { "const": true } } },
+      "then": { "properties": { "approval_status": { "const": "not_required" } } }
+    },
+    {
       "if": { "properties": { "within_preapproved_range": { "const": false } } },
-      "then": { "required": ["approval_status"] }
+      "then": { "properties": { "approval_status": { "enum": ["pending", "granted"] } } }
+    },
+    {
+      "if": { "properties": { "subagent_count": { "const": 0 } } },
+      "then": { "properties": { "subagents": { "maxItems": 0 } } }
     }
-  ]
+  ],
+  "definitions": {
+    "conflict_domains": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "files": { "type": "array", "items": { "type": "string" } },
+        "code_regions": { "type": "array", "items": { "type": "string" } },
+        "data_structures": { "type": "array", "items": { "type": "string" } },
+        "interfaces": { "type": "array", "items": { "type": "string" } },
+        "schemas": { "type": "array", "items": { "type": "string" } },
+        "db_entities": { "type": "array", "items": { "type": "string" } },
+        "shared_configs": { "type": "array", "items": { "type": "string" } },
+        "state_stores": { "type": "array", "items": { "type": "string" } },
+        "generated_artifacts": { "type": "array", "items": { "type": "string" } },
+        "build_targets": { "type": "array", "items": { "type": "string" } },
+        "user_flows": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
 }

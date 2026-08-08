@@ -1,43 +1,64 @@
 # Concurrency Rules
 
-This document defines when tasks may run in parallel and when they must run sequentially.
+This document defines when delegated tasks may run in parallel and when they must run sequentially.
+The adapter supplies the native simultaneous-thread setting; the protocol supplies the correctness
+check and cumulative spawn limit.
 
-## Default: sequential
+## Default: sequential unless proven independent
 
-Only genuinely independent tasks run in parallel. Independence is not assumed; it is checked. If any
-of the following overlap between two tasks, the director MUST default to running them sequentially
-rather than in parallel:
+Only genuinely independent tasks run in parallel. Independence is not inferred from different
+filenames. If any of these domains overlap, the director MUST default to sequential execution:
 
-- the same file
-- the same data structure
-- the same interface
-- the same database schema
-- the same shared configuration
-- the same state management
-- the same build or packaging configuration
-- the same user flow
+- files or glob patterns;
+- code regions or data structures;
+- public interfaces, API contracts, or event names;
+- schemas or database entities/migrations;
+- shared configuration or state stores;
+- generated artifacts or build/package targets;
+- user flows or data dependencies.
 
-This list is deliberately conservative. When in doubt about overlap, treat it as overlapping.
+Read/read work may run in parallel when it has no dependency. Write/write overlap is forbidden.
+Read/write work is sequential whenever the read must see the writer's result or the writer could
+invalidate the reader's evidence.
 
 ## The conflict check
 
-Before dispatching two or more tasks in parallel, the director MUST perform a conflict check using
-the `conflict_domains` object on each task's [task contract](TASK-CONTRACT.md), matching [`../schemas/task-contract.schema.json`](../schemas/task-contract.schema.json): `files`, `data_structures`,
-`interfaces`, `db_entities`, `shared_configs`, `state_stores`, `build_targets`, `user_flows`.
+Before a parallel dispatch, compare the `conflict_domains` object in every Task Contract. For each
+domain key, normalize exact names and declared glob patterns, then check for intersection. A shared
+file is sufficient to force sequencing even when the intended code regions differ. A shared
+interface or schema is sufficient even when the files differ.
 
-The check is a set intersection per key: for each key, take task A's array and task B's array and
-check for any shared entry. If any key has a nonempty intersection, the pair is blocked from
-parallel dispatch — the tasks are ordered sequentially instead, respecting whatever `depends_on`
-relationship makes sense, or run one after the other even without a formal dependency.
+If a conflict is found, add a real dependency where one task needs the other's output or otherwise
+choose a deterministic sequential order. Do not create a false dependency merely to hide a conflict;
+the disclosure should state that the order is a conflict-safety decision.
 
-**Two implementers must never modify the same file concurrently**, even if every other domain is
-independent. A shared file is always sufficient to force sequencing, regardless of whether the two
-tasks' changes seem "obviously" non-overlapping in intent — merge conflicts and silent overwrites
-are exactly the failure mode this rule exists to prevent.
+## Cumulative spawn budget
+
+The protocol policy separately limits one user request to a cumulative budget. The active adapter
+profile supplies the limit, and the disclosure records:
+
+```text
+already_spawned_count
+this_batch_count
+total_after_spawn
+max_total_spawned_agents_per_request
+within_limit
+```
+
+This count does not reset merely because a batch finishes. Revisions, new investigators, and rescue
+assignments count unless the active adapter explicitly documents that a replacement reuses an existing
+slot. At the limit, the director must merge/revise/re-scope/return the work rather than spawn another
+agent. Exceeding it requires a new disclosure and explicit user approval.
+
+## Shared working state
+
+Native subagents inherit the parent session's permissions and normally operate in the same project
+context. Parallel write tasks therefore require an explicitly isolated worktree or equivalent. If
+the adapter cannot guarantee isolation, any parallel batch containing writes is invalid and must run
+sequentially. A read-only investigator and read-only reviewer may be parallel when their evidence
+does not depend on each other.
 
 ## Worked example
-
-Two candidate tasks, both ready to dispatch:
 
 ```json
 {
@@ -61,69 +82,16 @@ Two candidate tasks, both ready to dispatch:
 }
 ```
 
-Checking T-041 against T-042: `files` = `{orders.js}` vs `{inventory.js}` — no overlap. `interfaces`
-— no overlap. `user_flows` = `{checkout}` vs `{inventory-lookup}` — no overlap. **Allowed pair**:
-dispatch T-041 and T-042 in parallel.
+These tasks have no intersection and may be disclosed as `parallel` if they have no dependency and
+the budgets permit it. If a third task changes `POST /orders`, the interface intersection forces it
+to run sequentially with T-041 regardless of its filename.
 
-Now consider a third task:
+## Failure and interruption
 
-```json
-{
-  "task_id": "T-043",
-  "conflict_domains": {
-    "files": ["src/api/orders.js", "src/api/orderValidation.js"],
-    "interfaces": ["POST /orders"],
-    "user_flows": ["checkout"]
-  }
-}
-```
+Tasks in one batch do not share failure counts. Review and integrate each passing task independently,
+but hold a task whose dependency failed. Each failed task follows its own failure/rescue protocol.
+If a failure invalidates the batch's design, stop integration and return to design rather than
+integrating half of a plan known to be wrong.
 
-Checking T-041 against T-043: `files` intersect at `orders.js`, `interfaces` intersect at `POST
-/orders`, `user_flows` intersect at `checkout`. **Blocked pair**: T-041 and T-043 MUST run
-sequentially, in dependency order or in the order the director chooses, never concurrently.
-
-## Interaction with dependency ordering
-
-A conflict-check failure is not the same as a `depends_on` relationship — the tasks may have no
-logical dependency on each other's output, only a resource collision. In that case the director
-sequences them (either order is valid) rather than declaring a false dependency. `depends_on` is
-reserved for genuine "B needs A's output" relationships from [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md)'s ordering step.
-
-## When part of a parallel batch fails
-
-Dispatching N tasks together does not make them succeed or fail together. When some tasks in a batch
-pass review and others do not, the director MUST resolve each task on its own evidence:
-
-- **Passing tasks are reviewed and integrated normally.** A sibling task's failure is not a reason to
-  discard work that met its own completion criteria. Holding good work hostage to an unrelated
-  failure wastes it and makes the eventual re-run larger than it needed to be.
-- **Failing tasks enter the failure loop individually.** Each failed task counts its own loops
-  ([FAILURE-LOOP.md](FAILURE-LOOP.md)) toward its own threshold and, if it reaches it, gets its own classification and
-  possible Rescue Agent ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)). Failures do not pool across tasks: two different tasks
-  failing once each is not "two failures" for either of them.
-- **Integrate in dependency order, not completion order.** If a passing task's `depends_on` chain
-  includes a task that failed, it is not integrated yet regardless of its own verdict — its
-  correctness was established against an assumption that no longer holds. Hold it at its isolated
-  checkpoint until the dependency resolves, then re-review it rather than integrating on the strength
-  of the earlier review.
-
-**Exception — a failure that invalidates the batch's premise.** If the failure reveals that the
-*design* the batch was decomposed from is wrong (not merely that one implementer struggled), the
-director stops integrating and returns to design. This is the `requirement_conflict` path in
-[RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 1 applied at batch scope: revising the plan and re-delegating is the correct
-response, and integrating half of a plan now known to be wrong is not.
-
-**On user interruption mid-batch**, the same rule applies: the director does not abandon in-flight
-work silently. It reports which tasks completed, which were in progress, and where each one's state
-is preserved ([STATE-SAFETY.md](STATE-SAFETY.md)), so the run can be resumed or rolled back deliberately rather than
-leaving a half-integrated tree.
-
-## This is a correctness gate, not a volume control
-
-Passing the conflict check makes parallel dispatch *safe*; it does not make a large batch
-*appropriate*. A decomposition where every task is genuinely independent will pass this check
-regardless of whether it is 3 tasks or 30 — the check has nothing to say about whether 30 subagents
-should exist in the first place. That question belongs to [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md) step 4 (prefer the
-fewest tasks that satisfy the verifiable-unit rule) and step 7 (a batch above the active profile's
-`director.max_batch_agents` requires disclosed, user-granted approval before dispatch, independent of
-how cleanly it passes the conflict check here).
+On user interruption, report what completed, what remains active, and where each state is preserved.
+Never abandon an in-flight write or discard its evidence silently.

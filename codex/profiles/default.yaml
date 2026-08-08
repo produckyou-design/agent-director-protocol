@@ -1,0 +1,42 @@
+# Protocol policy metadata. This file is not Codex config.toml and is never
+# loaded by Codex as a native profile. Native settings live in .codex/config.toml
+# and .codex/agents/*.toml; this file records the adapter policy those settings
+# implement.
+
+profile_kind: protocol-policy
+director:
+  model_selection: user
+  inherit_active_session: true
+  model_source: current_user_selected_session
+  max_batch_agents: 4
+  max_total_spawned_agents_per_request: 12
+
+worker:
+  model_ceiling: gpt-5.6-luna
+  model_selection: adapter_default_unless_user_explicitly_overrides
+  model_escalation: forbidden
+
+implementer:
+  model: gpt-5.6-luna
+  effort_default: high
+  effort_by_task_kind:
+    mechanical: low
+    pipeline: medium
+    implementation: high
+    investigation: max
+    audit: max
+    review: max
+  effort_ceiling: max
+  failure_threshold: 2
+
+rescue:
+  same_model_only: true
+  model: gpt-5.6-luna
+  raise_effort_only: true
+  max_attempts: 2
+  on_ceiling_failure: return_to_director
+
+concurrency:
+  native_config_key: agents.max_concurrent_threads_per_session
+  max_concurrent_subagents: 4
+  write_conflict_default: sequential

@@ -1,9 +1,7 @@
-# Task contract template
+# Task Contract Template
 
-Fill in every field before delegating a task to an implementer run. Fields mirror
-[`schemas/task-contract.schema.json`](../../../../schemas/task-contract.schema.json) exactly — see
-[TASK-CONTRACT.md](../../../../core/TASK-CONTRACT.md) for the rules behind each field. This template is
-platform-neutral: paste the filled-in JSON as the prompt to whatever mechanism runs the implementer.
+Fill every field before delegating. The shape mirrors
+[`schemas/task-contract.schema.json`](../../../../schemas/task-contract.schema.json).
 
 ```json
 {
@@ -24,14 +22,26 @@ platform-neutral: paste the filled-in JSON as the prompt to whatever mechanism r
   "test_commands": [],
   "manual_verification": [],
   "report_format": "implementation-report.schema.json",
+  "delegation": {
+    "role": "implementer",
+    "model": "gpt-5.6-luna",
+    "model_ceiling": "gpt-5.6-luna",
+    "reasoning_effort": "high",
+    "execution": "sequential",
+    "justification": "",
+    "spawn_authority": "director"
+  },
   "depends_on": [],
   "conflict_domains": {
     "files": [],
+    "code_regions": [],
     "data_structures": [],
     "interfaces": [],
+    "schemas": [],
     "db_entities": [],
     "shared_configs": [],
     "state_stores": [],
+    "generated_artifacts": [],
     "build_targets": [],
     "user_flows": []
   }
@@ -40,10 +50,14 @@ platform-neutral: paste the filled-in JSON as the prompt to whatever mechanism r
 
 ## Field notes
 
-- `task_id` — `^T-[0-9]{3,}$`, e.g. `T-001`. Unique within the project.
-- `objective` / `target_behavior` — minimum 10 characters; state the *why* and the precise *after* behavior. "Improve X" is not valid.
-- `must_read_files` vs `editable_files` vs `forbidden_files` — read-only context, allowed write scope, and explicitly off-limits files. Keep these three disjoint and exhaustive of what the implementer needs to know.
-- `completion_criteria` and `test_commands` — each requires at least one entry. Every criterion must be objectively checkable; every command must be one the implementer can actually run and paste output from.
-- `manual_verification` — may be an empty array when automated tests fully cover the behavior.
-- `depends_on` — omit, or list task IDs that must already be reviewed-approved.
-- `conflict_domains` — omit entirely for a task with no shared-resource risk. When present, any overlap with another in-flight task's `conflict_domains` forces sequential execution (see [CONCURRENCY-RULES.md](../../../../core/CONCURRENCY-RULES.md)).
+- `objective` and `target_behavior` must explain the why and the precise after-state.
+- `editable_files` and `forbidden_files` are disjoint and must contain every expected write boundary.
+- `delegation.justification` must identify a concrete independent result, conflict boundary,
+  investigation need, blast-radius boundary, or independent reviewer context. “For efficiency” or
+  “many files” is not sufficient.
+- `delegation.model_ceiling` is the adapter policy ceiling; a
+  different model requires explicit user policy and disclosure.
+- `conflict_domains` is not just a file list. Include interfaces, schemas, shared state, generated
+  artifacts, and build/config targets whenever the task can affect them.
+- `depends_on` is for real output dependencies. A conflict-only ordering decision should be stated
+  in the disclosure without inventing a dependency.

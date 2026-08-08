@@ -1,68 +1,45 @@
-# Revision Instruction Template
+# Revision instruction template
 
-Use this after a review verdict of `revision_required` (or `rejected`, when
-re-delegating instead of taking over). Every field must be grounded in
-concrete evidence you gathered yourself — not a paraphrase of what the
-implementer said. This is what makes a revision loop count as a real loop
-rather than a bare re-ask; see
-[`FAILURE-LOOP.md`](../../../../core/FAILURE-LOOP.md).
+Used inside a `review-result` whose `verdict` is `revision_required`, and as the `instruction` field of
+the next [`failure-loop.schema.json`](../../../../schemas/failure-loop.schema.json) record. Every instruction
+must be evidence-based — quote the actual failure, never "please fix it" or "try again."
+See [FAILURE-LOOP.md](../../../../core/FAILURE-LOOP.md).
 
-## task_id
-
-`T-###`
-
-## loop_number
-
-The loop this revision instruction starts. `1` is the initial
-implementation; a revision instruction issued after loop 1's review starts
-loop 2, and so on.
-
-## prior_verdict
-
-`revision_required` | `rejected`
-
-## failure_reasons
-
-From the canonical enum only
-([`review-result.schema.json`](../../../../schemas/review-result.schema.json)):
-
-`completion_criteria_unmet` | `test_failure` | `not_runnable` | `regression` |
-`interface_violation` | `placeholder_implementation` | `fake_success` |
-`not_wired_into_flow` | `instruction_not_applied` | `repeated_same_error`
-
-- `...`
-
-## failure_evidence
-
-Verbatim excerpt(s) of what actually happened: real test output, a
-reproduction transcript, or the exact code excerpt that violates the
-contract. No paraphrasing.
-
-```
-<verbatim test output / diff / reproduction>
+```json
+{
+  "instruction": "",
+  "target_files": [],
+  "evidence": ""
+}
 ```
 
-## exact_instructions
+## Field notes
 
-Specific, actionable instructions — not "fix the bug" but what to change and
-why, tied directly to `failure_evidence` above.
+- `instruction` — minimum 10 characters. State precisely what must change and why, in terms the implementer can act on without re-reading the whole review.
+- `target_files` — the specific files the revision should touch. Should be a subset of the original task's `editable_files`.
+- `evidence` — the concrete artifact that motivates the instruction: a verbatim test-output excerpt, a code excerpt, or exact reproduction steps. This is what distinguishes a real revision loop from re-asking the same question.
 
-1. `...`
+## Loop record shape
 
-## target_files
+Each full loop (instruction through re-review) is also logged as one entry against
+[`schemas/failure-loop.schema.json`](../../../../schemas/failure-loop.schema.json):
 
-Files the revision must touch (should be a subset of the original task
-contract's `editable_files`).
+```json
+{
+  "task_id": "T-001",
+  "loop_number": 2,
+  "instruction": "",
+  "implementation_summary": "",
+  "test_evidence": "",
+  "review_verdict": "revision_required",
+  "failure_reasons": [],
+  "counted_as_failure": true,
+  "notes": ""
+}
+```
 
-- `path/to/file`
+Only a loop that actually ran instruction → implementation → tests → review counts toward the
+active failure threshold in [TAKEOVER-PROTOCOL.md](../../../../core/TAKEOVER-PROTOCOL.md). Regenerating an
+answer without a real implementation-and-test cycle is not a loop and does not count.
 
-## retest_commands
-
-Exact commands to re-run after the revision, to be executed by the
-implementer and then independently re-run by the director.
-
-- `...`
-
-## notes (optional)
-
-`...`
+\n

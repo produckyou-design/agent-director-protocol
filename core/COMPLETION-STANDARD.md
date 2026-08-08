@@ -59,3 +59,5 @@ are director responsibilities that happen after individual task approval, not a 
 Completion statements MUST be grounded in what was actually run and observed in this review — actual
 test output, actual file contents, actual reproduction steps. Claims like "this should work" or
 "this is fine, it's a minor change" are not completion evidence and do not satisfy this standard.
+
+\n

@@ -4,8 +4,9 @@ Two forms in this file: the **implementer's** request to the director, and the *
 request to the user. Neither role changes its own model or effort — both stop and ask. Full rule:
 [`ESCALATION-PROTOCOL.md`](../../../../core/ESCALATION-PROTOCOL.md).
 
-A third guess-based fix for the same problem is forbidden. Once two attempts at the same root cause
-have failed, fill in the matching section below instead of trying again.
+A third guess-based fix for the same problem is forbidden. Once the active
+failure evidence requires escalation, fill in the matching section below
+instead of trying again.
 
 ---
 
@@ -57,7 +58,11 @@ what actually happened.
 
 - What is still uncertain after both attempts.
 
-### current_model / current_effort
+### current_model / model_ceiling / current_effort
+
+Record the actual worker model, the adapter ceiling (normally
+worker model selected by the active adapter, and the effort used. Escalation does not change the
+model automatically.
 
 ### recommended_model / recommended_effort (optional)
 
@@ -166,3 +171,5 @@ still requires a [takeover record](takeover-template.md) per
 If a granted Rescue Agent promotion also fails, do not escalate or promote a second time on the same
 block — the Rescue Agent's own two-attempt limit is exhausted; move to RESCUE-PROTOCOL.md Step 3
 (director direct intervention, rollback, user judgment, scope reduction, or investigation pivot).
+
+\n

@@ -1,0 +1,24 @@
+{
+  "name": "agent-director",
+  "version": "0.7.0",
+  "description": "Activate a contract-first Director workflow for native Codex subagents with conflict-safe execution, evidence-based review, and explicit model and budget disclosure.",
+  "author": {
+    "name": "produckyou-design",
+    "url": "https://github.com/produckyou-design"
+  },
+  "homepage": "https://github.com/produckyou-design/agent-director-protocol",
+  "repository": "https://github.com/produckyou-design/agent-director-protocol",
+  "license": "MIT",
+  "keywords": ["codex", "subagents", "orchestration", "delegation", "review"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Director",
+    "shortDescription": "Activate contract-first Director mode in Codex.",
+    "longDescription": "Coordinate native Codex subagents with complete task contracts, conflict checks, Luna worker ceilings, and evidence-based review.",
+    "developerName": "produckyou-design",
+    "category": "Developer Tools",
+    "capabilities": ["Read"],
+    "defaultPrompt": "Activate Agent Director mode for this task and show the contract and composition before spawning workers.",
+    "brandColor": "#6366F1"
+  }
+}

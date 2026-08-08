@@ -28,9 +28,9 @@ Loop records are written using [`../schemas/failure-loop.schema.json`](../schema
 Only loops where `counted_as_failure` is `true` count toward the failure threshold that triggers
 [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) classification and, ultimately, permits takeover under
 [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md). That threshold is the active profile's
-`implementer.failure_threshold` — **default two** — not a value hardcoded in this document; a
-profile may raise or lower it (never below one), and every other document in this protocol that
-says "two failures" means "that configured count." A loop that ends in `review_verdict: approved`
+`implementer.failure_threshold` — **two by default** — not a value hardcoded in this document;
+the active adapter profile may raise or lower it (never below one). Every other document
+in this protocol refers to that configured count rather than a fixed retry number. A loop that ends in `review_verdict: approved`
 is not a failure. A loop that ends in `revision_required` or `rejected` for an objective reason (see
 below) is counted.
 
@@ -67,3 +67,5 @@ Both loop records and review results MUST use these exact enum values — no fre
 categories. When a loop fails for an objective reason, the director's next instruction must name the
 specific failure reason(s) and cite evidence, so the next loop is grounded rather than a repeat of
 the same guess. Review mechanics that surface this evidence are defined in [REVIEW-GATES.md](REVIEW-GATES.md).
+
+\n

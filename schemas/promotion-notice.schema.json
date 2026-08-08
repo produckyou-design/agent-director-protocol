@@ -13,6 +13,7 @@
     "failed_approaches",
     "promotion_reason",
     "rescue_model",
+    "model_ceiling",
     "rescue_effort",
     "editable_scope",
     "forbidden_scope",
@@ -28,8 +29,8 @@
     },
     "failure_count": {
       "type": "integer",
-      "minimum": 2,
-      "description": "Number of counted failed loops on this task (per FAILURE-LOOP.md). Rescue Agent promotion requires at least 2."
+      "minimum": 1,
+      "description": "Number of counted failed loops on this task (per FAILURE-LOOP.md). Rescue Agent promotion requires at least the active profile's implementer.failure_threshold; the JSON schema cannot encode that profile value."
     },
     "failed_approaches": {
       "type": "array",
@@ -42,10 +43,19 @@
       "minLength": 10,
       "description": "The specific reason promotion is judged necessary — tie this to the RESCUE-PROTOCOL.md Step 1 classification (reasoning_gap / model_capability_gap)."
     },
-    "rescue_model": { "type": "string" },
+    "rescue_model": {
+      "type": "string",
+      "description": "The same model as prior_model. Rescue changes reasoning effort, not the implementer's model."
+    },
+    "model_ceiling": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The worker model ceiling that the rescue cannot exceed."
+    },
     "rescue_effort": {
       "type": "string",
-      "enum": ["low", "medium", "high", "xhigh", "max"]
+      "enum": ["low", "medium", "high", "xhigh", "max"],
+      "description": "The explicitly selected higher reasoning effort on rescue_model."
     },
     "editable_scope": {
       "type": "string",
@@ -62,7 +72,7 @@
     },
     "within_preapproved_range": {
       "type": "boolean",
-      "description": "True if rescue_model/rescue_effort are already within what the user has pre-approved. If false, this notice is also an approval request — see approval_status."
+      "description": "True if the unchanged model and selected reasoning effort are already within what the user has pre-approved. If false, this notice is also an approval request — see approval_status."
     },
     "approval_status": {
       "type": "string",

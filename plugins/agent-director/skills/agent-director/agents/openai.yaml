@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agent Director"
+  short_description: "Activate contract-first Director mode in Codex"
+  default_prompt: "Use $agent-director to turn Director mode on for this task, disclose the worker composition, and delegate only through written contracts."
+policy:
+  allow_implicit_invocation: false

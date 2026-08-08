@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-09
+
+The Codex adapter now targets native multi-agent workflows instead of treating
+`codex exec` and a project-local YAML alias as the primary runtime model.
+
+### Changed
+
+- **Native Codex delegation is the default.** The main user-selected Codex
+  session is the director; native subagent threads are the normal worker path,
+  while `codex exec` is reserved for non-interactive, CI, process-isolated, or
+  native-unavailable work.
+- **Real Codex project configuration is supplied.** The adapter now documents
+  `.codex/config.toml` `[agents]` keys, four simultaneous threads, and
+  `.codex/agents/*.toml` role files for investigator, implementer, reviewer,
+  rescue, and release auditing.
+- **Worker policy is explicit.** Normal delegated workers use the GPT-5.6 Luna
+  ceiling; effort is selected by task kind and Rescue raises effort only on the
+  same model. The director model is never silently inherited or changed.
+- **Contracts and disclosures carry execution evidence.** Task Contracts now
+  record delegation metadata and conflict domains; implementation reports
+  record the assigned worker settings; reviews record their context; and the
+  examples, templates, schemas, and Core rules are synchronized.
+- **Installation documentation no longer implies a hidden mode switch.** It
+  explains the actual `AGENTS.md`/skill/configuration setup and the need to
+  start a new task or explicitly reread instructions after installation.
+
 ## [0.6.1] - 2026-08-07
 
 Follow-through on 0.6.0. Removing the model axis from the Rescue Agent left three
