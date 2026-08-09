@@ -205,6 +205,8 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         self.assertIn('default_subagent_reasoning_effort = "max"', config)
         self.assertNotIn("effort_by_task_kind", profile)
         self.assertIn("explicit_per_spawn", profile)
+        self.assertIn("runtime_capacity", profile)
+        self.assertNotIn("max_total_spawned_agents_per_request", profile)
         self.assertIn("runtime_metadata_verification: required", profile)
         self.assertIn("available: false", profile)
 
@@ -223,6 +225,8 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                 self.assertNotIn("effort_by_task_kind", source)
                 self.assertIn("gpt-5.6-luna", source)
                 self.assertIn("max", source)
+                self.assertNotIn("max_concurrent_threads_per_session = 4", source)
+                self.assertNotIn("max_total_spawned_agents_per_request", source)
                 self.assertRegex(source, r'(?<!model_)reasoning_effort[\"\`]*\s*[:=]\s*[\"\`]?max')
                 self.assertRegex(source, re.compile(r"metadata|runtime", re.I))
                 self.assertRegex(source, re.compile(r"reject|close|unverifiable|fallback", re.I))

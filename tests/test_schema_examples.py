@@ -97,6 +97,18 @@ def minimal_agent_composition_disclosure() -> dict:
         "director_model": "configured-director-model",
         "director_effort": "high",
         "director_model_source": "user_selected_session",
+        "user_visible": True,
+        "work_contract": {
+            "objective": "Validate the widget correction with independent evidence.",
+            "scope": ["src/widget.py"],
+            "planned_contracts": 1,
+            "planned_workers": 1,
+            "worker_model": "configured-worker-model",
+            "worker_reasoning_effort": "medium",
+            "minimum_safe_rationale": "The isolated widget boundary cannot be absorbed by fewer existing contracts without losing the independently verifiable result.",
+            "tests": ["python -m unittest"],
+            "stop_conditions": ["Stop on unverifiable worker metadata or native capacity refusal."],
+        },
         "subagent_count": 1,
         "subagents": [
             {
@@ -118,8 +130,8 @@ def minimal_agent_composition_disclosure() -> dict:
             "already_spawned_count": 0,
             "this_batch_count": 1,
             "total_after_spawn": 1,
-            "max_total_spawned_agents_per_request": 12,
-            "within_limit": True,
+            "capacity_source": "observed_native_runtime",
+            "capacity_known": False,
         },
     }
 

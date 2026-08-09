@@ -181,32 +181,35 @@ the normal local workflow they should be treated as sharing the working tree;
 parallel write tasks therefore require disjoint domains and an explicitly
 isolated worktree, otherwise they run sequentially.
 
-The native concurrency ceiling is configured by the actual
-`agents.max_concurrent_threads_per_session = 4`. This is only the simultaneous
-thread limit. The protocol also enforces a per-request cumulative budget of
-12 spawned agents, independent of how many batches finish.
+Native capacity comes from the active Codex runtime through
+`agents.max_concurrent_threads_per_session` or returned metadata, when exposed.
+The adapter does not add a concurrent or cumulative numeric cap. If capacity is
+unknown, record it as unknown and do not invent a project limit.
 
 ## Agent composition disclosure
 
 Before the first spawn in every batch, send one disclosure matching
 [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json):
 
+- `user_visible: true` and a `work_contract` containing the objective, scope,
+  planned contract/worker totals, worker model/effort, minimum-safe rationale,
+  exact tests, and stop conditions;
 - current Director model and effort, with source `user_selected_session`;
 - each worker's role, Task Contract, explicit model `gpt-5.6-luna`, explicit
   effort `max`, model ceiling, and concrete justification;
 - each worker's conflict domains and whether the batch is `parallel` or
   `sequential`;
-- `already_spawned_count`, `this_batch_count`, `total_after_spawn`, and the
-  request limit of 12;
-- whether the batch is within both the concurrency and cumulative budgets;
+- `already_spawned_count`, `this_batch_count`, and `total_after_spawn`;
+- whether native runtime capacity was observed or remains unknown;
 - whether Rescue has effort headroom on the same Luna model. With the normal
   `max` baseline, Rescue is unavailable for ordinary Codex ADP runs;
-- approval status if a batch exceeds the configured batch budget.
+- the observed runtime-capacity result, or an explicit `unknown` value when the
+  native surface exposes no capacity metadata.
 
 Do not silently add an investigator, reviewer, revision worker, or rescue
 worker later. Any addition requires the new disclosure and concrete addition
-justification above; budget exceptions or material execution-mode changes also
-require approval when applicable.
+justification above; a material execution-mode or scope change requires a new
+disclosure before it is dispatched.
 
 ## Rescue and escalation
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Codex worker capacity is runtime-defined.** The adapter no longer invents a
+  concurrent or cumulative numeric cap. Directors disclose the planned worker
+  structure and evidence-based rationale before spawning; native slot-full
+  responses require wait/close, re-scope, or return and never authorize
+  Director takeover.
+
 ## [0.8.0] - 2026-08-09
 
 The Codex adapter now treats explicit Director-mode activation as a fixed,

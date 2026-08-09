@@ -52,7 +52,7 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | 스텁, 하드코딩된 반환값, 지어낸 테스트 출력이 동작하는 기능인 척 보고됨 | `placeholder_implementation` / `fake_success`가 주관적 판단이 아니라 이름이 붙은 객관적 [실패 사유](core/FAILURE-LOOP.md)로 정의됨 |
 | 같은 잘못된 수정을 반복하며 턴을 태움 | 동일 근본 원인에 대한 세 번째 추측성 수정은 금지. 대신 [증거 기반 에스컬레이션](core/ESCALATION-PROTOCOL.md)을 해야 함 |
 | 에스컬레이션 = "그냥 제일 큰 모델 박기" | [구조 에이전트](core/RESCUE-PROTOCOL.md)는 **추론 수준만 올리고 모델은 절대 안 바꿉니다** — 작업 하나, 최대 2회, 진짜 추론/능력 격차일 때만. 모델 변경은 사용자 승인 사항이고, 노력 수준이 바닥나면 구현자가 아니라 *디렉터*를 상향합니다(계획이 유력한 용의자니까) |
-| 모델이 조용히 자기를 승격시키거나, 승인한 적 없는 서브에이전트를 우르르 생성 | 모든 승격과 배치는 실행 *전에* 고지되고 서브에이전트마다 `justification` 필수. `max_batch_agents` 초과 시 승인 요청이 되며, implementer는 아예 서브에이전트를 못 만듦 |
+| 모델이 조용히 자기를 승격시키거나, 승인한 적 없는 서브에이전트를 우르르 생성 | 모든 승격과 배치는 실행 *전에* 고지되고 서브에이전트마다 `justification` 필수. 네이티브 런타임 capacity만 사용하며, implementer는 아예 서브에이전트를 못 만듦 |
 | 병렬 에이전트 둘이 같은 파일을 덮어씀 | 배정 전 8개 도메인 [충돌 검사](core/CONCURRENCY-RULES.md). 파일 하나만 공유해도 무조건 순차 실행 |
 | 실패한 시도가 `git checkout .`으로 날아가면서 증거까지 같이 사라짐 | [상태 안전성](core/STATE-SAFETY.md): 실패한 작업은 검토 전까지 보존되고, 체크포인트는 실제 커밋 SHA |
 | 모호한 지시("UI 고쳐줘")를 넘겼더니 엉뚱한 게 돌아옴 | 위임 전에 `current_state`, `target_behavior`, 객관적 `completion_criteria`를 갖춘 [작업 계약](core/TASK-CONTRACT.md)이 필수 |
@@ -364,6 +364,14 @@ metadata가 노출되면 확인하고, 불일치한 worker는 거부하고 종�
 필요합니다. 기본값이 이미 max이므로 Codex Rescue는 일반 ADP 실행에서
 사용할 수 없으며, 증거를 보존하고 Core escalation/takeover 절차를 따릅니다.
 
+Codex 어댑터는 동시 또는 누적 worker 숫자 제한을 ADP에 추가하지 않습니다.
+노출되면 네이티브 런타임 capacity를 기록하고, capacity metadata가 없으면
+`unknown`으로 기록합니다. 네이티브 slot-full 응답은 대기, 증거 검사, 완료
+worker 종료, 범위 재조정 또는 사용자 반환으로 처리합니다. 첫 spawn이나 상태
+변경 전에 Director는 `user_visible: true`와 함께 objective, scope, 전체
+contract/worker 수, 최소 안전 근거, 정확한 테스트, stop conditions가 담긴
+`work_contract`를 사용자에게 고지해야 합니다.
+
 초기 분해 시 contract 크기와 전체 contract/worker 수가 최소의 안전한
 구조인 이유를 conflict boundary, dependency, 독립 evidence/review 또는
 blast-radius 격리와 연결해 설명하고, 기존의 더 적은 contract가 작업을
@@ -412,17 +420,16 @@ blast-radius 격리와 연결해 설명하고, 기존의 더 적은 contract가 
 이 세션을 실행 중인 모델입니다 — 프로젝트 도중 `/model`로 모델을 바꾸면
 director도 그 즉시 같이 바뀌고, 별도로 고칠 파일이 없습니다. 프로필이 실제로
 담고 있는 건 오늘 누가 director 자리에 있든 그대로 유지돼야 하는 운영
-정책입니다: 스폰되는 implementer가 작업 종류별로 받는 모델/노력 수준,
-서브에이전트 배치가 사용자 승인 없이 도달할 수 있는 최대 크기
-(`max_batch_agents`), 그리고 한 작업에서 몇 번 실패해야 구조 프로토콜
-분류가 시작되는지(`failure_threshold`)입니다:
+정책입니다: 어댑터별 모델/노력 규칙과 한 작업에서 몇 번 실패해야 구조
+프로토콜 분류가 시작되는지(`failure_threshold`)입니다. 동시성은 플랫폼
+네이티브 런타임이 결정하며 Codex 어댑터는 프로젝트 숫자 worker 제한을
+추가하지 않습니다:
 
 ```yaml
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
 director:
   preferred_models: [opus-5, fable-5]  # 이 역할에 권장되는 등급일 뿐, 반드시 골라야 하는 선택지가 아님
   effort: high        # optional hint; adapters map to platform mechanism or omit
-  max_batch_agents: 4  # 이 크기를 넘는 배치는 스폰 전에 사용자 승인 필요
 implementer:
   preferred_models: [opus-5]   # 한 개 — 프로토콜이 항목 사이에서 고르는 일은 없습니다
   effort_by_task_kind:
@@ -453,13 +460,11 @@ reviewer:
 여러분의 실제 작업으로 등급과 노력 수준을 직접 비교하되 *완료까지의 비용*으로
 비교하세요.
 
-**프로젝트가 다른 정책을 원할 때만 프로필을 오버라이드하세요** — 예를 들어 더 엄격한 프로젝트는
-`max_batch_agents`를 낮추고, implementer 실행 비용이 저렴한 프로젝트는
-`failure_threshold`를 올립니다(Codex 정책 메타데이터는
-`codex/profiles/default.yaml` 참고). 오버라이드하려면: 파일을 복사해서
-직접 편집하거나, (Claude Code) `CLAUDE.md`에서 다른 이름의 프로필 파일을
-가리키게 하거나, (Codex) 필드를 각 플랫폼의 `INSTALL.md`에서 설명하는 대로
-여러분의 `config.toml` / 이름 있는 프로필로 번역하면 됩니다.
+**프로젝트가 다른 정책을 원할 때만 프로필을 오버라이드하세요** — 예를 들어
+어댑터별 failure threshold를 바꿀 수 있습니다. Codex 어댑터에 프로젝트
+동시성 제한을 추가하지 마세요. capacity의 권한은 네이티브 런타임에만
+있습니다. 그 밖의 정책을 바꾸려면 파일을 복사해 편집하거나 플랫폼별
+`INSTALL.md` 지침을 따르세요.
 
 ## 새 프로젝트에 적용하기
 
@@ -576,20 +581,21 @@ reviewer:
 `justification`으로 명시돼야 합니다
 ([`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json) 참고):
 
-1. **진짜 병렬 이득** — 작업들의 `conflict_domains`가 서로 겹치지 않고,
-   더 빨리 끝내는 것이 실질적으로 중요할 때.
-2. **다른 effort 또는 모델 tier가 실제로 필요할 때** — 예: 한 부분은
-   `investigation` 성격 작업이고 나머지는 `mechanical` 작업일 때.
-3. **위험 범위 격리** — 위험한 변경을 안전한 변경과 독립적으로 리뷰하고
+1. **기존 contract/worker가 안전하게 흡수할 수 없는 별도 conflict
+   boundary 또는 dependency**가 있을 때.
+2. **위험 범위 격리** — 위험한 변경을 안전한 변경과 독립적으로 리뷰하고
    싶을 때.
-4. **진짜로 독립적인 검증 가능한 결과물들** — 억지로 하나의 계약에 묶으면
+3. **진짜로 독립적인 검증 가능한 결과물들** — 억지로 하나의 계약에 묶으면
    개별적으로 리뷰하거나 되돌리기가 더 어려워질 때.
+4. **독립 reviewer context**가 필요하고 implementer의 자기 검토로
+   대체할 수 없을 때.
 
 "더 작은 diff"나 "더 깔끔한 작업 ID" 같은 이유만으로는 절대 충분하지
-않습니다. 활성 프로필의 `director.max_batch_agents`(기본값 4)를 넘는
-배치는, 충돌 도메인 검사를 아무리 깔끔하게 통과하더라도 스폰되기 전에
-사용자의 명시적 승인이 필요합니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)
-4단계를 참고하세요.
+않습니다. Codex 어댑터에는 ADP 배치/누적 숫자 제한이 없고 네이티브 런타임이
+유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기/종료, 범위 재조정
+또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를
+시작할 수 없습니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)를
+참고하세요.
 
 배치의 일부만 실패했을 때는 각 작업을 그 작업 자체의 증거로 판단합니다.
 통과한 작업은 정상적으로 통합되고(실패한 작업에 의존하는 경우는 제외),
@@ -650,11 +656,10 @@ reviewer:
 - **"혹시 모르니" 서브에이전트를 잘게 쪼개기.** 기본값은 검증 가능한 단위
   규칙을 만족하는 최소 개수의 작업이지, 최대한 잘게 쪼개는 게 아닙니다.
   고지되는 모든 서브에이전트는 `justification`을 명시해야 하고,
-  `director.max_batch_agents`를 넘는 배치는 스폰되기 전에 사용자 승인이
-  필요합니다 — 충돌 도메인 검사를 통과하는 것은 그 배치가 병렬 실행하기
-  *안전하다*는 뜻이지, *규모가 적절하다*는 뜻이 아닙니다.
-  `core/DELEGATION-PROTOCOL.md` 4단계와 `core/CONCURRENCY-RULES.md`를
-  참고하세요.
+  관찰된 네이티브 런타임 capacity 안에서만 실행해야 합니다 — 충돌 도메인
+  검사를 통과하는 것은 배치가 실행하기 *안전하다*는 뜻이지, *규모가
+  적절하다*는 뜻이 아닙니다. `core/DELEGATION-PROTOCOL.md`와
+  `core/CONCURRENCY-RULES.md`를 참고하세요.
 - **implementer가 스스로 서브에이전트를 만들기.** 위임은 오직 director만
   합니다. implementer가 작업 도중 도움이 더 필요하다고 판단하면 그건
   차단됨/범위 밖 발견 사항으로 보고해야지, 직접 실행해서는 안 됩니다.
@@ -664,10 +669,10 @@ reviewer:
 
 - **플랫폼 메커니즘은 서로 다르며, 이 저장소는 둘 사이의 대칭성을 억지로
   맞추지 않습니다.** Claude Code에는 네이티브 서브에이전트(Task/Agent 도구)가
-  있지만, Codex에는 이에 대응하는 영속적인 서브에이전트 개념이 없습니다. 여기서
-  Codex의 implementer 역할은 작업마다 새로 실행되는 `codex exec` 호출(또는 덜
-  선호되는 방식으로 세션 내 서브에이전트 스레드)입니다. 두 어댑터는 동일한
-  프로토콜을 각 플랫폼의 실제 기본 요소로 설명할 뿐, 공유된 구현체가 아닙니다.
+  있고, Codex에서는 네이티브 서브에이전트 thread spawn이 기본 경로입니다.
+  `codex exec`는 비대화형/프로세스 격리가 필요할 때의 명시적 fallback입니다.
+  두 어댑터는 동일한 프로토콜을 각 플랫폼의 실제 기본 요소로 설명할 뿐,
+  공유된 구현체가 아닙니다.
 - **프로필은 관례이지 강제 사항이 아닙니다.** 두 플랫폼 모두 이 저장소가
   연결할 수 있는 내장 "활성 프로필" 개념을 갖고 있지 않습니다. 프로필 YAML은
   director 자신의 지침(스킬)이 실제로 그것을 읽고 적용할 때만 동작합니다.
