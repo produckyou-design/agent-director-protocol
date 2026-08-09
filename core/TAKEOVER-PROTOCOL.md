@@ -4,7 +4,7 @@ This document defines the only conditions under which the director may write pro
 and the record it must produce before doing so.
 
 **Sequencing note:** reaching the failure threshold (the active profile's `implementer.failure_threshold`,
-default two) does NOT by itself authorize takeover, and takeover is never the automatic next step
+two by default) does NOT by itself authorize takeover, and takeover is never the automatic next step
 once it's reached. [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens at that point: the director classifies
 the failure cause and, for a reasoning or model capability gap, promotes the task to a bounded,
 one-shot Rescue Agent (at most two attempts, one axis raised at a time); for a requirement conflict,
@@ -23,7 +23,7 @@ ONLY when:
   established with concrete evidence, not assumed in advance. This condition is independent of
   [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) — a missing capability or access right is not fixed by a stronger model, so it
   does not require a Rescue Agent attempt first; or
-- **(b)** at least the active profile's `implementer.failure_threshold` (default two) full revision
+- **(b)** at least the active profile's `implementer.failure_threshold` (two by default) full revision
   loops, as defined in [FAILURE-LOOP.md](FAILURE-LOOP.md), have ended in `counted_as_failure: true`, **and** the
   Rescue Protocol step that count triggers has run its course: either a Rescue Agent was assigned
   and also failed after its allotted attempts, a revised task contract for a `requirement_conflict`
@@ -93,5 +93,7 @@ for why it is correct, and so cannot supply the adversarial pressure the ten gat
 absence of an independent implementer is precisely why an independent reviewer is required.
 
 A takeover record and its resulting change do not themselves reset the failure-loop counter for the
-task — they close out the specific two loops that triggered the takeover. Any further work on the
+task — they close out the specific failure loops that triggered the takeover. Any further work on the
 same task, if it resumes normal delegation afterward, starts its own loop count.
+
+\n

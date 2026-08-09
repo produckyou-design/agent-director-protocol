@@ -1,65 +1,84 @@
 {
-  "task_id": "T-402",
-  "title": "Implement YAML config file loader",
-  "objective": "Provide a config loader so the service can read its listen address and log level from a YAML file at startup, with sensible defaults when the file is absent.",
-  "current_state": "internal/config/ package does not exist yet. cmd/server/main.go already calls config.Load(configPath) in anticipation of this package, so the binary will not build until this task lands.",
-  "target_behavior": "internal/config exports Load(path string) (*Config, error), where Config has fields ListenAddr and LogLevel (both string). Load reads YAML from path; a missing file yields default values (ListenAddr=\":8080\", LogLevel=\"info\") with a nil error; a present file's fields override the defaults for any field it sets; malformed YAML returns a non-nil, descriptive error and a nil *Config.",
-  "must_read_files": [
-    "cmd/server/main.go"
-  ],
-  "editable_files": [
-    "internal/config/config.go",
-    "internal/config/config_test.go",
-    "internal/config/testdata/sample-config.yaml",
-    "internal/config/testdata/malformed.yaml"
-  ],
-  "forbidden_files": [
-    "cmd/server/main.go",
-    "internal/health/handler.go",
-    "internal/health/handler_test.go"
-  ],
-  "interfaces_to_preserve": [
-    "func Load(path string) (*Config, error) signature, exactly as already called from cmd/server/main.go"
-  ],
-  "input_format": "path: string, filesystem path to a YAML file; the file may not exist.",
-  "output_format": "*Config{ListenAddr string, LogLevel string}, error. error is non-nil only when the file exists and its contents are malformed YAML.",
-  "error_handling": [
-    "A missing config file must return default Config values with a nil error, not an error.",
-    "Malformed YAML must return a wrapped error naming the file path and the underlying parse failure, with a nil *Config."
-  ],
-  "preservation_conditions": [],
-  "completion_criteria": [
-    "Load() on a nonexistent path returns &Config{ListenAddr: \":8080\", LogLevel: \"info\"} with a nil error.",
-    "Load() on internal/config/testdata/sample-config.yaml returns the ListenAddr and LogLevel values specified in that file.",
-    "Load() on a malformed YAML fixture returns a non-nil error and a nil *Config.",
-    "go test ./internal/config/... passes with zero failures."
-  ],
-  "test_commands": [
-    "go test ./internal/config/... -v"
-  ],
-  "manual_verification": [
-    "Once both T-401 and T-402 have landed and the binary builds, run the server with and without a config file present and confirm the listen address matches expectations in each case."
-  ],
-  "report_format": "implementation-report.schema.json",
-  "conflict_domains": {
-    "files": [
-      "internal/config/config.go",
-      "internal/config/config_test.go",
-      "internal/config/testdata/sample-config.yaml",
-      "internal/config/testdata/malformed.yaml"
-    ],
-    "data_structures": [
-      "Config"
-    ],
-    "interfaces": [
-      "internal/config.Load"
-    ],
-    "db_entities": [],
-    "shared_configs": [],
-    "state_stores": [],
-    "build_targets": [],
-    "user_flows": [
-      "server startup config loading"
-    ]
-  }
+    "task_id":  "T-402",
+    "title":  "Implement YAML config file loader",
+    "objective":  "Provide a config loader so the service can read its listen address and log level from a YAML file at startup, with sensible defaults when the file is absent.",
+    "current_state":  "internal/config/ package does not exist yet. cmd/server/main.go already calls config.Load(configPath) in anticipation of this package, so the binary will not build until this task lands.",
+    "target_behavior":  "internal/config exports Load(path string) (*Config, error), where Config has fields ListenAddr and LogLevel (both string). Load reads YAML from path; a missing file yields default values (ListenAddr=\":8080\", LogLevel=\"info\") with a nil error; a present file\u0027s fields override the defaults for any field it sets; malformed YAML returns a non-nil, descriptive error and a nil *Config.",
+    "must_read_files":  [
+                            "cmd/server/main.go"
+                        ],
+    "editable_files":  [
+                           "internal/config/config.go",
+                           "internal/config/config_test.go",
+                           "internal/config/testdata/sample-config.yaml",
+                           "internal/config/testdata/malformed.yaml"
+                       ],
+    "forbidden_files":  [
+                            "cmd/server/main.go",
+                            "internal/health/handler.go",
+                            "internal/health/handler_test.go"
+                        ],
+    "interfaces_to_preserve":  [
+                                   "func Load(path string) (*Config, error) signature, exactly as already called from cmd/server/main.go"
+                               ],
+    "input_format":  "path: string, filesystem path to a YAML file; the file may not exist.",
+    "output_format":  "*Config{ListenAddr string, LogLevel string}, error. error is non-nil only when the file exists and its contents are malformed YAML.",
+    "error_handling":  [
+                           "A missing config file must return default Config values with a nil error, not an error.",
+                           "Malformed YAML must return a wrapped error naming the file path and the underlying parse failure, with a nil *Config."
+                       ],
+    "preservation_conditions":  [
+
+                                ],
+    "completion_criteria":  [
+                                "Load() on a nonexistent path returns \u0026Config{ListenAddr: \":8080\", LogLevel: \"info\"} with a nil error.",
+                                "Load() on internal/config/testdata/sample-config.yaml returns the ListenAddr and LogLevel values specified in that file.",
+                                "Load() on a malformed YAML fixture returns a non-nil error and a nil *Config.",
+                                "go test ./internal/config/... passes with zero failures."
+                            ],
+    "test_commands":  [
+                          "go test ./internal/config/... -v"
+                      ],
+    "manual_verification":  [
+                                "Once both T-401 and T-402 have landed and the binary builds, run the server with and without a config file present and confirm the listen address matches expectations in each case."
+                            ],
+    "report_format":  "implementation-report.schema.json",
+    "conflict_domains":  {
+                             "files":  [
+                                           "internal/config/config.go",
+                                           "internal/config/config_test.go",
+                                           "internal/config/testdata/sample-config.yaml",
+                                           "internal/config/testdata/malformed.yaml"
+                                       ],
+                             "data_structures":  [
+                                                     "Config"
+                                                 ],
+                             "interfaces":  [
+                                                "internal/config.Load"
+                                            ],
+                             "db_entities":  [
+
+                                             ],
+                             "shared_configs":  [
+
+                                                ],
+                             "state_stores":  [
+
+                                              ],
+                             "build_targets":  [
+
+                                               ],
+                             "user_flows":  [
+                                                "server startup config loading"
+                                            ]
+                         },
+    "delegation":  {
+                       "role":  "implementer",
+                       "model":  "configured-worker-model",
+                       "model_ceiling":  "configured-worker-model-ceiling",
+                       "reasoning_effort":  "medium",
+                       "execution":  "parallel",
+                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "spawn_authority":  "director"
+                   }
 }

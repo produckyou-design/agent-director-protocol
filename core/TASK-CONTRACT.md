@@ -1,86 +1,86 @@
 # Task Contract
 
-This document narrates every field a director must fill in before delegating work to an implementer,
-matching [`../schemas/task-contract.schema.json`](../schemas/task-contract.schema.json) exactly.
-
-A task contract is the only valid unit of delegation. If a field below cannot be filled in
-concretely, the task is not ready to be delegated — return to [DELEGATION-PROTOCOL.md](DELEGATION-PROTOCOL.md).
+This document narrates every field a director must fill in before delegating work, matching
+[`../schemas/task-contract.schema.json`](../schemas/task-contract.schema.json). A Task Contract is
+the only valid unit of delegation.
 
 ## Required fields
 
-- **`task_id`** — Unique identifier matching `^T-[0-9]{3,}$`, e.g. `T-001`. Lets every other
-  document (reviews, failure loops, takeover records) reference this task unambiguously.
-- **`title`** — Short human-readable name. Exists for humans scanning a task list, not for machine
-  logic.
-- **`objective`** — Why this task exists. Ties the task back to the requirement so an implementer
-  understands intent, not just mechanics, and can make sane judgment calls on ambiguous edge cases
-  within scope.
-- **`current_state`** — The observed state of the code or behavior before this task starts. Prevents
-  the implementer from working off an assumed baseline instead of the real one, and gives the
-  reviewer a "before" to compare against.
-- **`target_behavior`** — Precise description of behavior after the task is done. This is the
-  specification the implementer builds to and the reviewer checks against; it must be precise enough
-  that two different people would agree on whether it was met.
-- **`must_read_files`** — Files the implementer must read before changing anything. Ensures the
-  implementer has the necessary context (existing conventions, adjacent logic, related tests) before
-  writing code.
-- **`editable_files`** — Files or glob patterns the implementer is allowed to modify or create.
-  Defines the positive boundary of the task's scope.
-- **`forbidden_files`** — Files or glob patterns the implementer must not touch. Defines the
-  negative boundary; often used to protect files another in-flight task owns, or files whose
-  interfaces must not shift. See [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md).
-- **`interfaces_to_preserve`** — Public functions, endpoints, CLI flags, schemas, or contracts that
-  must remain unchanged. Gives the reviewer a specific, checkable list for the
-  `interfaces_preserved` gate in [REVIEW-GATES.md](REVIEW-GATES.md).
-- **`input_format`** — Expected input shape for the changed behavior. Use `"n/a"` when the task has
-  no meaningful input shape (e.g. a pure styling fix).
-- **`output_format`** — Expected output shape for the changed behavior. Use `"n/a"` when not
-  applicable.
-- **`error_handling`** — Error situations that must be handled, and how. Prevents an implementation
-  that only covers the happy path.
-- **`preservation_conditions`** — Existing behavior that must not regress. Feeds directly into the
-  reviewer's `no_regressions` check.
-- **`completion_criteria`** — Array (at least one entry) of objective, checkable conditions that
-  define done. These are what the implementer reports against in `completion_criteria_status` and
-  what the reviewer checks in `completion_criteria_met`.
-- **`test_commands`** — Array (at least one entry) of exact commands the implementer must run and
-  report results for. Exact commands, not descriptions, so results are reproducible by the reviewer.
-- **`manual_verification`** — Manual verification steps for cases automated tests cannot cover. May
-  be an empty array when automated tests fully cover the behavior.
-- **`report_format`** — The required report schema, normally the literal string
-  `"implementation-report.schema.json"`.
+- **`task_id`** — Unique identifier matching `^T-[0-9]{3,}$`.
+- **`title`** — Short human-readable task name.
+- **`objective`** — Why the task exists, tied to the request.
+- **`current_state`** — Observed behavior or code state before work starts.
+- **`target_behavior`** — Precise after-state that a reviewer can check.
+- **`must_read_files`** — Context files the worker must read first.
+- **`editable_files`** — Positive write boundary; workers may not edit outside it.
+- **`forbidden_files`** — Explicit negative boundary, including another task's files.
+- **`interfaces_to_preserve`** — Public functions, endpoints, flags, schemas, and contracts that
+  must not change unintentionally.
+- **`input_format` / `output_format`** — Expected shapes, or `n/a` when not applicable.
+- **`error_handling`** — Failure conditions and required behavior.
+- **`preservation_conditions`** — Existing behavior that must not regress.
+- **`completion_criteria`** — At least one objective, checkable condition.
+- **`test_commands`** — At least one exact executable command whose output the worker must report.
+- **`manual_verification`** — Manual checks when automation is insufficient; may be empty.
+- **`report_format`** — Normally `implementation-report.schema.json`.
+- **`delegation`** — The role, model, model ceiling, reasoning effort, execution mode, concrete
+  justification, and `spawn_authority: director`.
+- **`conflict_domains`** — The complete resource set for conflict checking. Include files, code
+  regions, data structures, interfaces, schemas, database entities/migrations, shared configs, state
+  stores, generated artifacts, build targets, and user flows when applicable. Empty arrays are valid
+  only for domains that genuinely do not apply.
+
+## Delegation fields
+
+`delegation.role` is one of `investigator`, `implementer`, `reviewer`, or task-scoped `rescue`.
+`delegation.model` records the actual worker model selected by the adapter or an explicit user
+policy. `delegation.model_ceiling` records the active adapter policy ceiling.
+`delegation.reasoning_effort` records the selected supported effort, not a promise
+that every platform exposes the same labels. `delegation.execution` is `parallel` or `sequential`
+after the conflict check. `delegation.justification` must explain why this work cannot be folded into
+an existing contract or worker; “large task”, “many files”, and “efficiency” are not enough.
 
 ## Optional fields
 
-- **`depends_on`** — Array of `task_id`s that must be completed and reviewed before this task
-  starts. Used for dependency ordering.
-- **`conflict_domains`** — Object describing resources this task touches, used for the
-  parallel-dispatch conflict check: `files`, `data_structures`, `interfaces`, `db_entities`,
-  `shared_configs`, `state_stores`, `build_targets`, `user_flows`, each an array of strings. See [CONCURRENCY-RULES.md](CONCURRENCY-RULES.md)
-  for how this is used before dispatching two tasks in parallel.
+- **`depends_on`** — Task IDs that must be reviewed and approved before this task starts.
 
 ## Example
 
-The following validates against the schema:
+The following is the minimum shape of a valid delegated contract; the complete example lives at
+[`../examples/new-project/02a-task-contract.json`](../examples/new-project/02a-task-contract.json).
 
 ```json
 {
   "task_id": "T-023",
-  "title": "Add CSV export to reports page",
-  "objective": "Analysts need to download report data for offline processing in spreadsheet tools.",
-  "current_state": "The reports page renders a table with no export option.",
-  "target_behavior": "An 'Export CSV' button downloads the currently filtered table as a CSV file matching the visible columns.",
-  "must_read_files": ["src/pages/Reports.jsx", "src/lib/table.js"],
+  "title": "Add CSV export to reports",
+  "objective": "Analysts need a reviewable export of the filtered report data.",
+  "current_state": "The reports page renders filtered rows but has no export action.",
+  "target_behavior": "The page downloads the visible filtered columns as a CSV file.",
+  "must_read_files": ["src/pages/Reports.jsx"],
   "editable_files": ["src/pages/Reports.jsx", "src/lib/csvExport.js"],
   "forbidden_files": ["src/lib/table.js"],
-  "interfaces_to_preserve": ["Reports.jsx default export signature"],
-  "input_format": "The currently rendered table's row/column data",
-  "output_format": "A downloaded .csv file with a header row matching visible column labels",
-  "error_handling": ["Export button disabled when the table has zero rows"],
-  "preservation_conditions": ["Existing filtering and sorting behavior unchanged"],
-  "completion_criteria": ["Clicking Export CSV downloads a file", "File contents match visible filtered rows"],
+  "interfaces_to_preserve": ["Reports.jsx default export"],
+  "input_format": "The visible filtered table rows and column labels",
+  "output_format": "A UTF-8 .csv download with a header row",
+  "error_handling": ["Disable export when there are no rows"],
+  "preservation_conditions": ["Existing filtering and sorting remain unchanged"],
+  "completion_criteria": ["The download contains exactly the visible rows"],
   "test_commands": ["npm test -- Reports"],
-  "manual_verification": ["Filter table, click Export CSV, open downloaded file and confirm rows match"],
-  "report_format": "implementation-report.schema.json"
+  "manual_verification": ["Filter rows, export, and compare the downloaded file"],
+  "report_format": "implementation-report.schema.json",
+  "delegation": {
+    "role": "implementer",
+    "model": "<adapter-selected-worker-model>",
+    "model_ceiling": "<adapter-worker-model-ceiling>",
+    "reasoning_effort": "high",
+    "execution": "sequential",
+    "justification": "The export is an independently verifiable UI result with its own bounded write scope.",
+    "spawn_authority": "director"
+  },
+  "conflict_domains": {
+    "files": ["src/pages/Reports.jsx", "src/lib/csvExport.js"],
+    "interfaces": ["Reports visible-table export"],
+    "user_flows": ["reports-export"]
+  }
 }
 ```

@@ -1,21 +1,24 @@
 # Role Contract
 
-This document defines the three roles in the agent-director protocol and the boundaries between
-them.
+This document defines the three protocol roles — director, worker, and reviewer — and the
+boundaries between them. Adapters may expose worker specializations such as `investigator` and
+`implementer`; those labels do not create recursive directors or additional authority.
 
 ## Roles
 
-The protocol defines exactly three roles: `director`, `implementer`, `reviewer`. These are role
-names, not model names. Any capable agent may be assigned to any role; the protocol never prescribes
-which underlying model fills a role, and no file in `core/` names one.
+The protocol defines exactly three authority roles: `director`, `worker`, `reviewer`. These are role
+names, not model names. An adapter may map `worker` to bounded labels such as `investigator`,
+`implementer`, or a task-scoped `rescue` assignment. The protocol never prescribes which underlying
+model fills a role, and no file in `core/` names one.
 
 A single session may host multiple implementers working on different tasks. A project has exactly
 one director acting at a time for a given task tree.
 
-A "Rescue Agent" ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)) is not a fourth role. It is the `implementer` role, filled
-at a higher reasoning effort — never a different model — for one already-failed task, under stricter scope
-and attempt limits than an ordinary implementer assignment. It answers to the same director, is
-reviewed under the same [REVIEW-GATES.md](REVIEW-GATES.md), and does not get a lighter check for being better-resourced.
+A "Rescue Agent" ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)) is not a fourth authority role. It is a
+task-scoped worker assignment at a higher reasoning effort — never an automatic model change — for
+one already-failed task, under stricter scope and attempt limits than ordinary work. It answers to
+the same director, is reviewed under the same [REVIEW-GATES.md](REVIEW-GATES.md), and does not get a
+lighter check for being better-resourced.
 
 ## Director
 
@@ -60,8 +63,8 @@ rule; it is part of the director's review duty.
 
 The single exception is takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md), which is permitted only when the implementer
 demonstrably cannot perform the task, or when a [Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion
-assigned after two failed revision loops — has also failed or was inapplicable. **Two failed
-revision loops alone do not authorize takeover;** they trigger failure-cause classification and, for
+assigned after the active failure threshold — has also failed or was inapplicable. **Reaching the
+failure threshold alone does not authorize takeover;** it triggers failure-cause classification and, for
 a reasoning or model capability gap, a Rescue Agent attempt first. Takeover requires a written
 takeover record before any code is touched.
 
@@ -69,7 +72,15 @@ takeover record before any code is touched.
 do not authorize the director to bypass delegation. A one-line fix still goes through a task
 contract and an implementer.
 
-## Implementer
+## Worker specializations
+
+### Investigator
+
+An investigator is a read-heavy worker specialization. It traces the assigned repository scope,
+compares root-cause hypotheses, and returns evidence to the director. It does not edit product code,
+expand the contract, or spawn another worker.
+
+### Implementer
 
 The implementer executes the work described in a task contract. Its responsibilities are:
 
@@ -101,10 +112,10 @@ the resulting code happens to work.
 
 ## Reviewer
 
-Reviewer is a role, not a separate participant by default. The reviewer role is performed by the
-director unless a platform explicitly maps it to a distinct agent. When reviewer and director are
-the same actor, the review obligations in [REVIEW-GATES.md](REVIEW-GATES.md) still apply in full — being the same actor does not
-relax the evidence requirements.
+Reviewer is an authority role, normally mapped to a separate read-only context when the platform
+supports it. If a platform cannot provide a separate reviewer, the director may review worker output,
+but the evidence obligations in [REVIEW-GATES.md](REVIEW-GATES.md) still apply in full. The director
+may never review its own authored diff in the same context.
 
 Platforms MAY assign the reviewer role to a separate agent for independence (for example, a second
 pass by a different context). When they do, the reviewer's verdict is still subject to the
@@ -113,8 +124,9 @@ project complete.
 
 ### The director MUST NOT review its own work
 
-Reviewing an implementer's output is already independent — a different agent, a different context —
-so the director performs it directly, and that is the ordinary case.
+Reviewing worker output from a separate reviewer context is independent. If the platform cannot
+provide that context, the director may review worker output under the full gates, but it may not use
+that fallback for a diff it authored itself.
 
 **Where the director itself produced the artifact, the review MUST go to a separate reviewer
 agent.** In practice this means [takeover](TAKEOVER-PROTOCOL.md) code, and any other diff the
@@ -122,16 +134,20 @@ director wrote with its own hands. Telling the director to hold itself to the sa
 instruction, not a control: the same context that produced the change also produced the reasoning
 for why it is correct, so it cannot supply the adversarial pressure the ten gates assume.
 
-The separate reviewer runs at **the director's own model and reasoning effort** — the review must
-not be weaker than the work — but from a **fresh context** that did not participate in writing the
-change. The tier is not the point; the independent context is. Its verdict is recorded exactly like
-any other [review result](../schemas/review-result.schema.json), and the director still owns the
-final completion judgment.
+The separate reviewer runs at the adapter's declared review assurance level — it must not be weaker
+than the work — but from a **fresh context** that did not participate in writing the change. An
+adapter may require an independent worker ceiling or a fixed review effort; if it has no such
+policy, the director's own model and reasoning effort are the default. The tier is not the point;
+the independent context is. Its verdict is recorded exactly like any other
+[review result](../schemas/review-result.schema.json), and the director still owns the final
+completion judgment.
 
 ## Summary of boundaries
 
 | Role | Writes product code | Writes tests | Declares completion |
 |---|---|---|---|
 | director | only under takeover | no | yes |
-| implementer | yes, in scope | yes | no (self-reports status only) |
+| worker (`investigator` / `implementer` / `rescue`) | only within its contract | yes when assigned implementation | no (self-reports status only) |
 | reviewer | no | no | no (advises the director) |
+
+\n

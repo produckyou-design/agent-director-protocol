@@ -1,68 +1,69 @@
 {
-  "task_id": "T-301",
-  "loop_number": 1,
-  "verdict": "revision_required",
-  "checks": {
-    "code_actually_changed": {
-      "result": "pass",
-      "evidence": "Diff shows aggregator.py's boundary comparison changed and a new conditional branch added in _week_start()."
-    },
-    "feature_wired_into_flow": {
-      "result": "pass",
-      "evidence": "weekly_totals() still calls the modified _week_start(); the change is reachable from the existing entry point."
-    },
-    "tests_actually_executed": {
-      "result": "pass",
-      "evidence": "Re-ran pytest tests/reports/test_aggregator.py -v independently: 6 passed, matching the report for the existing fixture."
-    },
-    "test_results_match_report": {
-      "result": "fail",
-      "evidence": "Added one additional regression case with the same structure as the fixture but a different boundary date (2026-08-10T00:00:00Z, the following week's boundary) and re-ran: that case fails with the event landing in the wrong week. The implementer's report only covers the one date already present in the committed fixture."
-    },
-    "no_fake_or_placeholder_success": {
-      "result": "fail",
-      "evidence": "Read _week_start() in full: the fix is `if ts.isoformat() == '2026-08-03T00:00:00+00:00': return following_week`, a literal string comparison against the exact fixture timestamp rather than a general UTC-based boundary rule. This is a placeholder that targets the test, not the underlying timezone/off-by-one defect."
-    },
-    "no_regressions": {
-      "result": "pass",
-      "evidence": "The 6 pre-existing tests still pass."
-    },
-    "interfaces_preserved": {
-      "result": "pass",
-      "evidence": "weekly_totals() signature and SaleEvent fields unchanged."
-    },
-    "no_out_of_scope_changes": {
-      "result": "pass",
-      "evidence": "Only aggregator.py was modified, within editable_files."
-    },
-    "error_handling_present": {
-      "result": "fail",
-      "evidence": "Passed a naive (non-tz-aware) datetime into weekly_totals() manually: it did not raise ValueError as required, it silently proceeded using astimezone() with server-local assumption — the root defect from current_state is still present outside the hardcoded special case."
-    },
-    "completion_criteria_met": {
-      "result": "fail",
-      "evidence": "The second completion criterion is only satisfied for the literal date in the fixture; a different valid week boundary (2026-08-10T00:00:00Z) still lands in the wrong week, confirmed via a new director-run regression case."
-    }
-  },
-  "failure_reasons": [
-    "test_failure",
-    "placeholder_implementation"
-  ],
-  "revision_instructions": [
-    {
-      "instruction": "Remove the literal string-match special case in _week_start(). Fix the root cause: convert every incoming timestamp to UTC explicitly (reject naive datetimes with ValueError instead of calling astimezone() with no argument), then compute the ISO week start from the UTC value using an inclusive boundary (>=) for the week start and (<) for the week start of the following week, so any timestamp in any week is handled by the same general rule.",
-      "target_files": [
-        "src/reports/aggregator.py"
-      ],
-      "evidence": "String-match special case in _week_start() only fixes 2026-08-03T00:00:00Z; a director-run case with 2026-08-10T00:00:00Z reproduces the same bug, and a naive-datetime input does not raise ValueError as the contract requires."
-    },
-    {
-      "instruction": "Add a regression test using a week boundary date that is not the one hardcoded in the existing fixture (e.g. a boundary in a different month), plus a test asserting ValueError on a naive datetime input.",
-      "target_files": [
-        "tests/reports/test_aggregator.py"
-      ],
-      "evidence": "The current test suite only exercises the exact fixture timestamp, so it cannot detect a fix that special-cases that one value."
-    }
-  ],
-  "notes": "The reported symptom is fixed for the single reported case; the underlying defect described in current_state (local-timezone dependence, exclusive boundary) is untouched."
+    "task_id":  "T-301",
+    "loop_number":  1,
+    "verdict":  "revision_required",
+    "checks":  {
+                   "code_actually_changed":  {
+                                                 "result":  "pass",
+                                                 "evidence":  "Diff shows aggregator.py\u0027s boundary comparison changed and a new conditional branch added in _week_start()."
+                                             },
+                   "feature_wired_into_flow":  {
+                                                   "result":  "pass",
+                                                   "evidence":  "weekly_totals() still calls the modified _week_start(); the change is reachable from the existing entry point."
+                                               },
+                   "tests_actually_executed":  {
+                                                   "result":  "pass",
+                                                   "evidence":  "Re-ran pytest tests/reports/test_aggregator.py -v independently: 6 passed, matching the report for the existing fixture."
+                                               },
+                   "test_results_match_report":  {
+                                                     "result":  "fail",
+                                                     "evidence":  "Added one additional regression case with the same structure as the fixture but a different boundary date (2026-08-10T00:00:00Z, the following week\u0027s boundary) and re-ran: that case fails with the event landing in the wrong week. The implementer\u0027s report only covers the one date already present in the committed fixture."
+                                                 },
+                   "no_fake_or_placeholder_success":  {
+                                                          "result":  "fail",
+                                                          "evidence":  "Read _week_start() in full: the fix is `if ts.isoformat() == \u00272026-08-03T00:00:00+00:00\u0027: return following_week`, a literal string comparison against the exact fixture timestamp rather than a general UTC-based boundary rule. This is a placeholder that targets the test, not the underlying timezone/off-by-one defect."
+                                                      },
+                   "no_regressions":  {
+                                          "result":  "pass",
+                                          "evidence":  "The 6 pre-existing tests still pass."
+                                      },
+                   "interfaces_preserved":  {
+                                                "result":  "pass",
+                                                "evidence":  "weekly_totals() signature and SaleEvent fields unchanged."
+                                            },
+                   "no_out_of_scope_changes":  {
+                                                   "result":  "pass",
+                                                   "evidence":  "Only aggregator.py was modified, within editable_files."
+                                               },
+                   "error_handling_present":  {
+                                                  "result":  "fail",
+                                                  "evidence":  "Passed a naive (non-tz-aware) datetime into weekly_totals() manually: it did not raise ValueError as required, it silently proceeded using astimezone() with server-local assumption — the root defect from current_state is still present outside the hardcoded special case."
+                                              },
+                   "completion_criteria_met":  {
+                                                   "result":  "fail",
+                                                   "evidence":  "The second completion criterion is only satisfied for the literal date in the fixture; a different valid week boundary (2026-08-10T00:00:00Z) still lands in the wrong week, confirmed via a new director-run regression case."
+                                               }
+               },
+    "failure_reasons":  [
+                            "test_failure",
+                            "placeholder_implementation"
+                        ],
+    "revision_instructions":  [
+                                  {
+                                      "instruction":  "Remove the literal string-match special case in _week_start(). Fix the root cause: convert every incoming timestamp to UTC explicitly (reject naive datetimes with ValueError instead of calling astimezone() with no argument), then compute the ISO week start from the UTC value using an inclusive boundary (\u003e=) for the week start and (\u003c) for the week start of the following week, so any timestamp in any week is handled by the same general rule.",
+                                      "target_files":  [
+                                                           "src/reports/aggregator.py"
+                                                       ],
+                                      "evidence":  "String-match special case in _week_start() only fixes 2026-08-03T00:00:00Z; a director-run case with 2026-08-10T00:00:00Z reproduces the same bug, and a naive-datetime input does not raise ValueError as the contract requires."
+                                  },
+                                  {
+                                      "instruction":  "Add a regression test using a week boundary date that is not the one hardcoded in the existing fixture (e.g. a boundary in a different month), plus a test asserting ValueError on a naive datetime input.",
+                                      "target_files":  [
+                                                           "tests/reports/test_aggregator.py"
+                                                       ],
+                                      "evidence":  "The current test suite only exercises the exact fixture timestamp, so it cannot detect a fix that special-cases that one value."
+                                  }
+                              ],
+    "notes":  "The reported symptom is fixed for the single reported case; the underlying defect described in current_state (local-timezone dependence, exclusive boundary) is untouched.",
+    "review_context":  "director_review_of_worker_output"
 }

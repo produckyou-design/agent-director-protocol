@@ -1,25 +1,25 @@
 # Rescue Protocol (one-shot promotion for a failed task)
 
-This document defines what happens after an implementer fails the same task twice: a bounded,
+This document defines what happens after an implementer reaches the configured failure threshold on
+the same task: a bounded,
 one-shot promotion to a **Rescue Agent** — not immediate director takeover. Director direct coding
 remains the last resort, not the default next step.
 
-This document supersedes the previous default of "two failed loops → director takes over" described
+This document supersedes the previous default of "failed loops → director takes over" described
 in earlier drafts of [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) and [ROLE-CONTRACT.md](ROLE-CONTRACT.md). Those files now point here.
 [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) covers a different trigger — an implementer or the director proactively
 asking for more power mid-task; this document covers what the director does by default once an
-implementer has already failed the same task twice.
+implementer has already reached the configured failure threshold on the same task.
 
 ## The default flow
 
 The failure count that triggers this flow is the active profile's `implementer.failure_threshold`
-— **default two**, the number used throughout this document and its examples (see
-[FAILURE-LOOP.md](FAILURE-LOOP.md)). A profile MAY raise it (e.g. when the implementer tier is
-cheap enough that an extra guess costs little before promoting) or lower it (never below
-one); whatever value is configured, "twice" below means "that many times."
+— **two by default** (see [FAILURE-LOOP.md](FAILURE-LOOP.md)). The active adapter profile MAY raise
+or lower it (never below one); every reference below means the configured count,
+not a hardcoded retry number.
 
 ```
-implementer fails task the configured number of times (failure_threshold, default 2 counted loops, FAILURE-LOOP.md)
+implementer reaches the configured failure threshold (default 2 counted loops, FAILURE-LOOP.md)
         │
         ▼
 director reviews the actual diff, failing tests, and logs
@@ -49,7 +49,7 @@ director classifies the failure cause (exactly one, below)
            do NOT promote to a Rescue Agent — route straight to director choice A/B/C/D/E
 ```
 
-Director direct coding (**A** below) is never the automatic next step after two failures. It is one
+Director direct coding (**A** below) is never the automatic next step after the configured failure threshold. It is one
 option among five, chosen only after a Rescue Agent has also failed, after a revised task contract
 for a `requirement_conflict` has also failed, or immediately for `environment_issue`.
 
@@ -58,14 +58,14 @@ for a `requirement_conflict` has also failed, or immediately for `environment_is
 After reading the real diff, the real failing tests, and the real logs for both failed attempts, the
 director assigns exactly one cause:
 
-- **`diagnosis_gap`** — the root cause itself was never correctly identified; both attempts guessed
+- **`diagnosis_gap`** — the root cause itself was never correctly identified; the failed loops guessed
   at symptoms.
 - **`reasoning_gap`** — the root cause is understood, but the fix requires reasoning depth the
   implementer's current effort tier did not apply.
 - **`model_capability_gap`** — the root cause is understood, but the fix requires capability (e.g.
   architectural judgment, cross-file reasoning) beyond what the current model tier reliably
   produces.
-- **`requirement_conflict`** — the two failures stem from the task contract itself containing
+- **`requirement_conflict`** — the counted failures stem from the task contract itself containing
   contradictory or ambiguous requirements, not from implementer weakness.
 - **`environment_issue`** — the failures stem from tooling, environment, or infrastructure problems
   unrelated to reasoning or model choice.
@@ -85,7 +85,7 @@ escalation choice. If confidence in that redesign is low, or it touches architec
 deployment, or data-loss risk, the director uses its own self-escalation path
 ([ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) → "Director self-escalation") to request a higher effort tier for
 itself *before* finalizing the new contract — it does not silently redesign at the same tier that
-already produced two failures downstream. Step 3 is for `requirement_conflict` only if a revised
+already produced the configured failure threshold downstream. Step 3 is for `requirement_conflict` only if a revised
 contract, once tried, also fails; `environment_issue` routes straight to Step 3.
 
 ## Step 2 — Rescue Agent (reasoning_gap / model_capability_gap only)
@@ -193,7 +193,7 @@ the five Step 3 choices below).
 
 If the Rescue Agent succeeds, the director reviews the actual diff and re-runs the actual tests —
 the same [REVIEW-GATES.md](REVIEW-GATES.md) discipline as any other implementation, no lighter check because a
-stronger model produced it — and records that in `director_verification`. **On a verified success,
+higher reasoning effort was used — and records that in `director_verification`. **On a verified success,
 the director does not write code.** The change is integrated exactly as an ordinary approved
 implementation would be (`integrated: true`). Promotion applies only to the one failed task; once it
 is resolved, subsequent unrelated tasks return to the normal implementer tier — state
@@ -238,11 +238,11 @@ The director chooses exactly one:
 ## What this replaces
 
 - [ROLE-CONTRACT.md](ROLE-CONTRACT.md)'s "single exception is takeover... permitted only when the implementer demonstrably
-  cannot perform the task, or when at least two full revision loops have failed" no longer means
-  *immediate* takeover at two failures. The two-failure count now triggers classification and,
+  cannot perform the task, or when the configured failure threshold has been reached" no longer means
+  *immediate* takeover at the threshold. The configured count now triggers classification and,
   for `reasoning_gap` / `model_capability_gap`, Rescue Agent promotion first.
 - [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) condition (b) is now read as "a Rescue Agent was tried and also failed, or
-  was inapplicable per Step 1's classification" — not "two loops failed" standing alone. Condition
+  was inapplicable per Step 1's classification" — not the failure threshold standing alone. Condition
   (a) (implementer genuinely cannot perform the task — missing access/tooling) is unaffected; it
   does not route through a Rescue Agent, since more reasoning power does not grant missing access.
 
@@ -256,7 +256,7 @@ The director chooses exactly one:
 5. No failed change — implementer's or Rescue Agent's — is merged automatically. Integration happens
    only after the director verifies the real diff and real tests.
 6. Nothing about roles, review gates, or state-safety rules ([STATE-SAFETY.md](STATE-SAFETY.md)) elsewhere in this protocol changes. This
-   document adds one bounded step between "two failures" and "takeover"; it does not relax review,
+  document adds one bounded step between the failure threshold and "takeover"; it does not relax review,
    concurrency, or completion standards.
 7. Model/effort assignment for a Rescue Agent is the director's explicit choice (or a
    [`DIRECTOR_ESCALATION_REQUEST`](ESCALATION-PROTOCOL.md) to the user if the director itself is unsure which tier to
@@ -275,7 +275,7 @@ The director chooses exactly one:
     raise the director's own model and effort.
 11. The failure count that triggers this document is the active profile's
     `implementer.failure_threshold`, not a hardcoded constant — a profile may set it above or below
-    two, but never below one, and the count still requires objective `counted_as_failure: true`
+    the configured default of two, but never below one, and the count still requires objective `counted_as_failure: true`
     loops per [FAILURE-LOOP.md](FAILURE-LOOP.md), not a raw retry tally.
 12. A promotion notice outside the user's pre-approved model/effort range, or requiring extra cost, is
     also an approval request — the Rescue Agent does not start until approval is granted.

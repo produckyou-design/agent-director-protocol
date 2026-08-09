@@ -6,8 +6,8 @@ explicit, recorded decision.
 
 Every other document in this protocol assumes a recoverable working state. [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) hands a
 Rescue Agent a "last-passing checkpoint"; [FAILURE-LOOP.md](FAILURE-LOOP.md) assumes a failed loop can be examined and
-retried; [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) assumes the director can inspect what two failed attempts actually
-changed. None of that holds if failed work is silently discarded or if two agents overwrite each
+retried; [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) assumes the director can inspect what the
+failed attempts actually changed. None of that holds if failed work is silently discarded or if two agents overwrite each
 other's history. This document states those assumptions as rules.
 
 The rules below are written in Git terms because that is the common case. A project using a different
@@ -94,3 +94,5 @@ modified when it was not, or omitting an incidental change (a reformatted file, 
 a stray artifact), is a reporting failure under [FAILURE-LOOP.md](FAILURE-LOOP.md) — `fake_success` when the claim is
 invented, `no_out_of_scope_changes` (a [REVIEW-GATES.md](REVIEW-GATES.md) check) when the omission hides scope creep. The
 director verifies `files_changed` against the real diff, not against the summary.
+
+\n

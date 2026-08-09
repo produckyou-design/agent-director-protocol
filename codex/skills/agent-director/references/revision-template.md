@@ -39,5 +39,7 @@ Each full loop (instruction through re-review) is also logged as one entry again
 ```
 
 Only a loop that actually ran instruction → implementation → tests → review counts toward the
-two-failure threshold in [TAKEOVER-PROTOCOL.md](../../../../core/TAKEOVER-PROTOCOL.md). Regenerating an
+active failure threshold in [TAKEOVER-PROTOCOL.md](../../../../core/TAKEOVER-PROTOCOL.md). Regenerating an
 answer without a real implementation-and-test cycle is not a loop and does not count.
+
+\n

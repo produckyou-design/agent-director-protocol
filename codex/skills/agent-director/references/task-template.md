@@ -1,9 +1,7 @@
-# Task contract template
+# Task Contract Template
 
-Fill in every field before delegating a task to an implementer run. Fields mirror
-[`schemas/task-contract.schema.json`](../../../../schemas/task-contract.schema.json) exactly — see
-[TASK-CONTRACT.md](../../../../core/TASK-CONTRACT.md) for the rules behind each field. This template is
-platform-neutral: paste the filled-in JSON as the prompt to whatever mechanism runs the implementer.
+Fill every field before delegating. The shape mirrors
+[`schemas/task-contract.schema.json`](../../../../schemas/task-contract.schema.json).
 
 ```json
 {
@@ -24,14 +22,26 @@ platform-neutral: paste the filled-in JSON as the prompt to whatever mechanism r
   "test_commands": [],
   "manual_verification": [],
   "report_format": "implementation-report.schema.json",
+  "delegation": {
+    "role": "implementer",
+    "model": "gpt-5.6-luna",
+    "model_ceiling": "gpt-5.6-luna",
+    "reasoning_effort": "max",
+    "execution": "sequential",
+    "justification": "",
+    "spawn_authority": "director"
+  },
   "depends_on": [],
   "conflict_domains": {
     "files": [],
+    "code_regions": [],
     "data_structures": [],
     "interfaces": [],
+    "schemas": [],
     "db_entities": [],
     "shared_configs": [],
     "state_stores": [],
+    "generated_artifacts": [],
     "build_targets": [],
     "user_flows": []
   }
@@ -40,10 +50,29 @@ platform-neutral: paste the filled-in JSON as the prompt to whatever mechanism r
 
 ## Field notes
 
-- `task_id` — `^T-[0-9]{3,}$`, e.g. `T-001`. Unique within the project.
-- `objective` / `target_behavior` — minimum 10 characters; state the *why* and the precise *after* behavior. "Improve X" is not valid.
-- `must_read_files` vs `editable_files` vs `forbidden_files` — read-only context, allowed write scope, and explicitly off-limits files. Keep these three disjoint and exhaustive of what the implementer needs to know.
-- `completion_criteria` and `test_commands` — each requires at least one entry. Every criterion must be objectively checkable; every command must be one the implementer can actually run and paste output from.
-- `manual_verification` — may be an empty array when automated tests fully cover the behavior.
-- `depends_on` — omit, or list task IDs that must already be reviewed-approved.
-- `conflict_domains` — omit entirely for a task with no shared-resource risk. When present, any overlap with another in-flight task's `conflict_domains` forces sequential execution (see [CONCURRENCY-RULES.md](../../../../core/CONCURRENCY-RULES.md)).
+- `objective` and `target_behavior` must explain the why and the precise after-state.
+- `editable_files` and `forbidden_files` are disjoint and must contain every expected write boundary.
+- The initial set of `delegation.justification` values must explain why each
+  contract's size and the total contract/worker count are the minimum safe
+  structure. Identify conflict boundaries, dependencies, independent
+  evidence/review needs, or blast-radius isolation and why fewer existing
+  contracts/workers cannot absorb the work.
+- Reject speed, parallelism, efficiency, task size/complexity, many files,
+  context reduction, empty slots, and tidy/smaller task IDs. A mid-task
+  addition also needs a new disclosure based on newly discovered evidence, a
+  new conflict domain/dependency, a mandatory independent-review boundary, or
+  a classified failure, including why an existing contract/worker cannot
+  absorb it.
+- `delegation.model` and `delegation.reasoning_effort` must match the
+  explicit native spawn fields: `gpt-5.6-luna` and `max`. Defaults and
+  named profiles are defense in depth, not a substitute for those fields.
+- A named custom agent/type is omitted unless its loaded profile has been
+  verified to pin the same model and effort. Runtime metadata must be checked
+  before accepting output; a mismatch is rejected/closed and an unverifiable
+  surface stops with a policy-violation/fallback report.
+- A non-Luna/non-max exception requires explicit user authorization and a
+  disclosure naming it.
+- `conflict_domains` is not just a file list. Include interfaces, schemas, shared state, generated
+  artifacts, and build/config targets whenever the task can affect them.
+- `depends_on` is for real output dependencies. A conflict-only ordering decision should be stated
+  in the disclosure without inventing a dependency.

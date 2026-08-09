@@ -1,14 +1,17 @@
-# Review result template
+# Review Result Template
 
-Fill in after inspecting an implementation report's actual evidence — never from the implementer's
-self-reported `status` alone. Fields mirror [`schemas/review-result.schema.json`](../../../../schemas/review-result.schema.json)
-exactly; the ten `checks` keys are mandatory and fixed. See [REVIEW-GATES.md](../../../../core/REVIEW-GATES.md).
+Fill in after inspecting an implementation report's actual evidence — never from the worker's
+self-reported `status` alone. The reviewer is read-only by default and returns a
+`review-result.schema.json`-shaped verdict. If the director authored the diff, use an independent
+reviewer context. The ten `checks` keys are mandatory and fixed. See
+[REVIEW-GATES.md](../../../../core/REVIEW-GATES.md).
 
 ```json
 {
   "task_id": "T-001",
   "loop_number": 1,
   "verdict": "approved",
+  "review_context": "independent_reviewer",
   "checks": {
     "code_actually_changed": { "result": "pass", "evidence": "" },
     "feature_wired_into_flow": { "result": "pass", "evidence": "" },
@@ -35,3 +38,5 @@ exactly; the ten `checks` keys are mandatory and fixed. See [REVIEW-GATES.md](..
 - `failure_reasons` — required (min 1) when `verdict` is `revision_required` or `rejected`. Use only the canonical enum: `completion_criteria_unmet`, `test_failure`, `not_runnable`, `regression`, `interface_violation`, `placeholder_implementation`, `fake_success`, `not_wired_into_flow`, `instruction_not_applied`, `repeated_same_error`. Style or taste preferences are never a failure reason.
 - `revision_instructions` — required when `verdict` is `revision_required`. See [`revision-template.md`](revision-template.md) for the shape of each entry.
 - `additional_tests_required` — integration/regression/user-flow tests the director is adding beyond what the implementer wrote, if any.
+
+\n

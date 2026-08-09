@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/failure-loop.schema.json",
   "title": "Failure Loop Record",
-  "description": "Record of one full revision loop: instruction, implementation, tests, review, and outcome. Only full loops count toward the two-failure takeover threshold; re-asking a question or regenerating an answer is not a loop.",
+  "description": "Record of one full revision loop: instruction, implementation, tests, review, and outcome. Only full loops count toward the active profile's failure threshold; re-asking a question or regenerating an answer is not a loop.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -65,7 +65,7 @@
     },
     "counted_as_failure": {
       "type": "boolean",
-      "description": "True only when this was a full loop that ended in an objective failure. Two counted failures allow takeover."
+      "description": "True only when this was a full loop that ended in an objective failure. The active profile's failure threshold determines when escalation or takeover becomes eligible."
     },
     "notes": { "type": "string" }
   },

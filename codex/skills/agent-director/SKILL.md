@@ -1,145 +1,271 @@
 ---
 name: agent-director
-description: Enact the agent-director-protocol on OpenAI Codex CLI — one Codex session directs, decomposes, delegates task contracts to implementer runs, and reviews evidence before declaring anything done.
+description: Enact the agent-director protocol on Codex native subagents with a user-selected director, explicit Luna/max worker dispatch, contract-first delegation, conflict-safe execution, and fail-closed evidence-based review.
 ---
 
-# Agent Director — Codex adapter
+# Agent Director -- Codex adapter
 
-This file binds the platform-agnostic protocol in [`core/`](../../../core/) to OpenAI Codex CLI mechanics. It does not restate the rules — it says which Codex feature enacts which rule. Read [ROLE-CONTRACT.md](../../../core/ROLE-CONTRACT.md) first.
+This is the Codex binding for the platform-neutral protocol in [`core/`](../../../core/).
+Read [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md) first, then read only the
+core documents and schemas relevant to the current task. The protocol is an
+operating policy layered on Codex; it is not a Codex runtime, daemon, or hidden
+dispatcher.
 
-## Director
+## What Codex actually provides
 
-The director is the main, interactive Codex session the user talks to. It runs under a profile named `sol-director` (see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml)) with model alias `sol`.
+Use the current native surfaces in this order:
 
-**The model alias is a user-configurable convenience name, not a real model ID.** Point `sol` at whatever Codex model your `config.toml` resolves it to; the protocol does not care which model that is, only that the director role gets a capable, high-context model. Nothing in `core/` or in this file names a real model.
+1. **Project guidance:** Codex reads `AGENTS.md` before work. The repository
+   root `AGENTS.md` points to this canonical skill. The `.agents/skills/`
+   bridge makes the skill discoverable through the native project skill
+   surface; the `.codex/skills/` copy is a compatibility bridge and must not
+   diverge.
+2. **Native subagent workflow:** the director session can spawn subagent
+   threads, wait for them, inspect them, and collect their summaries. Native
+   delegation is the default for interactive Codex app, CLI, and IDE sessions.
+3. **Custom agents:** project-scoped agents live in `.codex/agents/*.toml`.
+   Each standalone file must define `name`, `description`, and
+   `developer_instructions`; supported session keys such as `model`,
+   `model_reasoning_effort`, and `sandbox_mode` may be added. The `name` field
+   is authoritative, but a named profile is never a substitute for explicit
+   model and effort fields in the spawn request.
+4. **Native multi-agent settings:** `.codex/config.toml` may use the real
+   `[agents]` keys `enabled`, `max_concurrent_threads_per_session`,
+   `default_subagent_model`, `default_subagent_reasoning_effort`, and
+   `interrupt_message`. These defaults are defense in depth; they do not
+   replace explicit per-spawn dispatch or runtime verification. Do not invent
+   undocumented depth/runtime controls or a project-local pseudo-profile key.
+5. **`codex exec` fallback:** use `codex exec` only for non-interactive/CI
+   work, process isolation, or an environment without native subagent tools.
+   A real user profile is a `$CODEX_HOME/<name>.config.toml` file; this
+   repository's `codex/profiles/default.yaml` is policy metadata and is never
+   loaded by Codex. Use `--profile <name>` only for a real native profile, or
+   use explicit `-c model=...` and `-c model_reasoning_effort=...` overrides
+   when the installed CLI supports them. The same acceptance and verification
+   gates apply to the fallback.
 
-Per [ROLE-CONTRACT.md](../../../core/ROLE-CONTRACT.md), the director analyzes the repo, turns the request into task contracts (see [TASK-CONTRACT.md](../../../core/TASK-CONTRACT.md) and [`references/task-template.md`](references/task-template.md)), delegates, reviews, and judges completion. **The director does not write product code**, except under a written takeover (below) — and the same rule covers *running* state-changing operations (deploys, migrations, release pipelines): those go through a task contract and a `codex exec` worker like any other work. Read-only inspection (reading logs, checking status, re-running tests to verify a worker's report) is not covered; that is part of reviewing.
+Official references: [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
+[AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md),
+[configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference), and
+[advanced configuration](https://learn.chatgpt.com/docs/config-file/config-advanced).
 
-## Implementer
+## Activation and Director model
 
-Codex has no separate "subagent" object distinct from Codex itself — an implementer here is another Codex run. Two native mechanisms are available; this protocol uses the first as its default delegation path and treats the second as an option:
+When the user explicitly invokes `$agent-director` or says `Director mode on`,
+announce `director_mode: on` and apply this policy for the current task. This
+is an instruction switch, not a hidden product or system setting.
 
-1. **`codex exec` worker runs (default).** `codex exec` is Codex's documented non-interactive mode: `codex exec "<prompt>"` runs a task to completion outside the TUI, and accepts `--profile <name>`, `-c key=value` overrides, `--json` for a structured event stream, and `--output-schema <path> -o <path>` to force a schema-conformant final message. The director spawns one `codex exec` run per task, passing the **complete task-contract JSON as the prompt** (see [DELEGATION-PROTOCOL.md](../../../core/DELEGATION-PROTOCOL.md)) and requiring the run's final message to be an `implementation-report.schema.json`-conformant JSON document (enforce this with `--output-schema schemas/implementation-report.schema.json` — the path is resolved from the directory where you run `codex exec`, normally the repo root; note `--output-schema` support is model-dependent, so fall back to requesting the JSON in the prompt if your model rejects the flag). This gives each implementer an isolated process and a clean context per task.
-2. **In-session subagent threads.** Current Codex CLI releases also support asking the director's own interactive session to spawn subagent threads for focused sub-investigations (inspected/switched with `/agent`), with results folded back as a summary. This is convenient for read-only exploration but is session-bound and less suited to enforcing the isolation and reporting contract this protocol requires, so it is not the default implementer path here.
+The Director is the main Codex session the user is speaking to. **The user
+chooses the Director model and effort.** The protocol never selects Sol, Terra,
+Luna, or any other Director tier and never treats `default.yaml` as a native
+Codex profile. Every disclosure records the actual current session values and
+`director_model_source: user_selected_session`.
 
-Whichever mechanism is used, the implementer's obligations from [ROLE-CONTRACT.md](../../../core/ROLE-CONTRACT.md) are unchanged: work only inside `editable_files`, run the `test_commands` for real, and return an implementation report — never a hand-summary.
+The Director must:
 
-## Effort mapping
+- inspect the repository and relevant tests before designing work;
+- interpret the requirement and write the fewest verifiable Task Contracts;
+- check dependencies and all conflict domains before considering parallelism;
+- disclose the complete batch before spawning anything;
+- integrate only reviewed work and make the final completion judgment.
 
-Codex's reasoning-effort knob is the config key `model_reasoning_effort` (values: `minimal | low | medium | high | xhigh`; support and range are model-dependent). The director sets this per task, not globally:
+The Director does not write product code or run state-changing operations. The
+only exception is a recorded takeover under
+[`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md). If the Director
+authored a diff under takeover, it must use an independent reviewer context and
+must not self-review.
 
-- One-off override on a worker invocation: `codex exec -c model_reasoning_effort=low "<task-contract JSON>"`.
-- Standing default for a role: set `model_reasoning_effort` inside the relevant profile file (Codex loads named profiles from `$CODEX_HOME/<profile-name>.config.toml`, selected with `--profile <name>`).
+## Worker dispatch policy: explicit Luna/max baseline
 
-**Set it explicitly on every worker spawn**, per `implementer.effort_by_task_kind` in [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml): `investigation`/`audit` → `high`, `implementation`/`pipeline` → `medium`, `mechanical` → `low`. Omitting `-c model_reasoning_effort=...` silently falls back to the profile default, which under-powers investigation and over-powers mechanical work. When a first attempt returns thin evidence, raise effort one step on re-delegation — see [FAILURE-LOOP.md](../../../core/FAILURE-LOOP.md).
+When the explicit activation is on, every ADP-created native Codex subagent
+must be dispatched with both fields present in the spawn request:
 
-## Decompose to the fewest workers that qualify
+```text
+model = "gpt-5.6-luna"
+reasoning_effort = "max"
+```
 
-Before disclosing anything, check whether this really needs N `codex exec` workers or whether some pieces belong in one broader task contract. Splitting further than the minimum needs a concrete reason — genuine parallelism benefit, a distinct `model_reasoning_effort` tier for one part, blast-radius isolation, or genuinely independent verifiable outcomes — not "smaller diffs." See [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md) step 4.
+The Director is never inherited by a worker merely because it is stronger. The
+worker baseline is fixed for every role:
 
-## Disclose the agent composition, then assign
+| Assignment | Native role/profile | Explicit model | Explicit effort | Write access |
+| --- | --- | --- | --- | --- |
+| Root-cause investigation | `investigator` | `gpt-5.6-luna` | `max` | read-only |
+| Contract execution | `implementer` | `gpt-5.6-luna` | `max` | workspace-write |
+| Evidence review | `reviewer` | `gpt-5.6-luna` | `max` | read-only |
+| Release audit | `release_auditor` | `gpt-5.6-luna` | `max` | read-only |
+| Task-scoped rescue | `rescue` | `gpt-5.6-luna` | `max` | workspace-write |
 
-Before launching any `codex exec` worker for a batch of tasks, tell the user what is about to run — once per batch, not per invocation — filling in [`references/agent-briefing-template.md`](references/agent-briefing-template.md) Part 1 (mirrors [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json)): director model/effort, worker count, each worker's task/model/`model_reasoning_effort` **and `justification`** (why this piece needs its own `codex exec` run rather than folding into another task in the batch), whether they run concurrently, and whether a Rescue Agent promotion (stronger model/profile) is actually reachable in this environment. Work does not start until this has been stated. **If the worker count exceeds the active profile's `director.max_batch_agents`, this disclosure is also an approval request** — `within_preapproved_range: false`, `approval_status: pending` — dispatch waits for `approval_status: granted`, the same pattern an out-of-range Rescue Agent promotion uses. A conflict-free batch (per [CONCURRENCY-RULES.md](../../../core/CONCURRENCY-RULES.md)) is still subject to this cap — conflict-freedom means the batch is *safe*, not that its size needs no sign-off. Mid-task promotions get their own separate notice — see Escalation and Rescue Protocol below — and do not count against `max_batch_agents`.
+The adapter does not select effort by task kind. Native defaults and custom
+agent files pin the same pair as defense in depth, but configuration is not
+the enforcement claim. Every request must express
+`model="gpt-5.6-luna"` and `reasoning_effort="max"`. The role may be carried in the Task Contract and
+prompt without selecting a named custom agent.
 
-**A worker must never launch its own `codex exec` workers.** If one reports mid-task that the work needs splitting further, that comes back to the director as an out-of-scope/blocked finding — the director decides whether to re-decompose. This is the containment boundary that keeps a disclosed, approved batch from silently multiplying past what the user saw. See [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md).
+## Native spawn acceptance and fail-closed verification
 
-## Concurrency
+Before every native spawn, the Director must:
 
-Never run two `codex exec` workers whose `conflict_domains` overlap (files, data structures, interfaces, DB schema, shared config, state, build/packaging, user flows) — see [CONCURRENCY-RULES.md](../../../core/CONCURRENCY-RULES.md). Because each worker is a separate OS process with its own filesystem writes, an overlap is a real race, not just a merge-conflict risk. Codex has no native worktree isolation, so give concurrent workers their own `git worktree add` copies explicitly — the conflict-domain check covers *intended* changes, not a stray write or regenerated artifact from one process landing in another's diff. Without isolation, run sequentially.
+1. Put `model="gpt-5.6-luna"` and
+   `reasoning_effort="max"` directly in the spawn request. Do not rely
+   on session inheritance, `[agents]` defaults, a YAML policy file, or an
+   omitted field.
+2. Prefer no named custom agent/type. If a named custom agent is used, load
+   its exact profile first and verify that both pinned fields equal the pair
+   above; otherwise do not dispatch it.
+3. When the native surface returns worker/runtime metadata, verify the returned
+   model and effort before using any result. A mismatch is a policy violation:
+   reject and close the worker and discard its output.
+4. If the surface cannot accept the explicit pair or cannot expose metadata
+   needed for verification, stop and report a policy violation/fallback
+   requirement. Do not claim that execution was forced or accept unverified
+   output.
 
-**When part of a batch fails**, resolve each task on its own evidence: integrate the passing ones (unless they `depends_on` a failed task — then hold and re-review after), and let each failed task run its own failure loop with its own count. Failures do not pool across tasks. If the failure shows the *design* was wrong rather than one worker struggling, stop integrating and return to design. On user interruption, report what completed, what was in flight, and where each state is preserved — never abandon in-flight work silently.
+Any non-Luna or non-`max` exception requires explicit user authorization and a
+disclosure naming the exception. There is no silent inheritance, downgrade, or
+promotion. A user-authorized exception is a disclosed policy change for that
+spawn, not the adapter default.
 
-## State safety (git discipline)
+## Contract-first delegation
 
-- **Establish a last-passing checkpoint** (a real commit SHA/tag, not "the state before we started") before the first `codex exec` dispatch, and resolve a dirty working tree first — otherwise every later diff is ambiguous. This is the same ref a Rescue Agent's scratch worktree resets to.
-- **Never destroy a failed worker's changes before reviewing them.** No `git checkout .` / `reset --hard` / `clean -fd` on unreviewed work — the failed diff is the evidence the revision instruction, Rescue Agent package, and takeover record all depend on. Preserve it (scratch branch, named stash, patch) first.
-- **Workers don't commit to the main line.** Integration is the director's step, after the review gates pass. A worker may commit freely inside its own worktree/branch.
-- **Destructive operations are deliberate decisions**, never incidental steps: force-push or history rewrite of a pushed branch, deleting the only copy of work, or discarding the checkpoint itself. State what will be lost first.
-- Verify `files_changed` against the real diff — an omitted incidental change (reformatted file, regenerated lockfile) hides scope creep.
+For every non-trivial change, follow this exact order:
 
-Full rule: [`STATE-SAFETY.md`](../../../core/STATE-SAFETY.md).
+1. Repository analysis.
+2. Requirement interpretation.
+3. Design.
+4. Fewest-first task decomposition.
+   Before any spawn, record a concrete contract-scale justification for why
+   this contract size and the total contract/worker count are the minimum safe
+   structure and why the work cannot be folded into fewer existing contracts.
+5. Complete [`task-contract.schema.json`](../../../schemas/task-contract.schema.json),
+   including `delegation.role`, `delegation.model`, `delegation.model_ceiling`,
+   `delegation.reasoning_effort`, `delegation.execution`, and a concrete
+   `delegation.justification`.
+6. Conflict-domain check across files, code regions, interfaces, schemas,
+   migrations, shared state, generated artifacts, build/config files, and user
+   flows.
+7. Agent composition disclosure, including the explicit worker pair and spawn
+   budget.
+8. Native subagent spawn by the Director only.
+9. Worker execution and actual evidence collection, including metadata checks.
+10. Independent evidence-based review.
 
-## Review gates
+Never spawn an agent to discover what the Task Contract should have said. A
+worker that finds a new conflict, missing requirement, or need for further
+decomposition reports it to the Director and stops; it never spawns a child.
 
-Every implementation report the director receives is reviewed against the ten checks in [REVIEW-GATES.md](../../../core/REVIEW-GATES.md) and recorded as a `review-result.schema.json` document — use [`references/review-template.md`](references/review-template.md). A `revision_required` verdict is delivered back to a **new** `codex exec` run as an evidence-based instruction (see [FAILURE-LOOP.md](../../../core/FAILURE-LOOP.md) and [`references/revision-template.md`](references/revision-template.md)) — quoting real test output and file paths, never "please try again."
+### Justification gate
 
-## Escalation (stop guessing, request an upgrade)
+The initial `delegation.justification` set must explain conflict boundaries,
+dependencies, independent evidence/review needs, or blast-radius isolation and
+why fewer existing contracts/workers cannot safely absorb the work. Speed,
+parallelism, efficiency, task size/complexity, many files, context reduction,
+empty slots, and tidy/smaller task IDs are rejected.
 
-**A third guess-based fix for the same problem is forbidden.** Once `codex exec` attempts at the same root cause have failed the active profile's `implementer.failure_threshold` times (default two — see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml)), the next step is an escalation request, not another worker run. Nobody changes their own model or `model_reasoning_effort`: a worker cannot re-invoke itself at a higher tier — instead its final message (or the director's own read of its failed attempts) is an `EFFORT_ESCALATION_REQUEST` — the default, since more reasoning room on the same model is cheaper and usually sufficient — or a `MODEL_ESCALATION_REQUEST` only when `model_reasoning_effort` is already maxed out or the gap is a capability the tier lacks at any setting, filled in via [`references/escalation-template.md`](references/escalation-template.md) (mirrors [`escalation-request.schema.json`](../../../schemas/escalation-request.schema.json)). The director evaluates the actual diffs and test output for both attempts and either runs one more read-only investigation worker at the same tier, or — for a genuine reasoning/model-capability gap — grants it as a Rescue Agent promotion (below). A granted request gets the same promotion notice / rescue outcome notice pair as an ordinary Rescue Agent promotion, including the approval-required branch when the grant needs a config/profile change outside what's pre-approved.
+Every mid-task addition of a contract, worker, investigator, reviewer,
+revision, or rescue requires a new disclosure first. Its concrete addition
+justification must cite newly discovered evidence, a new conflict
+domain/dependency, a mandatory independent-review boundary, or a classified
+failure and explain why an existing contract/worker cannot absorb it.
 
-If the director itself is stuck (conflicting worker outputs, an unresolved shared-contract impact, low confidence on a security/deploy/data-loss judgment), it submits its own `DIRECTOR_ESCALATION_REQUEST` to the user via the same template's Part 2, and finalizes nothing high-risk until the user responds. Full rule: [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md).
+## Conflict-safe execution
 
-## Rescue Protocol → takeover (in that order)
+Use the Task Contract `conflict_domains` object and compare every pair before
+dispatch. Read/read work may run in parallel when there is no dependency. Any
+write/write overlap, shared interface/schema/config/state, or read/write
+consistency dependency is sequential. Different filenames do not prove that
+two API or schema changes are independent.
 
-Once a task has failed the active profile's `implementer.failure_threshold` times (default **two**
-counted revision loops, not mere re-prompts — see [`../../profiles/sol-director.yaml`](../../profiles/sol-director.yaml), which raises
-this to 3 by default since a `codex exec` worker run is cheap enough that one extra evidence-based
-attempt costs little before promoting), director direct coding is the **last** resort, not the next
-step. The director reads the real diff, failing tests, and logs for both attempts and classifies the
-cause into exactly one of `diagnosis_gap`, `reasoning_gap`, `model_capability_gap`,
-`requirement_conflict`, `environment_issue`, `rollback_needed` — see [RESCUE-PROTOCOL.md](../../../core/RESCUE-PROTOCOL.md) Step 1.
+Native subagents inherit the parent session's sandbox and approval context. In
+the normal local workflow they should be treated as sharing the working tree;
+parallel write tasks therefore require disjoint domains and an explicitly
+isolated worktree, otherwise they run sequentially.
 
-- **`reasoning_gap` / `model_capability_gap`** → promote to a **Rescue Agent**, which raises
-  `model_reasoning_effort` only. **It never passes `-c model=...`** — both attempts climb the effort
-  ladder on the worker's existing model:
-  ```bash
-  # attempt 1 — same model, one step up the effort ladder
-  codex exec --profile sol-director -c model_reasoning_effort=high "<rescue task>"
+The native concurrency ceiling is configured by the actual
+`agents.max_concurrent_threads_per_session = 4`. This is only the simultaneous
+thread limit. The protocol also enforces a per-request cumulative budget of
+12 spawned agents, independent of how many batches finish.
 
-  # attempt 2 (only if attempt 1 also fails) — one more step, still same model
-  codex exec --profile sol-director -c model_reasoning_effort=xhigh "<rescue task>"
-  ```
-  A model change is a cost decision that belongs to the user, reached through the escalation below —
-  never an automatic promotion. The classification decides **how far to climb before handing off**:
-  `reasoning_gap` uses both attempts; `model_capability_gap` uses one to confirm, then escalates
-  (say so in `promotion_reason`). If the worker was already at its model's top
-  `model_reasoning_effort`, skip the Rescue Agent entirely and escalate.
-  Before attempt 1 launches, send the [promotion notice](references/agent-briefing-template.md)
-  (mirrors [`promotion-notice.schema.json`](../../../schemas/promotion-notice.schema.json)) — if the rescue model/effort falls
-  outside the user's pre-approved range or needs a config change, this notice is also an approval
-  request; do not launch until `approval_status` is `granted`. Hand it the scope package from
-  [`references/rescue-agent-template.md`](references/rescue-agent-template.md) (mirrors [`rescue-agent-task.schema.json`](../../../schemas/rescue-agent-task.schema.json)):
-  both prior attempts as reference material, the last-passing checkpoint (a git ref to reset a
-  scratch worktree to — Codex has no native worktree isolation, so create one explicitly with
-  `git worktree add`), editable/forbidden files, an explicit `forbidden_scope`, and this run's
-  `attempt_number` (1 or 2) with its own `assigned_model` / `assigned_effort` — tracked separately
-  from the implementer's own loop count. When each attempt ends, send the matching
-  [rescue outcome notice](references/agent-briefing-template.md) (mirrors [`rescue-outcome-notice.schema.json`](../../../schemas/rescue-outcome-notice.schema.json)), success or
-  failure either way, including `reverted_to_baseline`.
-- **`requirement_conflict`** → not a Rescue Agent. Revise the task contract to resolve the
-  contradiction and re-delegate as an ordinary new `codex exec` run per [DELEGATION-PROTOCOL.md](../../../core/DELEGATION-PROTOCOL.md) — submit your
-  own `DIRECTOR_ESCALATION_REQUEST` first if confidence in the revision is low or it touches
-  architecture/security/deployment/data-loss risk. Only if the *revised* contract's run also fails
-  does this go to the choice below.
-- **`environment_issue` / `diagnosis_gap` / `rollback_needed`** never get a Rescue Agent or a
-  revision attempt — a stronger model does not fix broken tooling or a task contract that was never
-  the problem. Go straight to the choice below.
-- **On a verified Rescue Agent success**, review the real diff and re-run the real tests exactly as for any ordinary implementation report — the director still does not write code.
-- **If the Rescue Agent's effort ladder is exhausted, the revised contract also fails, or a cause
-  never routed to either**, the director chooses exactly one: **escalate to the user** (the default
-  when the effort ladder ran out), director direct intervention (takeover, below — the only door into it), roll back to the last-passing checkpoint, reduce task scope, or convert the task into a read-only investigation worker.
-- **Escalating because effort ran out means asking to raise *the director's* model and effort, not
-  the worker's.** A worker failing at high `model_reasoning_effort` is evidence about the plan, not
-  the coder — the design, the decomposition, or the contract the director wrote is the leading
-  suspect. If the user grants it, the upgraded director **re-judges the task on its own standard and
-  issues a revised task contract**, delegated as a fresh `codex exec` run with its own failure-loop
-  count — it does not re-run the contract the worker kept failing against. The old contract is
-  evidence about what was tried; `current_state`, `target_behavior`, `completion_criteria`, and the
-  file scope are all open to change. A stronger worker model is something the user may grant in
-  response, never an automatic promotion.
+## Agent composition disclosure
 
-**Takeover** requires, before any code is touched: a written takeover record ([TAKEOVER-PROTOCOL.md](../../../core/TAKEOVER-PROTOCOL.md), schema at [`../../../schemas/takeover-record.schema.json`](../../../schemas/takeover-record.schema.json), template at [`references/takeover-template.md`](references/takeover-template.md)) — its `second_failure_evidence` is whichever step actually ran its course: the Rescue Agent's second attempt (`reasoning_gap`/`model_capability_gap`), or the revised task contract's failed re-delegation (`requirement_conflict`) — never the original worker's second loop. "The task is small" is never sufficient justification, and neither is "hit the failure threshold" standing alone — it must have gone through classification and, where applicable, a Rescue Agent or a revised contract first. Takeover means the director edits files directly in its own session — there is no special Codex mechanism for this; it is simply the director not delegating. **The director does not then review its own diff:** launch a separate reviewer `codex exec` run at the director's own model and `model_reasoning_effort`, with a fresh context that did not write the change, and have it score the ten gates. See [ROLE-CONTRACT.md](../../../core/ROLE-CONTRACT.md) → "The director MUST NOT review its own work."
+Before the first spawn in every batch, send one disclosure matching
+[`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json):
 
-## Completion judgment
+- current Director model and effort, with source `user_selected_session`;
+- each worker's role, Task Contract, explicit model `gpt-5.6-luna`, explicit
+  effort `max`, model ceiling, and concrete justification;
+- each worker's conflict domains and whether the batch is `parallel` or
+  `sequential`;
+- `already_spawned_count`, `this_batch_count`, `total_after_spawn`, and the
+  request limit of 12;
+- whether the batch is within both the concurrency and cumulative budgets;
+- whether Rescue has effort headroom on the same Luna model. With the normal
+  `max` baseline, Rescue is unavailable for ordinary Codex ADP runs;
+- approval status if a batch exceeds the configured batch budget.
 
-The director never declares a task done from an implementer's self-reported `status` field. Per [COMPLETION-STANDARD.md](../../../core/COMPLETION-STANDARD.md), completion requires verbatim `output_excerpt` test evidence in the implementation report, one entry per `completion_criteria` item with concrete evidence, and a passing review verdict. Paraphrased or invented test output is a `fake_success` failure, not a completion.
+Do not silently add an investigator, reviewer, revision worker, or rescue
+worker later. Any addition requires the new disclosure and concrete addition
+justification above; budget exceptions or material execution-mode changes also
+require approval when applicable.
 
-## Reference templates
+## Rescue and escalation
 
-- [`references/task-template.md`](references/task-template.md) — task-contract fields to fill in before delegating.
-- [`references/review-template.md`](references/review-template.md) — the ten checks plus verdict.
-- [`references/revision-template.md`](references/revision-template.md) — evidence-based revision instructions.
-- [`references/escalation-template.md`](references/escalation-template.md) — implementer→director and director→user escalation request fill-in.
-- [`references/rescue-agent-template.md`](references/rescue-agent-template.md) — Rescue Agent scope package fill-in.
-- [`references/agent-briefing-template.md`](references/agent-briefing-template.md) — agent composition disclosure, promotion notice, and rescue outcome notice fill-in.
-- [`references/takeover-template.md`](references/takeover-template.md) — the takeover record required before direct edits.
+Rescue is a bounded implementer assignment, not a stronger model tier:
+
+```text
+same GPT-5.6 Luna at max
+  -> inspect failure evidence
+  -> no higher same-model effort exists
+  -> preserve evidence and use Core escalation/takeover gates
+```
+
+The Director must classify the failure before promotion. Do not create a new
+agent for every failed attempt. A Rescue notice and outcome notice are required
+when a supported Rescue promotion exists, and the rescue remains task-scoped.
+At the `max` baseline there is no Rescue headroom for ordinary Codex ADP runs:
+preserve the evidence, revise the contract, or use the Core escalation/takeover
+path. Never lower effort to pretend a rescue ladder exists, and never change
+the model automatically.
+
+## Review and completion
+
+The reviewer is read-only by default. It checks the actual diff, actual test
+output, completion criteria, preservation conditions, interfaces, error paths,
+scope, metadata verification, and evidence. It returns a
+`review-result.schema.json`-shaped result; it does not directly fix findings.
+
+The Director never accepts an implementer's `status` by itself. Completion
+requires real test excerpts, one evidence entry per completion criterion, a
+passing review, and an accepted worker metadata check. Keep contracts, reports,
+and command excerpts free of secrets, tokens, and private transcript content;
+local evidence belongs under the ignored `.codex/agent-director/runs/`
+directory.
+
+## State safety
+
+Before the first native spawn, establish a real last-passing commit, tag, or
+branch tip and resolve or explicitly record a dirty tree. Preserve user changes
+and failed-worker diffs for review. Do not run destructive Git cleanup to make
+a diff look clean. Workers do not merge or push; integration happens only
+after the Director's review gates pass.
+
+The full platform-neutral rules live in `core/`; update schemas and examples
+when a protocol field changes. Run `python scripts/check_repository.py` after
+changing this adapter.
+
+## Core reference map
+
+The platform-neutral rules are authoritative. The adapter-specific mapping above
+does not replace them:
+
+- [`COMPLETION-STANDARD.md`](../../../core/COMPLETION-STANDARD.md)
+- [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md)
+- [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md)
+- [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md)
+- [`FAILURE-LOOP.md`](../../../core/FAILURE-LOOP.md)
+- [`RESCUE-PROTOCOL.md`](../../../core/RESCUE-PROTOCOL.md)
+- [`REVIEW-GATES.md`](../../../core/REVIEW-GATES.md)
+- [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md)
+- [`STATE-SAFETY.md`](../../../core/STATE-SAFETY.md)
+- [`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md)
+- [`TASK-CONTRACT.md`](../../../core/TASK-CONTRACT.md)

@@ -5,7 +5,7 @@
   "description": "The director's review of an implementation report. All ten review checks are mandatory; the director must verify evidence, not trust the implementer's report.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["task_id", "loop_number", "verdict", "checks"],
+  "required": ["task_id", "loop_number", "verdict", "review_context", "checks"],
   "properties": {
     "task_id": {
       "type": "string",
@@ -19,6 +19,11 @@
     "verdict": {
       "type": "string",
       "enum": ["approved", "revision_required", "rejected"]
+    },
+    "review_context": {
+      "type": "string",
+      "enum": ["independent_reviewer", "director_review_of_worker_output"],
+      "description": "The reviewer context. A director-authored diff must use independent_reviewer."
     },
     "checks": {
       "type": "object",

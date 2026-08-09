@@ -32,7 +32,7 @@ Stop and evaluate escalation when any of the following is true:
 
 **These triggers are deliberately more sensitive than the full-loop threshold in
 [FAILURE-LOOP.md](FAILURE-LOOP.md) / [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md)** — the active profile's
-`implementer.failure_threshold`, default two. A confidence or risk signal can fire mid-attempt,
+`implementer.failure_threshold` (two by default). A confidence or risk signal can fire mid-attempt,
 before that many full revision loops have completed — requesting more reasoning power is cheap, so
 the bar to ask for it is deliberately lower than the bar for director takeover, regardless of what
 the configured threshold is.
@@ -109,7 +109,7 @@ not a peer option here, and still requires a takeover record per [TAKEOVER-PROTO
 Escalation is the default first response to a stuck loop, and it is never a shortcut straight to
 takeover. [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md)'s threshold and this protocol's "no third guess"
 threshold land on the same count by design — both read the same profile's `implementer.failure_threshold`
-(default two) — the difference is the action taken, not the count. At that count, [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens next: the director classifies the
+(two by default) — the difference is the action taken, not the count. At that count, [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) governs what happens next: the director classifies the
 failure cause, and for `reasoning_gap` / `model_capability_gap` promotes a bounded, one-shot Rescue
 Agent (≤2 attempts) — never the director writing product code directly. Takeover remains reserved
 for TAKEOVER-PROTOCOL.md's two narrow conditions: the implementer demonstrably cannot perform the
@@ -189,3 +189,5 @@ recorded takeover).
 
 If the upgraded attempt also fails, escalation is not repeated a second time on the same block. The
 director moves to user judgment, task suspension, or rollback — not a further escalation loop.
+
+\n

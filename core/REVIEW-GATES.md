@@ -72,3 +72,5 @@ and `no_regressions` can pass.
 
 Every review that is not `approved` feeds into a failure loop record; see [FAILURE-LOOP.md](FAILURE-LOOP.md) for how failures
 accumulate toward the takeover threshold in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md).
+
+\n

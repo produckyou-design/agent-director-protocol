@@ -1,47 +1,69 @@
 {
-  "task_id": "T-301",
-  "title": "Fix timezone and off-by-one bug in weekly report aggregator",
-  "objective": "Weekly sales totals must be computed consistently in UTC and must include every event from the full 7-day week, so reports do not silently under- or over-count sales depending on server locale or the exact second of a sale.",
-  "current_state": "src/reports/aggregator.py's weekly_totals() calls timestamp.astimezone() with no explicit timezone, defaulting to the server's local time, and compares event timestamps to the week boundary using a strict '<', which excludes events landing exactly on the boundary. Both defects shift events across week boundaries incorrectly depending on server locale.",
-  "target_behavior": "weekly_totals(events) buckets every event by its UTC calendar week, inclusive of the full week (00:00:00.000000 through 23:59:59.999999 UTC on the 7th day), regardless of the server's local timezone setting.",
-  "must_read_files": [
-    "src/reports/aggregator.py",
-    "tests/reports/test_aggregator.py",
-    "docs/report-spec.md"
-  ],
-  "editable_files": [
-    "src/reports/aggregator.py",
-    "tests/reports/test_aggregator.py"
-  ],
-  "forbidden_files": [
-    "src/reports/exporter.py",
-    "src/billing/invoice_totals.py"
-  ],
-  "interfaces_to_preserve": [
-    "weekly_totals(events: list[SaleEvent]) -> dict[str, Decimal] signature",
-    "SaleEvent dataclass fields (timestamp, amount)"
-  ],
-  "input_format": "events: list of SaleEvent(timestamp: tz-aware datetime, amount: Decimal). Naive datetimes are invalid input.",
-  "output_format": "dict mapping ISO week-start date string (YYYY-MM-DD, Monday, UTC) to the Decimal total for that week.",
-  "error_handling": [
-    "A naive (non-tz-aware) timestamp must raise ValueError rather than being silently treated as UTC or local time.",
-    "An empty events list must return an empty dict, not raise."
-  ],
-  "preservation_conditions": [
-    "Existing call sites of weekly_totals() in src/reports/exporter.py must continue to work without modification.",
-    "Weekly totals for weeks that do not cross a boundary edge case must remain numerically identical to current output."
-  ],
-  "completion_criteria": [
-    "A sale event timestamped 2026-08-02T23:30:00Z is counted in the week starting 2026-07-27, not the following week, regardless of server timezone.",
-    "A sale event timestamped exactly 2026-08-03T00:00:00Z is counted in the week starting 2026-08-03, not the prior week.",
-    "tests/reports/test_aggregator.py::test_week_boundary_inclusive and ::test_timezone_independent_of_server_local both pass.",
-    "The full existing aggregator test suite continues to pass with no regressions."
-  ],
-  "test_commands": [
-    "pytest tests/reports/test_aggregator.py -v"
-  ],
-  "manual_verification": [
-    "Run the aggregator against the two-week fixture in docs/report-spec.md and confirm the printed weekly totals match the hand-computed reference values there, run with TZ=America/New_York and again with TZ=UTC to confirm identical results."
-  ],
-  "report_format": "implementation-report.schema.json"
+    "task_id":  "T-301",
+    "title":  "Fix timezone and off-by-one bug in weekly report aggregator",
+    "objective":  "Weekly sales totals must be computed consistently in UTC and must include every event from the full 7-day week, so reports do not silently under- or over-count sales depending on server locale or the exact second of a sale.",
+    "current_state":  "src/reports/aggregator.py\u0027s weekly_totals() calls timestamp.astimezone() with no explicit timezone, defaulting to the server\u0027s local time, and compares event timestamps to the week boundary using a strict \u0027\u003c\u0027, which excludes events landing exactly on the boundary. Both defects shift events across week boundaries incorrectly depending on server locale.",
+    "target_behavior":  "weekly_totals(events) buckets every event by its UTC calendar week, inclusive of the full week (00:00:00.000000 through 23:59:59.999999 UTC on the 7th day), regardless of the server\u0027s local timezone setting.",
+    "must_read_files":  [
+                            "src/reports/aggregator.py",
+                            "tests/reports/test_aggregator.py",
+                            "docs/report-spec.md"
+                        ],
+    "editable_files":  [
+                           "src/reports/aggregator.py",
+                           "tests/reports/test_aggregator.py"
+                       ],
+    "forbidden_files":  [
+                            "src/reports/exporter.py",
+                            "src/billing/invoice_totals.py"
+                        ],
+    "interfaces_to_preserve":  [
+                                   "weekly_totals(events: list[SaleEvent]) -\u003e dict[str, Decimal] signature",
+                                   "SaleEvent dataclass fields (timestamp, amount)"
+                               ],
+    "input_format":  "events: list of SaleEvent(timestamp: tz-aware datetime, amount: Decimal). Naive datetimes are invalid input.",
+    "output_format":  "dict mapping ISO week-start date string (YYYY-MM-DD, Monday, UTC) to the Decimal total for that week.",
+    "error_handling":  [
+                           "A naive (non-tz-aware) timestamp must raise ValueError rather than being silently treated as UTC or local time.",
+                           "An empty events list must return an empty dict, not raise."
+                       ],
+    "preservation_conditions":  [
+                                    "Existing call sites of weekly_totals() in src/reports/exporter.py must continue to work without modification.",
+                                    "Weekly totals for weeks that do not cross a boundary edge case must remain numerically identical to current output."
+                                ],
+    "completion_criteria":  [
+                                "A sale event timestamped 2026-08-02T23:30:00Z is counted in the week starting 2026-07-27, not the following week, regardless of server timezone.",
+                                "A sale event timestamped exactly 2026-08-03T00:00:00Z is counted in the week starting 2026-08-03, not the prior week.",
+                                "tests/reports/test_aggregator.py::test_week_boundary_inclusive and ::test_timezone_independent_of_server_local both pass.",
+                                "The full existing aggregator test suite continues to pass with no regressions."
+                            ],
+    "test_commands":  [
+                          "pytest tests/reports/test_aggregator.py -v"
+                      ],
+    "manual_verification":  [
+                                "Run the aggregator against the two-week fixture in docs/report-spec.md and confirm the printed weekly totals match the hand-computed reference values there, run with TZ=America/New_York and again with TZ=UTC to confirm identical results."
+                            ],
+    "report_format":  "implementation-report.schema.json",
+    "delegation":  {
+                       "role":  "implementer",
+                       "model":  "configured-worker-model",
+                       "model_ceiling":  "configured-worker-model-ceiling",
+                       "reasoning_effort":  "medium",
+                       "execution":  "sequential",
+                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "spawn_authority":  "director"
+                   },
+    "conflict_domains":  {
+                             "files":  [
+                                           "src/reports/aggregator.py",
+                                           "tests/reports/test_aggregator.py"
+                                       ],
+                             "interfaces":  [
+                                                "weekly_totals(events: list[SaleEvent]) -\u003e dict[str, Decimal] signature",
+                                                "SaleEvent dataclass fields (timestamp, amount)"
+                                            ],
+                             "user_flows":  [
+
+                                            ]
+                         }
 }

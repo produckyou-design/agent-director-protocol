@@ -1,57 +1,78 @@
 {
-  "task_id": "T-401",
-  "title": "Implement GET /health endpoint",
-  "objective": "Provide a health-check endpoint so load balancers and operators can verify the service process is up and responding.",
-  "current_state": "internal/health/ package does not exist yet. cmd/server/main.go already calls health.RegisterRoutes(mux) in anticipation of this package, so the binary will not build until this task lands.",
-  "target_behavior": "internal/health exports RegisterRoutes(mux *http.ServeMux), which registers a GET /health route. A GET request responds 200 with JSON body {\"status\":\"ok\"} and Content-Type: application/json. Any other HTTP method on /health responds 405.",
-  "must_read_files": [
-    "cmd/server/main.go"
-  ],
-  "editable_files": [
-    "internal/health/handler.go",
-    "internal/health/handler_test.go"
-  ],
-  "forbidden_files": [
-    "cmd/server/main.go",
-    "internal/config/config.go",
-    "internal/config/config_test.go"
-  ],
-  "interfaces_to_preserve": [
-    "func RegisterRoutes(mux *http.ServeMux) signature, exactly as already called from cmd/server/main.go"
-  ],
-  "input_format": "HTTP GET request to /health, no body, no query parameters.",
-  "output_format": "HTTP 200 response, Content-Type: application/json, body exactly {\"status\":\"ok\"}.",
-  "error_handling": [
-    "Any HTTP method other than GET on /health must return 405 Method Not Allowed."
-  ],
-  "preservation_conditions": [],
-  "completion_criteria": [
-    "GET /health returns HTTP 200 with body {\"status\":\"ok\"} and Content-Type: application/json.",
-    "POST /health returns HTTP 405.",
-    "go test ./internal/health/... passes with zero failures."
-  ],
-  "test_commands": [
-    "go test ./internal/health/... -v"
-  ],
-  "manual_verification": [
-    "Once both T-401 and T-402 have landed and the binary builds, run the server and curl -i http://localhost:8080/health, confirming a 200 response with the expected JSON body."
-  ],
-  "report_format": "implementation-report.schema.json",
-  "conflict_domains": {
-    "files": [
-      "internal/health/handler.go",
-      "internal/health/handler_test.go"
-    ],
-    "data_structures": [],
-    "interfaces": [
-      "internal/health.RegisterRoutes"
-    ],
-    "db_entities": [],
-    "shared_configs": [],
-    "state_stores": [],
-    "build_targets": [],
-    "user_flows": [
-      "GET /health request flow"
-    ]
-  }
+    "task_id":  "T-401",
+    "title":  "Implement GET /health endpoint",
+    "objective":  "Provide a health-check endpoint so load balancers and operators can verify the service process is up and responding.",
+    "current_state":  "internal/health/ package does not exist yet. cmd/server/main.go already calls health.RegisterRoutes(mux) in anticipation of this package, so the binary will not build until this task lands.",
+    "target_behavior":  "internal/health exports RegisterRoutes(mux *http.ServeMux), which registers a GET /health route. A GET request responds 200 with JSON body {\"status\":\"ok\"} and Content-Type: application/json. Any other HTTP method on /health responds 405.",
+    "must_read_files":  [
+                            "cmd/server/main.go"
+                        ],
+    "editable_files":  [
+                           "internal/health/handler.go",
+                           "internal/health/handler_test.go"
+                       ],
+    "forbidden_files":  [
+                            "cmd/server/main.go",
+                            "internal/config/config.go",
+                            "internal/config/config_test.go"
+                        ],
+    "interfaces_to_preserve":  [
+                                   "func RegisterRoutes(mux *http.ServeMux) signature, exactly as already called from cmd/server/main.go"
+                               ],
+    "input_format":  "HTTP GET request to /health, no body, no query parameters.",
+    "output_format":  "HTTP 200 response, Content-Type: application/json, body exactly {\"status\":\"ok\"}.",
+    "error_handling":  [
+                           "Any HTTP method other than GET on /health must return 405 Method Not Allowed."
+                       ],
+    "preservation_conditions":  [
+
+                                ],
+    "completion_criteria":  [
+                                "GET /health returns HTTP 200 with body {\"status\":\"ok\"} and Content-Type: application/json.",
+                                "POST /health returns HTTP 405.",
+                                "go test ./internal/health/... passes with zero failures."
+                            ],
+    "test_commands":  [
+                          "go test ./internal/health/... -v"
+                      ],
+    "manual_verification":  [
+                                "Once both T-401 and T-402 have landed and the binary builds, run the server and curl -i http://localhost:8080/health, confirming a 200 response with the expected JSON body."
+                            ],
+    "report_format":  "implementation-report.schema.json",
+    "conflict_domains":  {
+                             "files":  [
+                                           "internal/health/handler.go",
+                                           "internal/health/handler_test.go"
+                                       ],
+                             "data_structures":  [
+
+                                                 ],
+                             "interfaces":  [
+                                                "internal/health.RegisterRoutes"
+                                            ],
+                             "db_entities":  [
+
+                                             ],
+                             "shared_configs":  [
+
+                                                ],
+                             "state_stores":  [
+
+                                              ],
+                             "build_targets":  [
+
+                                               ],
+                             "user_flows":  [
+                                                "GET /health request flow"
+                                            ]
+                         },
+    "delegation":  {
+                       "role":  "implementer",
+                       "model":  "configured-worker-model",
+                       "model_ceiling":  "configured-worker-model-ceiling",
+                       "reasoning_effort":  "medium",
+                       "execution":  "parallel",
+                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "spawn_authority":  "director"
+                   }
 }

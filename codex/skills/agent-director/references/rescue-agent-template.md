@@ -81,3 +81,5 @@ Fixed at `2`. Tracked separately from the implementer's own failure-loop count.
 When the Rescue Agent's work ends, send the matching
 [outcome notice](agent-briefing-template.md#part-3--rescue-outcome-notice) — success or failure,
 either way.
+
+\n
