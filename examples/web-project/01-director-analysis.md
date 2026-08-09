@@ -19,8 +19,8 @@ currently filtered order list as a CSV file.
 
 Single task, delegated as one contract, because the server endpoint and the
 client button are tightly coupled (the button's query params must match the
-endpoint's filter contract) and splitting them would require a dependency
-edge for no real parallelism benefit.
+endpoint's filter contract). Splitting them would create a dependency edge
+without a distinct conflict boundary or independently verifiable result.
 
 ## Interfaces to preserve
 

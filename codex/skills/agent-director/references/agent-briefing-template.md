@@ -22,6 +22,18 @@ reduction, empty slots, and tidy/smaller IDs.
   "director_model": "<actual user-selected model>",
   "director_effort": "<low|medium|high|xhigh|max>",
   "director_model_source": "user_selected_session",
+  "user_visible": true,
+  "work_contract": {
+    "objective": "<checkable objective>",
+    "scope": ["<files, interfaces, or state boundaries>"],
+    "planned_contracts": 1,
+    "planned_workers": 1,
+    "worker_model": "gpt-5.6-luna",
+    "worker_reasoning_effort": "max",
+    "minimum_safe_rationale": "<conflict/dependency/independent-review/blast-radius basis and why fewer existing contracts/workers cannot absorb it>",
+    "tests": ["<exact test command>"],
+    "stop_conditions": ["<failure, capacity, or verification stop condition>"]
+  },
   "subagent_count": 2,
   "subagents": [
     {
@@ -59,16 +71,16 @@ reduction, empty slots, and tidy/smaller IDs.
     "already_spawned_count": 0,
     "this_batch_count": 2,
     "total_after_spawn": 2,
-    "max_total_spawned_agents_per_request": 12,
-    "within_limit": true
+    "capacity_source": "observed_native_runtime",
+    "capacity_known": false
   }
 }
 ```
 
 `execution_mode` is `parallel` only after the conflict check proves the
-workers independent. `within_preapproved_range` concerns the batch limit;
-`spawn_budget.within_limit` concerns the cumulative request limit. These are
-separate controls. Every native spawn in this disclosure must also carry
+workers independent. `capacity_source` records whether native runtime
+metadata was observed; an unknown value is not replaced with a project cap.
+Every native spawn in this disclosure must also carry
 `model="gpt-5.6-luna"` and
 `reasoning_effort="max"` explicitly. If a named profile is used,
 record that it was verified against those fields. If runtime metadata is

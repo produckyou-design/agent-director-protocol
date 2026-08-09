@@ -8,8 +8,9 @@ director:
   model_selection: user
   inherit_active_session: true
   model_source: current_user_selected_session
-  max_batch_agents: 4
-  max_total_spawned_agents_per_request: 12
+  contract_disclosure: required_user_visible
+  scale_rationale: evidence_based_only
+  batch_plan: disclosed_by_director
 
 worker:
   model_ceiling: gpt-5.6-luna
@@ -36,5 +37,7 @@ rescue:
 
 concurrency:
   native_config_key: agents.max_concurrent_threads_per_session
-  max_concurrent_subagents: 4
+  runtime_capacity: observed_native_runtime
+  capacity_default: unknown
+  protocol_numeric_limit: none
   write_conflict_default: sequential

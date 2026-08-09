@@ -2,13 +2,15 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/agent-composition-disclosure.schema.json",
   "title": "Agent Composition Disclosure",
-  "description": "What the director tells the user before dispatching any native subagent batch. One disclosure per batch, not per individual spawn. It records director selection, worker model ceilings, justifications, conflict domains, execution mode, concurrency, cumulative spawn budget, and approval state.",
+  "description": "What the director visibly tells the user before dispatching any native subagent batch. One disclosure per batch, not per individual spawn. It includes a checkable work contract, director selection, worker model ceilings, justifications, conflict domains, execution mode, observed native capacity, and approval state.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "director_model",
     "director_effort",
     "director_model_source",
+    "user_visible",
+    "work_contract",
     "subagent_count",
     "subagents",
     "execution_mode",
@@ -31,6 +33,72 @@
       "type": "string",
       "enum": ["user_selected_session", "explicit_user_cli_selection"],
       "description": "The protocol never selects the director model."
+    },
+    "user_visible": {
+      "type": "boolean",
+      "const": true,
+      "description": "The complete work contract and composition are visibly shown to the user before any spawn or state-changing work."
+    },
+    "work_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "objective",
+        "scope",
+        "planned_contracts",
+        "planned_workers",
+        "worker_model",
+        "worker_reasoning_effort",
+        "minimum_safe_rationale",
+        "tests",
+        "stop_conditions"
+      ],
+      "properties": {
+        "objective": { "type": "string", "minLength": 1 },
+        "scope": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          ]
+        },
+        "planned_contracts": { "type": "integer", "minimum": 1 },
+        "planned_workers": { "type": "integer", "minimum": 1 },
+        "worker_model": { "type": "string", "minLength": 1 },
+        "worker_reasoning_effort": {
+          "type": "string",
+          "enum": ["low", "medium", "high", "xhigh", "max"]
+        },
+        "minimum_safe_rationale": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Why this composition is the minimum safe structure, using only conflict boundaries, dependencies, independent evidence/review, or blast-radius isolation, and why fewer existing contracts/workers cannot absorb it."
+        },
+        "tests": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          ]
+        },
+        "stop_conditions": {
+          "oneOf": [
+            { "type": "string", "minLength": 1 },
+            {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          ]
+        }
+      },
+      "description": "The user-visible contract summary required before the batch starts."
     },
     "subagent_count": {
       "type": "integer",
@@ -104,12 +172,12 @@
     },
     "within_preapproved_range": {
       "type": "boolean",
-      "description": "Whether the batch is within the configured max_batch_agents policy."
+      "description": "Whether the visible contract and observed native runtime permit this batch."
     },
     "approval_status": {
       "type": "string",
       "enum": ["not_required", "pending", "granted", "denied"],
-      "description": "Use not_required within the batch limit; otherwise dispatch waits for granted."
+      "description": "Approval state for any user-authorized exception or material scope change."
     },
     "spawn_budget": {
       "type": "object",
@@ -118,17 +186,18 @@
         "already_spawned_count",
         "this_batch_count",
         "total_after_spawn",
-        "max_total_spawned_agents_per_request",
-        "within_limit"
+        "capacity_source",
+        "capacity_known"
       ],
       "properties": {
         "already_spawned_count": { "type": "integer", "minimum": 0 },
         "this_batch_count": { "type": "integer", "minimum": 0 },
         "total_after_spawn": { "type": "integer", "minimum": 0 },
-        "max_total_spawned_agents_per_request": { "type": "integer", "minimum": 1 },
-        "within_limit": { "type": "boolean" }
+        "capacity_source": { "type": "string", "minLength": 1 },
+        "capacity_known": { "type": "boolean" },
+        "observed_capacity": { "type": ["integer", "null"], "minimum": 0 }
       },
-      "description": "Cumulative per-request spawn budget; not the simultaneous-thread limit."
+      "description": "Request accounting plus observed native capacity; no protocol numeric limit."
     }
   },
   "allOf": [

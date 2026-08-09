@@ -13,6 +13,19 @@ Condition (b) below is satisfied only once that Rescue Agent step or revised con
 and failed, or was inapplicable per Rescue Protocol's classification. [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) covers
 the separate case of a mid-task request for more power (before the failure threshold is reached).
 
+## Capacity is not takeover
+
+A full native runtime slot set is expected backpressure, not native
+unavailability and not a takeover condition. The director must wait for workers
+to finish, independently inspect their evidence, close completed workers,
+re-scope, or return to the user. ADP adds no concurrent or cumulative numeric
+budget.
+
+The initial work-contract disclosure and every later continuation disclosure
+remain mandatory. Capacity saturation alone never authorizes direct
+investigation, direct implementation, escalation, or takeover; it requires the
+wait/close cycle instead.
+
 ## When takeover is allowed
 
 Per [ROLE-CONTRACT.md](ROLE-CONTRACT.md), the director does not write product code. Takeover is the sole, narrow exception, permitted

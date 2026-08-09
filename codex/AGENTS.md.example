@@ -49,17 +49,22 @@ Rules for this session:
    sequentially.
 6. Disclose the entire composition before spawning: director, worker roles,
    task contracts, model/effort, justifications, conflict domains, execution
-   mode, existing spawn count, batch count, cumulative count, and request
-   budget. Do not silently add agents later. Any mid-task contract or agent
+   mode, spawn accounting (existing, batch, and cumulative counts), and the
+   observed runtime-capacity result. Do not silently add agents later. Any
+   mid-task contract or agent
    addition needs a new disclosure, a newly discovered evidence/conflict/
    dependency, mandatory independent-review boundary, or classified failure,
    and an explanation of why an existing contract/worker cannot absorb it.
    Speed, parallelism, efficiency, task size/complexity, file count, context
    reduction, empty slots, and tidy/smaller task IDs are not justifications.
-7. The native concurrency ceiling is four simultaneous subagent threads and
-   the protocol cumulative budget is twelve spawned agents per user request.
-   Reaching either limit requires re-evaluation; exceeding the request budget
-   requires explicit user approval.
+7. Native runtime capacity is the only concurrency authority. Record observed
+   capacity when exposed; if it is unknown, do not invent a numeric project
+   limit. A native slot-full response requires wait/close, re-scope, or return;
+   it never authorizes Director fallback or takeover. Before the first spawn or
+   state change, visibly disclose objective/scope, planned total workers,
+   model/effort, tests, stop conditions, and an evidence-based minimum-safe
+   rationale tied to conflict boundaries, dependencies, independent review, or
+   blast-radius isolation.
 8. Workers must not spawn children. Reviewers are read-only by default and
    return evidence-based revision requests to the director.
 9. Rescue keeps the same Luna model and raises effort only when a supported

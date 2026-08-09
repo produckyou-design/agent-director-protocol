@@ -53,7 +53,7 @@ probably do not need this repository.
 | A stub, hardcoded return, or invented test output presented as a working feature | `placeholder_implementation` / `fake_success` are named, objective [failure reasons](core/FAILURE-LOOP.md) — not judgment calls |
 | The agent burns turns retrying the same broken fix on a loop | A third guess-based fix at the same root cause is forbidden; it must [escalate with evidence](core/ESCALATION-PROTOCOL.md) instead |
 | Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) raises **reasoning effort only, never the model** — one task, ≤2 attempts, and only for a genuine reasoning/capability gap. A model change needs the user's say-so; when effort runs out the protocol escalates the *director* (the plan is the likely suspect), not the implementer |
-| A model quietly upgrades itself, or spawns a swarm of subagents you never approved | Every promotion and every batch is disclosed *before* it runs, with a per-subagent `justification`; above `max_batch_agents` it becomes an approval request, and implementers cannot spawn subagents at all |
+| A model quietly upgrades itself, or spawns workers you never approved | Every promotion and worker plan is disclosed *before* it runs, with a per-subagent `justification`; native capacity is observed at runtime, and implementers cannot spawn subagents at all |
 | Two parallel agents clobber the same file | An eight-domain [conflict check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
 | A failed attempt gets `git checkout .`-ed away, taking the evidence with it | [State safety](core/STATE-SAFETY.md): failed work is preserved until reviewed, and the checkpoint is a real commit SHA |
 | Vague work ("fix the UI") gets handed off and comes back as something else | A [task contract](core/TASK-CONTRACT.md) with `current_state`, `target_behavior`, and objective `completion_criteria` is required before delegation |
@@ -361,6 +361,15 @@ report. Non-Luna/non-max exceptions require explicit user authorization and
 disclosure. The normal baseline is already max, so Codex Rescue is unavailable;
 preserve evidence and use the Core escalation/takeover gates.
 
+The Codex adapter does not impose a concurrent or cumulative numeric worker
+limit. It records native runtime capacity when exposed and records `unknown`
+when the surface provides no capacity metadata; a native slot-full response
+requires waiting, inspecting evidence, closing completed workers, re-scoping,
+or returning to the user. Before the first spawn or any state-changing work,
+the Director must visibly disclose `user_visible: true` plus the `work_contract`
+objective, scope, planned contract/worker totals, minimum-safe rationale,
+exact tests, and stop conditions.
+
 Initial decomposition must justify why its contract size and total
 contract/worker count are the minimum safe structure, based on conflict
 boundaries, dependencies, independent evidence/review, or blast-radius
@@ -416,17 +425,16 @@ always whichever model is running the current session — switch models
 mid-project with `/model` and the director switches with you, live, no file
 to touch. What the profile actually holds is operational policy that should
 stay stable regardless of which model happens to be in the director seat
-today: which model/effort a spawned implementer gets per kind of task, how
-large a subagent batch can get before it needs your approval
-(`max_batch_agents`), and how many failed loops on one task trigger Rescue
-Protocol classification (`failure_threshold`):
+today: adapter model/effort rules and how many failed loops on one task trigger
+Rescue Protocol classification (`failure_threshold`). Concurrency is
+platform-native; the Codex adapter observes runtime capacity and does not add
+a project numeric worker limit:
 
 ```yaml
 # Model names are environment aliases the user may freely change; the protocol never depends on a specific model name.
 director:
   preferred_models: [opus-5, fable-5]  # recommended tiers for this role, not a selection you must make
   effort: high        # optional hint; adapters map to platform mechanism or omit
-  max_batch_agents: 4  # batch above this size needs your approval before it spawns
 implementer:
   preferred_models: [opus-5]   # one tier — nothing in the protocol picks between entries
   effort_by_task_kind:
@@ -457,13 +465,11 @@ transfer unchanged. This repository states no benchmark numbers because the
 right answer depends on your workload and on prices that change — sweep tiers
 and effort levels on your own tasks and compare the cost to *done*.
 
-**Only override the profile if a project wants different policy** — e.g. a
-stricter project lowers `max_batch_agents`, or a project running cheap/fast
-implementer passes raises `failure_threshold` (the Codex policy metadata is in
-`codex/profiles/default.yaml`). To override: copy the policy file and
-edit your copy, or (Claude Code) point `CLAUDE.md` at a differently-named
-profile file, or (Codex) translate the fields into your own `config.toml` /
-named profile — as described in each platform's `INSTALL.md`.
+**Only override the profile if a project wants different policy** — for
+example, a project may change its adapter-specific failure threshold. Do not
+add a project concurrency cap to the Codex adapter: native runtime capacity is
+the only capacity authority. To override other policy, copy the policy file and
+edit your copy, or follow the platform-specific `INSTALL.md` instructions.
 
 ### Codex explicit dispatch and verification
 
@@ -592,21 +598,22 @@ exception. Splitting into more than one subagent needs one of these reasons, sta
 that subagent's `justification` in the agent-composition disclosure (see
 [`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)):
 
-1. **Genuine parallelism benefit** — the pieces have disjoint
-   `conflict_domains` and finishing sooner materially matters.
-2. **A distinct effort or model tier is actually warranted** for one part
-   (e.g. one piece is `investigation`-kind work, the rest is `mechanical`).
-3. **Isolating blast radius** — a risky change should be reviewable
+1. **A distinct conflict boundary or dependency** that an existing
+   contract/worker cannot safely absorb.
+2. **Isolating blast radius** — a risky change should be reviewable
    independently of a safe one.
-4. **Genuinely independent verifiable outcomes** that would otherwise force
+3. **Genuinely independent verifiable outcomes** that would otherwise force
    unrelated work into a single contract, making it harder to review or
    revert in isolation.
+4. **An independent reviewer context** that cannot be supplied by the
+   implementer without self-review.
 
-"Smaller diffs" or "tidier task IDs" alone is never sufficient. A batch above
-the active profile's `director.max_batch_agents` (default 4) requires the
-user's explicit approval before anything spawns, regardless of how cleanly it
-passes the conflict-domain check. See
-[`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md) step 4.
+"Smaller diffs" or "tidier task IDs" alone is never sufficient. The Codex
+adapter has no ADP batch or cumulative numeric cap: the native runtime is the
+only capacity authority. If the runtime reports full capacity, wait/close,
+re-scope, or return; user rationale cannot override the native refusal and
+capacity saturation never authorizes takeover. See
+[`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md).
 
 When part of a batch fails, each task is resolved on its own evidence:
 passing tasks integrate normally (unless they depend on a failed one), and
@@ -671,10 +678,9 @@ explicitly:
 - **Over-decomposing into many narrow subagents "just to be safe."** The
   default is the fewest tasks that satisfy the verifiable-unit rule, not the
   most. Every disclosed subagent needs a stated `justification`, and a batch
-  above `director.max_batch_agents` requires the user's approval before
-  anything spawns — passing the conflict-domain check makes a batch *safe* to
-  parallelize, not *sized appropriately*. See `core/DELEGATION-PROTOCOL.md`
-  step 4 and `core/CONCURRENCY-RULES.md`.
+  must fit the observed native runtime capacity — passing the conflict-domain
+  check makes a batch *safe* to execute, not *sized appropriately*. See
+  `core/DELEGATION-PROTOCOL.md` and `core/CONCURRENCY-RULES.md`.
 - **Using generic contract-scale or addition reasons.** Speed, parallelism,
   efficiency, task size/complexity, many files, context reduction, empty slots,
   and tidy/smaller task IDs do not justify another contract or worker. Initial

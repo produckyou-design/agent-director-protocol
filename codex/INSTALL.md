@@ -130,7 +130,6 @@ The example project configuration uses only the native keys:
 ```toml
 [agents]
 enabled = true
-max_concurrent_threads_per_session = 4
 default_subagent_model = "gpt-5.6-luna"
 default_subagent_reasoning_effort = "max"
 interrupt_message = true
@@ -154,9 +153,11 @@ and reject the worker; missing or unverifiable metadata means stop and report a
 policy violation/fallback requirement rather than accepting its output. A
 non-Luna/non-max exception requires explicit user authorization and disclosure.
 
-The four-thread setting is a simultaneous limit, not the protocol's cumulative
-per-request budget of twelve spawned agents. Overlapping write or read/write
-conflict domains still run sequentially.
+Native runtime capacity is the only worker limit; the adapter does not invent a
+concurrent or cumulative numeric cap. If capacity metadata is unknown, record
+unknown and observe the native spawn result. Overlapping write or read/write
+conflict domains still run sequentially. A native slot-full response requires
+wait/close, re-scope, or return and never authorizes Director takeover.
 
 ## How to use it
 

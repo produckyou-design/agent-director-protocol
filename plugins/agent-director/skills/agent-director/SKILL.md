@@ -64,8 +64,9 @@ session or retroactively alter an already-running task.
 7. Publish the full composition disclosure: Director model/effort/source,
    every worker's role, task, explicit model, explicit max effort, model
    ceiling, justification, conflict domains, execution mode, rescue policy,
-   and budget.
-8. Check the batch and cumulative spawn budgets before each spawn.
+   and observed runtime-capacity result.
+8. Check the observed native runtime capacity before each spawn; never invent a
+   project batch or cumulative limit.
 9. Spawn native Codex subagent threads by default. Use `codex exec` only
    for CI, non-interactive process isolation, or unavailable native subagents,
    with the same explicit model/effort and verification gates.
@@ -82,18 +83,28 @@ discovered evidence, a new conflict domain/dependency, a mandatory independent
 review boundary, or a classified failure and explain why an existing
 contract/worker cannot absorb it.
 
-## Conflict, concurrency, and budget
+## Conflict, concurrency, and runtime capacity
 
 - Run independent read-only work in parallel only when evidence sources are
   independent.
 - Run overlapping writes sequentially. Shared working-tree writes are
   conflicts even when the agents believe their files are different.
-- Respect the native concurrent-thread ceiling from
-  `agents.max_concurrent_threads_per_session` (the project adapter default
-  is four spawned workers, excluding the Director).
-- The protocol budget is four workers per batch and twelve cumulative spawned
-  workers per user request. Do not silently exceed either limit.
+- Respect only the actual native runtime capacity exposed by
+  `agents.max_concurrent_threads_per_session` or returned runtime metadata.
+  The adapter does not define a concurrent or cumulative numeric cap. If
+  capacity is unknown, record it as unknown and do not invent a limit.
 - Workers may not spawn subagents. The Director owns the topology.
+
+Before the first spawn or state-changing work, visibly disclose objective/scope,
+the planned total contracts/workers, the minimum-safe rationale based on
+conflict boundaries, dependencies, independent evidence/review, or blast-radius
+isolation and why fewer existing contracts/workers cannot absorb it, model/
+effort, exact tests, stop conditions, and the complete disclosed batch plan.
+Any positive total permitted by the observed native runtime is valid; speed,
+parallelism, efficiency, task size/complexity, file count, context reduction,
+empty slots, and tidy IDs are not scale reasons. When native capacity is full,
+wait, inspect evidence, close completed workers, re-scope, or return. A native
+slot-full response never authorizes Director takeover or delegated fallback.
 
 ## Rescue and Core escalation
 

@@ -1,8 +1,8 @@
 # Concurrency Rules
 
 This document defines when delegated tasks may run in parallel and when they must run sequentially.
-The adapter supplies the native simultaneous-thread setting; the protocol supplies the correctness
-check and cumulative spawn limit.
+The adapter observes native runtime capacity; the protocol supplies correctness
+and disclosure checks without inventing a concurrent or cumulative numeric cap.
 
 ## Default: sequential unless proven independent
 
@@ -32,23 +32,48 @@ If a conflict is found, add a real dependency where one task needs the other's o
 choose a deterministic sequential order. Do not create a false dependency merely to hide a conflict;
 the disclosure should state that the order is a conflict-safety decision.
 
-## Cumulative spawn budget
+## Native capacity and disclosed batches
 
-The protocol policy separately limits one user request to a cumulative budget. The active adapter
-profile supplies the limit, and the disclosure records:
+The active adapter may expose `agents.max_concurrent_threads_per_session` or
+another runtime capacity value. That observed value is runtime capacity only;
+ADP does not add a concurrent or cumulative numeric cap. If capacity metadata
+is absent, record it as unknown and do not invent a project default.
+
+Before the first spawn or any state-changing work, the director must visibly
+disclose a checkable work contract to the user. It must state objective/scope,
+planned total contracts/workers, the minimum-safe rationale based only on
+conflict boundaries, dependencies, independent evidence/review, or blast-radius
+isolation (and why fewer existing contracts/workers cannot absorb it), the model
+and effort, the complete batch plan, exact test commands, and stop conditions.
+
+Before each later batch, send a continuation disclosure stating the previous
+batch's result and closure state, why the next batch remains necessary, the next
+batch size, and the updated plan. A preplanned later batch is not an
+unapproved addition, but it still requires this disclosure.
+
+When active slots are full, wait for workers to finish, independently inspect
+the required evidence, close completed workers to release slots, and then
+re-scope or return to the user. Do not claim native unavailability or perform
+the delegated investigation/implementation directly. Capacity saturation alone
+is never a takeover or escalation gate.
+
+## Spawn accounting
+
+The disclosure records request accounting and whether native capacity was
+observed, without a protocol numeric limit:
 
 ```text
 already_spawned_count
 this_batch_count
 total_after_spawn
-max_total_spawned_agents_per_request
-within_limit
+capacity_source
+capacity_known
 ```
 
-This count does not reset merely because a batch finishes. Revisions, new investigators, and rescue
-assignments count unless the active adapter explicitly documents that a replacement reuses an existing
-slot. At the limit, the director must merge/revise/re-scope/return the work rather than spawn another
-agent. Exceeding it requires a new disclosure and explicit user approval.
+Counts do not reset merely because a batch finishes. Revisions, new
+investigators, and rescue assignments require a new disclosure. A native
+slot-full response requires wait/close/re-scope/return and never authorizes
+Director takeover.
 
 ## Shared working state
 
@@ -83,8 +108,8 @@ does not depend on each other.
 ```
 
 These tasks have no intersection and may be disclosed as `parallel` if they have no dependency and
-the budgets permit it. If a third task changes `POST /orders`, the interface intersection forces it
-to run sequentially with T-041 regardless of its filename.
+the observed native runtime capacity permits it. If a third task changes `POST /orders`, the
+interface intersection forces it to run sequentially with T-041 regardless of its filename.
 
 ## Failure and interruption
 
