@@ -342,11 +342,32 @@ Get-ChildItem agent-director-protocol\codex\agents\*.toml.example | ForEach-Obje
 }
 ```
 
-Codex's main session is the director and native subagent threads are the normal
+Codex's main session is the Director and native subagent threads are the normal
 delegation path. `.codex/config.toml` and `.codex/agents/*.toml` are the actual
 project-scoped settings; `codex exec` is only the documented fallback for
 non-interactive or process-isolated work. `codex/profiles/default.yaml` is
-policy metadata, not a profile Codex loads.
+policy metadata, not a profile Codex loads. After explicit `$agent-director`
+or "Director mode on" activation, every ADP-created native worker spawn must
+explicitly include `model="gpt-5.6-luna"` and
+`reasoning_effort="max"`. The Director's selected model is never
+inherited, and task kind never selects effort.
+
+The project defaults and role files are defense in depth. Prefer no named
+custom agent/type; if one is selected, verify its loaded profile is pinned to
+the same pair before dispatch. Verify returned/runtime metadata when exposed:
+a mismatch rejects and closes the worker and discards its output; a surface
+that cannot accept or verify the pair stops with a policy-violation/fallback
+report. Non-Luna/non-max exceptions require explicit user authorization and
+disclosure. The normal baseline is already max, so Codex Rescue is unavailable;
+preserve evidence and use the Core escalation/takeover gates.
+
+Initial decomposition must justify why its contract size and total
+contract/worker count are the minimum safe structure, based on conflict
+boundaries, dependencies, independent evidence/review, or blast-radius
+isolation, and why fewer existing contracts cannot absorb it. Mid-task
+additions require a new disclosure grounded in newly discovered evidence, a
+new conflict/dependency, a mandatory independent-review boundary, or a
+classified failure, plus why an existing contract/worker cannot absorb it.
 
 **Explicit Codex plugin switch** — install the repository marketplace plugin
 when you want to turn the protocol on for a particular task:
@@ -443,6 +464,20 @@ implementer passes raises `failure_threshold` (the Codex policy metadata is in
 edit your copy, or (Claude Code) point `CLAUDE.md` at a differently-named
 profile file, or (Codex) translate the fields into your own `config.toml` /
 named profile — as described in each platform's `INSTALL.md`.
+
+### Codex explicit dispatch and verification
+
+The Codex-specific adapter is stricter than the platform-neutral profile
+example above: explicit Director-mode activation fixes every ADP native worker
+spawn to `model="gpt-5.6-luna"` and
+`reasoning_effort="max"`. The Director remains user-selected.
+Defaults and named profiles are only defense in depth. Omit a named custom
+agent/type unless its loaded profile is verified against the pair. If returned
+metadata is mismatched, reject/close the worker and discard its output; if the
+surface cannot accept or verify the pair, stop and report a fallback
+requirement. A non-Luna/non-max exception needs explicit user authorization and
+disclosure. Rescue has no headroom at max, so use the Core escalation/takeover
+gates.
 
 ## Applying this to a new project
 
@@ -621,6 +656,10 @@ explicitly:
   resolved — gets a notice at the time it happens. A silent upgrade (or
   silent downgrade back) is a protocol violation even if the resulting code
   is fine.
+- **Spawning without explicit worker settings or accepting unverified metadata.**
+  Every ADP native spawn must carry `model="gpt-5.6-luna"` and
+  `reasoning_effort="max"`. A mismatch is rejected/closed and an
+  unverifiable surface stops with a fallback report.
 - **Trusting an implementer's `status: complete` as-is.** It starts a review;
   it never ends one. The director must independently verify evidence.
 - **Counting a re-prompt as a revision loop.** Re-asking "make it work" after
@@ -636,6 +675,12 @@ explicitly:
   anything spawns — passing the conflict-domain check makes a batch *safe* to
   parallelize, not *sized appropriately*. See `core/DELEGATION-PROTOCOL.md`
   step 4 and `core/CONCURRENCY-RULES.md`.
+- **Using generic contract-scale or addition reasons.** Speed, parallelism,
+  efficiency, task size/complexity, many files, context reduction, empty slots,
+  and tidy/smaller task IDs do not justify another contract or worker. Initial
+  decomposition must explain the minimum structure and why fewer contracts
+  cannot absorb it; every mid-task addition needs a new evidence-based
+  disclosure and the same absorption explanation.
 - **An implementer spawning its own subagents.** Only the director delegates.
   An implementer that decides mid-task it needs more help reports that as a
   blocked/out-of-scope finding — it does not act on it. See
@@ -646,8 +691,8 @@ explicitly:
 - **Platform mechanics differ, and this repo does not force parity between
   them.** Claude Code has native subagents (the Task/Agent tool); Codex has no
   equivalent persistent subagent identity — its implementer role here is a
-  fresh `codex exec` invocation (or, less preferred, an in-session subagent
-  thread) per task. The two adapters describe the same protocol using each
+  explicit native subagent spawn with a per-request model/effort pair (or a
+  documented `codex exec` fallback) per task. The two adapters describe the same
   platform's real primitives, not a shared implementation.
 - **Profiles are conventions, not enforcement.** Neither platform has a
   built-in "active profile" concept that this repo hooks into; a profile YAML

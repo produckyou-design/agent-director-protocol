@@ -348,6 +348,31 @@ codex plugin marketplace add produckyou-design/agent-director-protocol
 codex plugin add agent-director@agent-director-protocol-plugins
 ```
 
+Codex 명시적 디스패치 정책: $agent-director를 호출하거나 "Director mode on"이라고
+말하면 현재 사용자 선택 세션은 Director로 유지됩니다. ADP가 만드는 모든
+네이티브 worker spawn에는 model="gpt-5.6-luna"와
+reasoning_effort="max"를 반드시 명시해야 하며, worker가 Director를
+상속하거나 작업 종류에 따라 effort를 선택해서는 안 됩니다. 기본 설정과
+named profile은 방어적 설정일 뿐 강제 실행의 증거가 아닙니다.
+
+named custom agent/type은 가급적 생략하세요. 사용할 때는 로드된 profile이
+같은 모델/effort로 고정되어 있는지 먼저 검증해야 합니다. 반환/runtime
+metadata가 노출되면 확인하고, 불일치한 worker는 거부하고 종료한 뒤 결과를
+폐기합니다. 표면이 두 값을 받지 못하거나 검증할 metadata를 제공하지 않으면
+정책 위반 또는 fallback 필요를 보고하고 결과를 사용하지 않습니다. Luna가
+아닌 모델 또는 max가 아닌 effort 예외에는 사용자의 명시적 승인과 disclosure가
+필요합니다. 기본값이 이미 max이므로 Codex Rescue는 일반 ADP 실행에서
+사용할 수 없으며, 증거를 보존하고 Core escalation/takeover 절차를 따릅니다.
+
+초기 분해 시 contract 크기와 전체 contract/worker 수가 최소의 안전한
+구조인 이유를 conflict boundary, dependency, 독립 evidence/review 또는
+blast-radius 격리와 연결해 설명하고, 기존의 더 적은 contract가 작업을
+흡수할 수 없는 이유를 명시해야 합니다. 중간에 contract나 agent를 추가할
+때는 새로 발견된 증거, 새 conflict/dependency, 필수 독립 review 경계 또는
+분류된 failure에 근거한 새 disclosure와 기존 contract/worker가 흡수할 수
+없는 이유가 먼저 필요합니다. 속도, 병렬화, 효율, 단순한 규모/복잡성,
+파일 수, context 축소, 빈 slot, 깔끔하거나 작은 task ID는 근거가 아닙니다.
+
 새 task/thread에서 `$agent-director`를 호출하거나 “Director mode on”이라고
 말하면 됩니다. 이 플러그인은 현재 세션을 director로 선언하고 네이티브
 서브에이전트를 사용하게 하는 지침 스위치입니다. 현재 세션의 선택 모델을

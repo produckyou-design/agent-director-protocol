@@ -24,9 +24,21 @@ are role settings. The adapter does not invent depth, runtime, or model-list
 configuration keys.
 
 The user-selected current Codex session is the director. The protocol does not
-choose the director model. Native delegated workers use a **GPT-5.6 Luna
-ceiling** by default; the director's model is not silently inherited by a
-worker and Luna is never automatically promoted to Terra or Sol.
+choose the director model. After explicit `$agent-director` or "Director mode
+on" activation, every ADP-created native worker is dispatched with explicit
+`model="gpt-5.6-luna"` and `reasoning_effort="max"`; the Director's
+model is never inherited and effort is not selected by task kind. Configuration
+defaults and role files are defense in depth, not the enforcement claim.
+
+Before initial dispatch, record why the chosen contract size and total
+contract/worker count are the minimum safe structure. Cite conflict boundaries,
+dependencies, independent evidence/review, or blast-radius isolation and
+explain why fewer existing contracts cannot absorb the work. Speed,
+parallelism, efficiency, task size/complexity, many files, context reduction,
+empty slots, and tidy/smaller task IDs are rejected. Any mid-task contract or
+agent addition requires a new disclosure based on newly discovered evidence, a
+new conflict domain/dependency, a mandatory independent-review boundary, or a
+classified failure, plus why an existing contract/worker cannot absorb it.
 
 ## Files supplied by this repository
 
@@ -120,18 +132,27 @@ The example project configuration uses only the native keys:
 enabled = true
 max_concurrent_threads_per_session = 4
 default_subagent_model = "gpt-5.6-luna"
-default_subagent_reasoning_effort = "high"
+default_subagent_reasoning_effort = "max"
 interrupt_message = true
 ```
 
-The role templates pin the same Luna model and set their policy boundaries:
+The role templates pin the same Luna model and `max` effort as defense in
+depth. The Director still has to pass the pair explicitly on every native
+spawn:
 
 - `investigator.toml`: read-only, `max`;
-- `implementer.toml`: workspace-write, `high`;
+- `implementer.toml`: workspace-write, `max`;
 - `reviewer.toml`: read-only, `max`;
-- `rescue.toml`: same Luna model; the director supplies a higher supported
-  effort for a task-scoped rescue;
-- `release-auditor.toml`: read-only, `medium`.
+- `rescue.toml`: `max`, unavailable at the ordinary max baseline because
+  there is no higher same-model effort;
+- `release-auditor.toml`: read-only, `max`.
+
+Prefer no named custom agent/type. If a named profile is selected, load and
+verify that its model and effort fields are exactly the explicit pair before
+dispatch. When runtime metadata is available, a returned mismatch must close
+and reject the worker; missing or unverifiable metadata means stop and report a
+policy violation/fallback requirement rather than accepting its output. A
+non-Luna/non-max exception requires explicit user authorization and disclosure.
 
 The four-thread setting is a simultaneous limit, not the protocol's cumulative
 per-request budget of twelve spawned agents. Overlapping write or read/write
@@ -143,7 +164,8 @@ Start Codex in the trusted target repository after installation. The current
 session is the director. Before the first spawn it must:
 
 1. read the skill and relevant Core/schema documents;
-2. analyze the repository and write the fewest complete Task Contracts;
+2. analyze the repository, write the fewest complete Task Contracts, and
+   record the concrete initial contract-scale justification;
 3. check all conflict domains and dependencies;
 4. disclose the complete composition and spawn budget;
 5. spawn native subagent threads only after that disclosure;
@@ -169,7 +191,7 @@ For a one-off explicit worker override, use supported CLI syntax such as:
 ```bash
 codex exec \
   -c model='"gpt-5.6-luna"' \
-  -c model_reasoning_effort='"high"' \
+  -c model_reasoning_effort='"max"' \
   "<complete task-contract JSON>"
 ```
 

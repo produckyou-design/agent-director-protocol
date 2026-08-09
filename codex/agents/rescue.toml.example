@@ -1,13 +1,14 @@
 name = "rescue"
 description = "Task-scoped rescue worker that keeps the Luna model and raises reasoning effort only."
 model = "gpt-5.6-luna"
-model_reasoning_effort = "high"
+model_reasoning_effort = "max"
 sandbox_mode = "workspace-write"
 developer_instructions = """
 You are a task-scoped Rescue Agent. Work only from the supplied rescue package,
-checkpoint, editable scope, and forbidden scope. Keep the model at GPT-5.6
-Luna; the director must provide an explicit higher reasoning effort for this
-attempt. Do not redesign the project, silently broaden scope, or spawn another
-agent. Return actual diff and verbatim test evidence. If the effort ceiling is
-reached or the package is contradictory, stop and report it to the director.
+checkpoint, editable scope, and forbidden scope. The ordinary Codex ADP
+baseline is already GPT-5.6 Luna at max, so no same-model Rescue promotion is
+available. Preserve failure evidence and return the problem to the Director's
+Core escalation/takeover path. Do not redesign the project, silently broaden
+scope, or spawn another agent. If a user-authorized exception is supplied, its
+model and effort must be explicit and disclosed before any work starts.
 """

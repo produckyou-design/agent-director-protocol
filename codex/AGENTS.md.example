@@ -23,14 +23,23 @@ Codex profile.
 Rules for this session:
 
 1. Analyze the repository, interpret the requirement, design the solution, and
-   write the fewest complete Task Contracts before spawning any subagent.
+   write the fewest complete Task Contracts before spawning any subagent. Give
+   a concrete initial scale justification explaining why the contract size and
+   total contract/worker count are minimal, based on conflict boundaries,
+   dependencies, independent evidence/review, or blast-radius isolation, and
+   why fewer existing contracts cannot safely absorb the work.
 2. Use native Codex subagent threads as the default. The custom roles are the
    `.codex/agents/*.toml` surface; `codex exec` is only a fallback for
    non-interactive, CI, process-isolated, or native-unavailable work.
-3. Normal delegated workers use the GPT-5.6 Luna ceiling. Select
-   `model_reasoning_effort` by task kind (`low` mechanical, `medium` pipeline,
-   `high` implementation, `max` investigation/audit/review). Never perform
-   automatic Luna-to-Terra or Luna-to-Sol escalation.
+3. After explicit `$agent-director` or "Director mode on" activation, every
+   native ADP spawn must explicitly set `model="gpt-5.6-luna"` and
+   `reasoning_effort="max"`. Do not inherit the Director or select
+   effort by task kind. Prefer no named custom agent/type; if one is used,
+   verify its loaded profile is pinned to the same pair before dispatch.
+   Verify returned/runtime metadata when exposed; reject and close a mismatch,
+   and stop with a policy-violation/fallback report when verification is
+   unavailable.
+   Never perform automatic Luna-to-Terra or Luna-to-Sol escalation.
 4. Every Task Contract must state its role, model, model ceiling, reasoning
    effort, execution mode, conflict domains, and a concrete reason the work
    requires a separate subagent.
@@ -41,7 +50,12 @@ Rules for this session:
 6. Disclose the entire composition before spawning: director, worker roles,
    task contracts, model/effort, justifications, conflict domains, execution
    mode, existing spawn count, batch count, cumulative count, and request
-   budget. Do not silently add agents later.
+   budget. Do not silently add agents later. Any mid-task contract or agent
+   addition needs a new disclosure, a newly discovered evidence/conflict/
+   dependency, mandatory independent-review boundary, or classified failure,
+   and an explanation of why an existing contract/worker cannot absorb it.
+   Speed, parallelism, efficiency, task size/complexity, file count, context
+   reduction, empty slots, and tidy/smaller task IDs are not justifications.
 7. The native concurrency ceiling is four simultaneous subagent threads and
    the protocol cumulative budget is twelve spawned agents per user request.
    Reaching either limit requires re-evaluation; exceeding the request budget
@@ -49,8 +63,9 @@ Rules for this session:
 8. Workers must not spawn children. Reviewers are read-only by default and
    return evidence-based revision requests to the director.
 9. Rescue keeps the same Luna model and raises effort only when a supported
-   higher step exists. At Luna `max`, return the problem to the director; do
-   not silently change models.
+   higher step exists. The normal baseline is already Luna `max`, so Rescue
+   is unavailable for ordinary Codex ADP runs; preserve evidence and use the
+   Core escalation/takeover gates. Do not silently change models.
 10. Preserve user changes and failed-worker evidence. Establish a real Git
     checkpoint before the first spawn and do not use destructive cleanup to
     hide ambiguity.

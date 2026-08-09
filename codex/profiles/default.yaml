@@ -13,27 +13,25 @@ director:
 
 worker:
   model_ceiling: gpt-5.6-luna
-  model_selection: adapter_default_unless_user_explicitly_overrides
+  model_selection: explicit_per_spawn
+  reasoning_effort: max
   model_escalation: forbidden
+  runtime_metadata_verification: required
+  on_mismatch: reject_and_close_worker
+  on_unverifiable_surface: stop_and_report_fallback_requirement
 
 implementer:
   model: gpt-5.6-luna
-  effort_default: high
-  effort_by_task_kind:
-    mechanical: low
-    pipeline: medium
-    implementation: high
-    investigation: max
-    audit: max
-    review: max
+  effort_default: max
   effort_ceiling: max
   failure_threshold: 2
 
 rescue:
   same_model_only: true
   model: gpt-5.6-luna
-  raise_effort_only: true
-  max_attempts: 2
+  baseline_effort: max
+  available: false
+  unavailable_reason: no_same_model_effort_headroom_at_max_baseline
   on_ceiling_failure: return_to_director
 
 concurrency:

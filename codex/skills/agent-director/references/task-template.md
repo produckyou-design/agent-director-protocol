@@ -26,7 +26,7 @@ Fill every field before delegating. The shape mirrors
     "role": "implementer",
     "model": "gpt-5.6-luna",
     "model_ceiling": "gpt-5.6-luna",
-    "reasoning_effort": "high",
+    "reasoning_effort": "max",
     "execution": "sequential",
     "justification": "",
     "spawn_authority": "director"
@@ -52,11 +52,26 @@ Fill every field before delegating. The shape mirrors
 
 - `objective` and `target_behavior` must explain the why and the precise after-state.
 - `editable_files` and `forbidden_files` are disjoint and must contain every expected write boundary.
-- `delegation.justification` must identify a concrete independent result, conflict boundary,
-  investigation need, blast-radius boundary, or independent reviewer context. “For efficiency” or
-  “many files” is not sufficient.
-- `delegation.model_ceiling` is the adapter policy ceiling; a
-  different model requires explicit user policy and disclosure.
+- The initial set of `delegation.justification` values must explain why each
+  contract's size and the total contract/worker count are the minimum safe
+  structure. Identify conflict boundaries, dependencies, independent
+  evidence/review needs, or blast-radius isolation and why fewer existing
+  contracts/workers cannot absorb the work.
+- Reject speed, parallelism, efficiency, task size/complexity, many files,
+  context reduction, empty slots, and tidy/smaller task IDs. A mid-task
+  addition also needs a new disclosure based on newly discovered evidence, a
+  new conflict domain/dependency, a mandatory independent-review boundary, or
+  a classified failure, including why an existing contract/worker cannot
+  absorb it.
+- `delegation.model` and `delegation.reasoning_effort` must match the
+  explicit native spawn fields: `gpt-5.6-luna` and `max`. Defaults and
+  named profiles are defense in depth, not a substitute for those fields.
+- A named custom agent/type is omitted unless its loaded profile has been
+  verified to pin the same model and effort. Runtime metadata must be checked
+  before accepting output; a mismatch is rejected/closed and an unverifiable
+  surface stops with a policy-violation/fallback report.
+- A non-Luna/non-max exception requires explicit user authorization and a
+  disclosure naming it.
 - `conflict_domains` is not just a file list. Include interfaces, schemas, shared state, generated
   artifacts, and build/config targets whenever the task can affect them.
 - `depends_on` is for real output dependencies. A conflict-only ordering decision should be stated

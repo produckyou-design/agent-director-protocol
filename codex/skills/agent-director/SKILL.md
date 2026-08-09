@@ -1,9 +1,9 @@
 ---
 name: agent-director
-description: Enact the agent-director protocol on Codex native subagents with a user-selected director, Luna worker ceiling, contract-first delegation, conflict-safe execution, and evidence-based review.
+description: Enact the agent-director protocol on Codex native subagents with a user-selected director, explicit Luna/max worker dispatch, contract-first delegation, conflict-safe execution, and fail-closed evidence-based review.
 ---
 
-# Agent Director — Codex adapter
+# Agent Director -- Codex adapter
 
 This is the Codex binding for the platform-neutral protocol in [`core/`](../../../core/).
 Read [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md) first, then read only the
@@ -16,9 +16,10 @@ dispatcher.
 Use the current native surfaces in this order:
 
 1. **Project guidance:** Codex reads `AGENTS.md` before work. The repository
-   root `AGENTS.md` points to this canonical skill. The `.agents/skills/` bridge
-   makes the skill discoverable through the native project skill surface; the
-   `.codex/skills/` copy is a compatibility bridge and must not diverge.
+   root `AGENTS.md` points to this canonical skill. The `.agents/skills/`
+   bridge makes the skill discoverable through the native project skill
+   surface; the `.codex/skills/` copy is a compatibility bridge and must not
+   diverge.
 2. **Native subagent workflow:** the director session can spawn subagent
    threads, wait for them, inspect them, and collect their summaries. Native
    delegation is the default for interactive Codex app, CLI, and IDE sessions.
@@ -26,34 +27,41 @@ Use the current native surfaces in this order:
    Each standalone file must define `name`, `description`, and
    `developer_instructions`; supported session keys such as `model`,
    `model_reasoning_effort`, and `sandbox_mode` may be added. The `name` field
-   is authoritative.
+   is authoritative, but a named profile is never a substitute for explicit
+   model and effort fields in the spawn request.
 4. **Native multi-agent settings:** `.codex/config.toml` may use the real
    `[agents]` keys `enabled`, `max_concurrent_threads_per_session`,
    `default_subagent_model`, `default_subagent_reasoning_effort`, and
-   `interrupt_message`. Do not invent undocumented depth/runtime controls or a
-   project-local pseudo-profile key.
+   `interrupt_message`. These defaults are defense in depth; they do not
+   replace explicit per-spawn dispatch or runtime verification. Do not invent
+   undocumented depth/runtime controls or a project-local pseudo-profile key.
 5. **`codex exec` fallback:** use `codex exec` only for non-interactive/CI
    work, process isolation, or an environment without native subagent tools.
    A real user profile is a `$CODEX_HOME/<name>.config.toml` file; this
    repository's `codex/profiles/default.yaml` is policy metadata and is never
    loaded by Codex. Use `--profile <name>` only for a real native profile, or
-   use `-c model=...` / `-c model_reasoning_effort=...` when the installed CLI
-   supports those overrides.
+   use explicit `-c model=...` and `-c model_reasoning_effort=...` overrides
+   when the installed CLI supports them. The same acceptance and verification
+   gates apply to the fallback.
 
 Official references: [Codex subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
 [AGENTS.md discovery](https://learn.chatgpt.com/docs/agent-configuration/agents-md),
 [configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference), and
 [advanced configuration](https://learn.chatgpt.com/docs/config-file/config-advanced).
 
-## Director model
+## Activation and Director model
 
-The director is the main Codex session the user is speaking to. **The user
-chooses the director model and effort.** The protocol never selects Sol, Terra,
-Luna, or any other director tier and never treats `default.yaml` as a native
+When the user explicitly invokes `$agent-director` or says `Director mode on`,
+announce `director_mode: on` and apply this policy for the current task. This
+is an instruction switch, not a hidden product or system setting.
+
+The Director is the main Codex session the user is speaking to. **The user
+chooses the Director model and effort.** The protocol never selects Sol, Terra,
+Luna, or any other Director tier and never treats `default.yaml` as a native
 Codex profile. Every disclosure records the actual current session values and
 `director_model_source: user_selected_session`.
 
-The director must:
+The Director must:
 
 - inspect the repository and relevant tests before designing work;
 - interpret the requirement and write the fewest verifiable Task Contracts;
@@ -61,50 +69,62 @@ The director must:
 - disclose the complete batch before spawning anything;
 - integrate only reviewed work and make the final completion judgment.
 
-The director does not write product code or run state-changing operations. The
-only exception is a recorded takeover under [`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md).
-If the director authored a diff under takeover, it must use an independent
-reviewer context and must not self-review.
+The Director does not write product code or run state-changing operations. The
+only exception is a recorded takeover under
+[`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md). If the Director
+authored a diff under takeover, it must use an independent reviewer context and
+must not self-review.
 
-## Worker model policy: Luna ceiling
+## Worker dispatch policy: explicit Luna/max baseline
 
-The normal Codex delegated worker is **GPT-5.6 Luna**. The native project
-defaults and the investigator, implementer, reviewer, and rescue custom-agent
-files pin the worker model to `gpt-5.6-luna`.
+When the explicit activation is on, every ADP-created native Codex subagent
+must be dispatched with both fields present in the spawn request:
 
-| Assignment | Native agent | Default effort | Write access |
-| --- | --- | --- | --- |
-| Root-cause investigation | `investigator` | `max` | read-only |
-| Contract execution | `implementer` | `high` | workspace-write |
-| Evidence review | `reviewer` | `max` | read-only |
-| Task-scoped rescue | `rescue` | director-selected higher step | workspace-write |
+```text
+model = "gpt-5.6-luna"
+reasoning_effort = "max"
+```
 
-`release_auditor` is also a read-only Luna custom agent at `medium` effort for
-repository release checks. It is not a reason to create another worker when an
-existing contract can include the check.
+The Director is never inherited by a worker merely because it is stronger. The
+worker baseline is fixed for every role:
 
-The director model is not inherited by a worker merely because it is stronger.
-An explicit user policy may choose another worker model, but the disclosure
-must record that exception and the protocol must not silently apply it. The
-adapter never performs automatic `Luna → Terra` or `Luna → Sol` escalation.
+| Assignment | Native role/profile | Explicit model | Explicit effort | Write access |
+| --- | --- | --- | --- | --- |
+| Root-cause investigation | `investigator` | `gpt-5.6-luna` | `max` | read-only |
+| Contract execution | `implementer` | `gpt-5.6-luna` | `max` | workspace-write |
+| Evidence review | `reviewer` | `gpt-5.6-luna` | `max` | read-only |
+| Release audit | `release_auditor` | `gpt-5.6-luna` | `max` | read-only |
+| Task-scoped rescue | `rescue` | `gpt-5.6-luna` | `max` | workspace-write |
 
-## Reasoning effort policy
+The adapter does not select effort by task kind. Native defaults and custom
+agent files pin the same pair as defense in depth, but configuration is not
+the enforcement claim. Every request must express
+`model="gpt-5.6-luna"` and `reasoning_effort="max"`. The role may be carried in the Task Contract and
+prompt without selecting a named custom agent.
 
-Codex's native key is `model_reasoning_effort`. For GPT-5.6, use only the
-documented values `low`, `medium`, `high`, `xhigh`, and `max` in this adapter.
-Select effort by task kind; do not run every task at `max`:
+## Native spawn acceptance and fail-closed verification
 
-| Task kind | Effort |
-| --- | --- |
-| mechanical | `low` |
-| pipeline | `medium` |
-| implementation | `high` |
-| investigation | `max` |
-| audit/review | `max` |
+Before every native spawn, the Director must:
 
-The native custom-agent files supply safe role defaults. If the native spawn
-surface permits an explicit effort for a particular contract, the director may
-set the contract's selected effort within the table and the Luna ceiling.
+1. Put `model="gpt-5.6-luna"` and
+   `reasoning_effort="max"` directly in the spawn request. Do not rely
+   on session inheritance, `[agents]` defaults, a YAML policy file, or an
+   omitted field.
+2. Prefer no named custom agent/type. If a named custom agent is used, load
+   its exact profile first and verify that both pinned fields equal the pair
+   above; otherwise do not dispatch it.
+3. When the native surface returns worker/runtime metadata, verify the returned
+   model and effort before using any result. A mismatch is a policy violation:
+   reject and close the worker and discard its output.
+4. If the surface cannot accept the explicit pair or cannot expose metadata
+   needed for verification, stop and report a policy violation/fallback
+   requirement. Do not claim that execution was forced or accept unverified
+   output.
+
+Any non-Luna or non-`max` exception requires explicit user authorization and a
+disclosure naming the exception. There is no silent inheritance, downgrade, or
+promotion. A user-authorized exception is a disclosed policy change for that
+spawn, not the adapter default.
 
 ## Contract-first delegation
 
@@ -114,31 +134,39 @@ For every non-trivial change, follow this exact order:
 2. Requirement interpretation.
 3. Design.
 4. Fewest-first task decomposition.
+   Before any spawn, record a concrete contract-scale justification for why
+   this contract size and the total contract/worker count are the minimum safe
+   structure and why the work cannot be folded into fewer existing contracts.
 5. Complete [`task-contract.schema.json`](../../../schemas/task-contract.schema.json),
    including `delegation.role`, `delegation.model`, `delegation.model_ceiling`,
    `delegation.reasoning_effort`, `delegation.execution`, and a concrete
    `delegation.justification`.
 6. Conflict-domain check across files, code regions, interfaces, schemas,
-   migrations, shared state, generated artifacts, build/config files, and
-   user flows.
-7. Agent composition disclosure, including spawn budget.
-8. Native subagent spawn by the director only.
-9. Worker execution and actual evidence collection.
+   migrations, shared state, generated artifacts, build/config files, and user
+   flows.
+7. Agent composition disclosure, including the explicit worker pair and spawn
+   budget.
+8. Native subagent spawn by the Director only.
+9. Worker execution and actual evidence collection, including metadata checks.
 10. Independent evidence-based review.
 
 Never spawn an agent to discover what the Task Contract should have said. A
 worker that finds a new conflict, missing requirement, or need for further
-decomposition reports it to the director and stops; it never spawns a child.
+decomposition reports it to the Director and stops; it never spawns a child.
 
 ### Justification gate
 
-Every new subagent needs a specific reason why the work cannot be folded into
-an existing contract or worker. Acceptable reasons include independent
-parallelism, a distinct conflict domain, an independently verifiable result,
-an isolated blast radius, a separate root-cause investigation, or an
-independent reviewer context. “The task is large”, “there are many files”,
-“smaller diffs”, “there is an empty slot”, and “retry after failure” are not
-justifications.
+The initial `delegation.justification` set must explain conflict boundaries,
+dependencies, independent evidence/review needs, or blast-radius isolation and
+why fewer existing contracts/workers cannot safely absorb the work. Speed,
+parallelism, efficiency, task size/complexity, many files, context reduction,
+empty slots, and tidy/smaller task IDs are rejected.
+
+Every mid-task addition of a contract, worker, investigator, reviewer,
+revision, or rescue requires a new disclosure first. Its concrete addition
+justification must cite newly discovered evidence, a new conflict
+domain/dependency, a mandatory independent-review boundary, or a classified
+failure and explain why an existing contract/worker cannot absorb it.
 
 ## Conflict-safe execution
 
@@ -153,7 +181,7 @@ the normal local workflow they should be treated as sharing the working tree;
 parallel write tasks therefore require disjoint domains and an explicitly
 isolated worktree, otherwise they run sequentially.
 
-The native concurrency ceiling is configured by the actual Codex key
+The native concurrency ceiling is configured by the actual
 `agents.max_concurrent_threads_per_session = 4`. This is only the simultaneous
 thread limit. The protocol also enforces a per-request cumulative budget of
 12 spawned agents, independent of how many batches finish.
@@ -163,60 +191,63 @@ thread limit. The protocol also enforces a per-request cumulative budget of
 Before the first spawn in every batch, send one disclosure matching
 [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json):
 
-- current director model and effort, with source `user_selected_session`;
-- each worker's role, Task Contract, model, model ceiling, effort, and concrete
-  justification;
+- current Director model and effort, with source `user_selected_session`;
+- each worker's role, Task Contract, explicit model `gpt-5.6-luna`, explicit
+  effort `max`, model ceiling, and concrete justification;
 - each worker's conflict domains and whether the batch is `parallel` or
   `sequential`;
 - `already_spawned_count`, `this_batch_count`, `total_after_spawn`, and the
   request limit of 12;
 - whether the batch is within both the concurrency and cumulative budgets;
-- whether Rescue has effort headroom on the same Luna model;
+- whether Rescue has effort headroom on the same Luna model. With the normal
+  `max` baseline, Rescue is unavailable for ordinary Codex ADP runs;
 - approval status if a batch exceeds the configured batch budget.
 
 Do not silently add an investigator, reviewer, revision worker, or rescue
-worker later. Any new agent, new conflict domain, budget exception, or material
-execution-mode change requires a new disclosure and approval when applicable.
+worker later. Any addition requires the new disclosure and concrete addition
+justification above; budget exceptions or material execution-mode changes also
+require approval when applicable.
 
 ## Rescue and escalation
 
 Rescue is a bounded implementer assignment, not a stronger model tier:
 
 ```text
-same GPT-5.6 Luna
-  → inspect failure evidence
-  → raise effort one supported step
-  → retry the same bounded contract
-  → at Luna max, return the problem to the director
+same GPT-5.6 Luna at max
+  -> inspect failure evidence
+  -> no higher same-model effort exists
+  -> preserve evidence and use Core escalation/takeover gates
 ```
 
-The director must classify the failure before promotion. Do not create a new
+The Director must classify the failure before promotion. Do not create a new
 agent for every failed attempt. A Rescue notice and outcome notice are required
-and the rescue remains task-scoped. If the worker is already at `max`, Rescue
-is unavailable: preserve the evidence, revise the contract or escalate to the
-director/user/takeover path according to the Core protocol. Never lower effort
-to pretend a rescue ladder exists, and never change the model automatically.
+when a supported Rescue promotion exists, and the rescue remains task-scoped.
+At the `max` baseline there is no Rescue headroom for ordinary Codex ADP runs:
+preserve the evidence, revise the contract, or use the Core escalation/takeover
+path. Never lower effort to pretend a rescue ladder exists, and never change
+the model automatically.
 
 ## Review and completion
 
 The reviewer is read-only by default. It checks the actual diff, actual test
 output, completion criteria, preservation conditions, interfaces, error paths,
-regressions, scope, and evidence. It returns a
+scope, metadata verification, and evidence. It returns a
 `review-result.schema.json`-shaped result; it does not directly fix findings.
 
-The director never accepts an implementer's `status` by itself. Completion
-requires real test excerpts, one evidence entry per completion criterion, and
-a passing review. Keep contracts, reports, and command excerpts free of
-secrets, tokens, and private transcript content; local evidence belongs under
-the ignored `.codex/agent-director/runs/` directory.
+The Director never accepts an implementer's `status` by itself. Completion
+requires real test excerpts, one evidence entry per completion criterion, a
+passing review, and an accepted worker metadata check. Keep contracts, reports,
+and command excerpts free of secrets, tokens, and private transcript content;
+local evidence belongs under the ignored `.codex/agent-director/runs/`
+directory.
 
 ## State safety
 
 Before the first native spawn, establish a real last-passing commit, tag, or
 branch tip and resolve or explicitly record a dirty tree. Preserve user changes
-and failed-worker diffs for review. Do not run destructive Git cleanup to make a
-diff look clean. Workers do not merge or push; integration happens only after
-the director's review gates pass.
+and failed-worker diffs for review. Do not run destructive Git cleanup to make
+a diff look clean. Workers do not merge or push; integration happens only
+after the Director's review gates pass.
 
 The full platform-neutral rules live in `core/`; update schemas and examples
 when a protocol field changes. Run `python scripts/check_repository.py` after

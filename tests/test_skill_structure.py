@@ -166,5 +166,74 @@ class TestPluginManifests(unittest.TestCase):
         )
 
 
+class TestCodexAdapterWorkerPolicy(unittest.TestCase):
+    def test_all_codex_custom_agent_examples_pin_luna_max(self):
+        agent_dir = REPO_ROOT / "codex" / "agents"
+        files = sorted(agent_dir.glob("*.toml.example"))
+        self.assertEqual(
+            {path.stem for path in files},
+            {"investigator.toml", "implementer.toml", "reviewer.toml", "rescue.toml", "release-auditor.toml"},
+        )
+        for path in files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(profile=path.name):
+                self.assertRegex(source, re.compile(r'^model\s*=\s*"gpt-5\.6-luna"$', re.M), path.name)
+                self.assertRegex(source, re.compile(r'^model_reasoning_effort\s*=\s*"max"$', re.M), path.name)
+
+    def test_codex_defaults_and_policy_docs_are_fixed_and_fail_closed(self):
+        config = (REPO_ROOT / "codex" / "config.toml.example").read_text(encoding="utf-8")
+        profile = (REPO_ROOT / "codex" / "profiles" / "default.yaml").read_text(encoding="utf-8")
+        self.assertIn('default_subagent_reasoning_effort = "max"', config)
+        self.assertNotIn("effort_by_task_kind", profile)
+        self.assertIn("explicit_per_spawn", profile)
+        self.assertIn("runtime_metadata_verification: required", profile)
+        self.assertIn("available: false", profile)
+
+        policy_files = [
+            REPO_ROOT / "codex" / "AGENTS.md.example",
+            REPO_ROOT / "codex" / "INSTALL.md",
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "references" / "task-template.md",
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "references" / "agent-briefing-template.md",
+            REPO_ROOT / "plugins" / "agent-director" / "README.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+        ]
+        for path in policy_files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
+                self.assertNotIn("effort_by_task_kind", source)
+                self.assertIn("gpt-5.6-luna", source)
+                self.assertIn("max", source)
+                self.assertRegex(source, r'(?<!model_)reasoning_effort[\"\`]*\s*[:=]\s*[\"\`]?max')
+                self.assertRegex(source, re.compile(r"metadata|runtime", re.I))
+                self.assertRegex(source, re.compile(r"reject|close|unverifiable|fallback", re.I))
+                self.assertRegex(source, re.compile(r"conflict boundar|conflict domain", re.I))
+                self.assertRegex(source, re.compile(r"cannot (?:safely )?(?:absorb|be folded)|cannot absorb", re.I))
+                self.assertRegex(source, re.compile(r"new\s+(?:composition\s+)?disclosure", re.I))
+                self.assertRegex(source, re.compile(r"classified\s+failure", re.I))
+
+        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertIn('reasoning_effort="max"', readme)
+        self.assertIn("minimum safe structure", readme)
+        self.assertRegex(readme, re.compile(r"new\s+disclosure", re.I))
+        korean_readme = (REPO_ROOT / "README.ko.md").read_text(encoding="utf-8")
+        self.assertIn('reasoning_effort="max"', korean_readme)
+        self.assertNotIn('native worker spawn must carry model_reasoning_effort', korean_readme)
+        self.assertIn("기존 contract/worker가 흡수할 수", korean_readme)
+
+    def test_codex_plugin_manifest_matches_release(self):
+        manifest = json.loads(
+            (
+                REPO_ROOT / "plugins" / "agent-director" / ".codex-plugin" / "plugin.json"
+            ).read_text(encoding="utf-8")
+        )
+        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        released = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.M)
+        self.assertTrue(released)
+        self.assertEqual(manifest["version"], released[0])
+        self.assertIn("gpt-5.6-luna", manifest["description"])
+        self.assertIn("fail-closed", manifest["description"])
+
+
 if __name__ == "__main__":
     unittest.main()

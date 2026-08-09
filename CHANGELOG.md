@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-09
+
+The Codex adapter now treats explicit Director-mode activation as a fixed,
+fail-closed worker dispatch policy.
+
+### Changed
+
+- **Every ADP native worker spawn is explicit.** After `$agent-director` or
+  "Director mode on", the Director must pass
+  `model="gpt-5.6-luna"` and
+  `model_reasoning_effort="max"` on every spawn; the Director remains
+  user-selected.
+- **Named profiles and defaults are defense in depth.** The adapter prefers no
+  named custom agent/type and verifies any selected profile is pinned to the
+  same pair.
+- **Worker acceptance is fail-closed.** Returned/runtime metadata is checked
+  when exposed; mismatched workers are rejected/closed and unverifiable
+  surfaces stop with a policy-violation/fallback report.
+- **Rescue is unavailable at the max baseline.** Existing Core escalation and
+  takeover gates remain the next path, with no silent model or effort change.
+- **Codex role templates, project defaults, install guidance, plugin metadata,
+  and regression guards are synchronized to Luna/max.**
+
 ## [0.7.0] - 2026-08-09
 
 The Codex adapter now targets native multi-agent workflows instead of treating
