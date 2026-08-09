@@ -167,6 +167,25 @@ class TestPluginManifests(unittest.TestCase):
 
 
 class TestCodexAdapterWorkerPolicy(unittest.TestCase):
+    def test_changelog_080_uses_native_spawn_effort_field(self):
+        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        match = re.search(
+            r"^## \[0\.8\.0\].*?(?=^## \[|\Z)",
+            changelog,
+            re.M | re.S,
+        )
+        self.assertIsNotNone(match, "CHANGELOG.md has no 0.8.0 release section")
+        release = match.group(0)
+        self.assertIn('model="gpt-5.6-luna"', release)
+        self.assertIn('reasoning_effort="max"', release)
+        self.assertNotRegex(
+            release,
+            re.compile(
+                r"native worker spawn[\s\S]{0,200}model_reasoning_effort",
+                re.I,
+            ),
+        )
+
     def test_all_codex_custom_agent_examples_pin_luna_max(self):
         agent_dir = REPO_ROOT / "codex" / "agents"
         files = sorted(agent_dir.glob("*.toml.example"))

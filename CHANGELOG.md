@@ -17,7 +17,7 @@ fail-closed worker dispatch policy.
 - **Every ADP native worker spawn is explicit.** After `$agent-director` or
   "Director mode on", the Director must pass
   `model="gpt-5.6-luna"` and
-  `model_reasoning_effort="max"` on every spawn; the Director remains
+  `reasoning_effort="max"` on every spawn; the Director remains
   user-selected.
 - **Named profiles and defaults are defense in depth.** The adapter prefers no
   named custom agent/type and verifies any selected profile is pinned to the
