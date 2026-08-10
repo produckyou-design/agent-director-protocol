@@ -257,6 +257,19 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         self.assertIn("gpt-5.6-luna", manifest["description"])
         self.assertIn("fail-closed", manifest["description"])
 
+    def test_codex_skill_allows_default_implicit_invocation(self):
+        skill_metadata = (
+            REPO_ROOT
+            / "plugins"
+            / "agent-director"
+            / "skills"
+            / "agent-director"
+            / "agents"
+            / "openai.yaml"
+        ).read_text(encoding="utf-8")
+        self.assertIn("allow_implicit_invocation: true", skill_metadata)
+        self.assertIn("by default", skill_metadata)
+
     def test_codex_disclosure_phases_are_explicit_and_platform_boundary_is_honest(self):
         policy_files = [
             REPO_ROOT / "core" / "DELEGATION-PROTOCOL.md",

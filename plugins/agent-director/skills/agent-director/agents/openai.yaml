@@ -1,6 +1,6 @@
 interface:
   display_name: "Agent Director"
-  short_description: "Activate contract-first Director mode in Codex"
-  default_prompt: "Use $agent-director to turn Director mode on, explicitly dispatch every native worker as gpt-5.6-luna with reasoning_effort=max, verify returned metadata, and delegate only through written contracts."
+  short_description: "Apply contract-first Director mode to Codex repository work"
+  default_prompt: "Apply Agent Director by default to this repository task; explicitly dispatch every native worker as gpt-5.6-luna with reasoning_effort=max, verify returned metadata, and delegate only through written contracts."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

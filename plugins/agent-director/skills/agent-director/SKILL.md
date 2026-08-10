@@ -1,12 +1,14 @@
 ---
 name: agent-director
-description: "Activate an explicit, contract-first Director workflow for Codex native subagents. Use when the user asks to turn Director mode on, delegate work, coordinate subagents, or apply the Agent Director Protocol."
+description: "Apply a contract-first Director workflow to every Codex repository and code task, including delegation, state changes, and native subagent coordination. Use by default; explicit invocation remains available when the user asks to apply ADP."
 ---
 
 # Agent Director
 
-This skill is the explicit `$agent-director` switch for the Codex adapter of
-Agent Director Protocol (ADP). When the user invokes it, acknowledge:
+This skill is the Codex adapter of Agent Director Protocol (ADP). It is the
+default operating policy for repository and code tasks. When it is loaded,
+whether by the installed default or by explicit `$agent-director` invocation,
+acknowledge:
 
 ```text
 director_mode: on
@@ -15,9 +17,12 @@ workers: native Codex subagent threads by default
 worker_dispatch: explicit model=gpt-5.6-luna, reasoning_effort=max
 ```
 
-The switch changes the operating instructions for this task. It is not a
+The policy changes the operating instructions for this task. It is not a
 hidden platform setting: it cannot change the model selected for the current
-session or retroactively alter an already-running task.
+session or retroactively alter an already-running task. A user may explicitly
+authorize a model/effort exception for a bounded spawn, but the exception must
+be disclosed and never inferred from task size, speed, cost, or runtime
+fallback.
 
 ## Activation and dispatch contract
 

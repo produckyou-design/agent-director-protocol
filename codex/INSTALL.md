@@ -24,8 +24,9 @@ are role settings. The adapter does not invent depth, runtime, or model-list
 configuration keys.
 
 The user-selected current Codex session is the director. The protocol does not
-choose the director model. After explicit `$agent-director` or "Director mode
-on" activation, every ADP-created native worker is dispatched with explicit
+choose the director model. ADP is active by default for repository and code
+tasks; explicit `$agent-director` or "Director mode on" is optional. Every
+ADP-created native worker is dispatched with explicit
 `model="gpt-5.6-luna"` and `reasoning_effort="max"`; the Director's
 model is never inherited and effort is not selected by task kind. Configuration
 defaults and role files are defense in depth, not the enforcement claim.

@@ -51,9 +51,11 @@ Official references: [Codex subagents](https://learn.chatgpt.com/docs/agent-conf
 
 ## Activation and Director model
 
-When the user explicitly invokes `$agent-director` or says `Director mode on`,
-announce `director_mode: on` and apply this policy for the current task. This
-is an instruction switch, not a hidden product or system setting.
+Apply this policy by default to every repository and code task. Announce
+`director_mode: on` at the start of the task. Explicit `$agent-director` or
+`Director mode on` remains a supported way to request the same policy, but it
+is not required for normal activation. This is an instruction policy, not a
+hidden product or system setting.
 
 The Director is the main Codex session the user is speaking to. **The user
 chooses the Director model and effort.** The protocol never selects Sol, Terra,
@@ -77,8 +79,8 @@ must not self-review.
 
 ## Worker dispatch policy: explicit Luna/max baseline
 
-When the explicit activation is on, every ADP-created native Codex subagent
-must be dispatched with both fields present in the spawn request:
+When ADP is active, every ADP-created native Codex subagent must be dispatched
+with both fields present in the spawn request:
 
 ```text
 model = "gpt-5.6-luna"

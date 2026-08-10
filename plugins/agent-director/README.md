@@ -1,6 +1,8 @@
 # Agent Director Codex plugin
 
-This is the explicit Codex skill switch for the Agent Director Protocol.
+This is the Codex Agent Director workflow for the Agent Director Protocol. It
+is applied by default to repository and code tasks; explicit invocation is
+also supported when the user wants to make the policy visible.
 
 Install it from the repository marketplace:
 
@@ -9,9 +11,10 @@ codex plugin marketplace add produckyou-design/agent-director-protocol
 codex plugin add agent-director@agent-director-protocol-plugins
 ```
 
-In a new Codex task/thread, invoke `$agent-director` or say "Director mode
-on". The skill announces the current session as Director and requires every
-ADP-created native worker spawn to include
+In a new Codex task/thread, the skill is applied automatically when the task
+is repository or code work. `$agent-director` or "Director mode on" remains an
+optional explicit invocation. The skill announces the current session as
+Director and requires every ADP-created native worker spawn to include
 `model="gpt-5.6-luna"` and
 `reasoning_effort="max"`. The user-selected model continues to own
 the Director session; it is never inherited by a worker.

@@ -346,8 +346,9 @@ Codex's main session is the Director and native subagent threads are the normal
 delegation path. `.codex/config.toml` and `.codex/agents/*.toml` are the actual
 project-scoped settings; `codex exec` is only the documented fallback for
 non-interactive or process-isolated work. `codex/profiles/default.yaml` is
-policy metadata, not a profile Codex loads. After explicit `$agent-director`
-or "Director mode on" activation, every ADP-created native worker spawn must
+policy metadata, not a profile Codex loads. ADP is active by default for
+repository and code tasks; explicit `$agent-director` or "Director mode on"
+activation remains optional. Every ADP-created native worker spawn must
 explicitly include `model="gpt-5.6-luna"` and
 `reasoning_effort="max"`. The Director's selected model is never
 inherited, and task kind never selects effort.
@@ -484,7 +485,7 @@ edit your copy, or follow the platform-specific `INSTALL.md` instructions.
 ### Codex explicit dispatch and verification
 
 The Codex-specific adapter is stricter than the platform-neutral profile
-example above: explicit Director-mode activation fixes every ADP native worker
+example above: the default Director policy fixes every ADP native worker
 spawn to `model="gpt-5.6-luna"` and
 `reasoning_effort="max"`. The Director remains user-selected.
 Defaults and named profiles are only defense in depth. Omit a named custom

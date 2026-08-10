@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **ADP is now the default for Codex repository and code tasks.** The skill can
+  still be invoked explicitly, but model/effort exceptions remain user-
+  authorized and fail-closed.
 - **Codex worker capacity is runtime-defined.** The adapter no longer invents a
   concurrent or cumulative numeric cap. Directors disclose the planned worker
   structure and evidence-based rationale before spawning; native slot-full
