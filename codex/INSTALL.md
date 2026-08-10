@@ -30,6 +30,17 @@ on" activation, every ADP-created native worker is dispatched with explicit
 model is never inherited and effort is not selected by task kind. Configuration
 defaults and role files are defense in depth, not the enforcement claim.
 
+Before every task, every state-changing operation, and every native-spawn
+attempt, publish a visible disclosure with `phase` and `user_visible: true`.
+`task_start` begins every task; a zero-worker task start is valid only when
+`work_contract.read_only: true`. `spawn` and `addition` require positive
+worker totals. An addition must include `changed_scope`, `change_summary`,
+`added_worker_task`, a classified `addition_basis`,
+`why_existing_workers_cannot_absorb`, and `new_disclosure: true`.
+
+The repository documents and validates this contract, but cannot hard-intercept
+the platform-owned `multi_agent_v1__spawn_agent` tool or add parameters to it.
+
 Before initial dispatch, record why the chosen contract size and total
 contract/worker count are the minimum safe structure. Cite conflict boundaries,
 dependencies, independent evidence/review, or blast-radius isolation and
@@ -162,15 +173,18 @@ wait/close, re-scope, or return and never authorizes Director takeover.
 ## How to use it
 
 Start Codex in the trusted target repository after installation. The current
-session is the director. Before the first spawn it must:
+session is the director. Before every task and before its first spawn it must:
 
 1. read the skill and relevant Core/schema documents;
 2. analyze the repository, write the fewest complete Task Contracts, and
    record the concrete initial contract-scale justification;
 3. check all conflict domains and dependencies;
-4. disclose the complete composition and spawn budget;
-5. spawn native subagent threads only after that disclosure;
-6. review actual diffs and actual test output before declaring completion.
+4. publish the `task_start` work-contract notice;
+5. publish a `spawn` notice immediately before any native worker batch;
+6. publish a new `addition` notice before any later contract, worker, revision,
+   rescue, reviewer, or material scope addition;
+7. spawn native subagent threads only after the applicable notice;
+8. review actual diffs and actual test output before declaring completion.
 
 There is no hidden platform-level "director mode" switch in Codex. The
 effective persistent setup is the project instruction plus the discovered skill

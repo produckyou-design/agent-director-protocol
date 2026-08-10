@@ -126,9 +126,40 @@ disclosure naming the exception. There is no silent inheritance, downgrade, or
 promotion. A user-authorized exception is a disclosed policy change for that
 spawn, not the adapter default.
 
+## Mandatory work-contract notice boundary
+
+Before every task, every state-changing operation, and every native-spawn
+attempt, visibly publish `user_visible: true` with a checkable work contract.
+The notice must state the objective, scope, planned contract/worker totals,
+minimum-safe rationale, model/effort, complete batch plan, exact tests, and
+stop conditions. This applies even to a read-only task that will spawn no
+worker.
+
+Use these phases:
+
+- `task_start` starts every task and every state-changing operation. A zero-
+  worker task start is valid only when `work_contract.read_only: true`.
+- `spawn` is the disclosure immediately before a worker batch or native-spawn
+  attempt and requires positive worker totals.
+- `addition` is a new disclosure before any later contract, worker,
+  investigator, reviewer, revision, rescue, or material scope change. It must
+  state `changed_scope`, `change_summary`, `added_worker_task`, one of
+  `addition_basis` must be one of `newly_discovered_evidence`, `new_conflict_domain`, `new_dependency`,
+  `mandatory_independent_review`, or `classified_failure`,
+  `why_existing_workers_cannot_absorb`, and `new_disclosure: true`.
+
+Speed, parallelism, efficiency, task size/complexity, file count, empty slots,
+and tidy IDs are never valid addition or scale reasons.
+
+The Codex repository can validate and document this boundary, but it cannot
+hard-intercept or add parameters to the platform-owned native
+`multi_agent_v1__spawn_agent` tool. Do not claim a runtime gate that the
+platform does not expose.
+
 ## Contract-first delegation
 
-For every non-trivial change, follow this exact order:
+For every task, every state-changing operation, and every native-spawn attempt,
+follow this exact order:
 
 1. Repository analysis.
 2. Requirement interpretation.
@@ -194,6 +225,8 @@ Before the first spawn in every batch, send one disclosure matching
 - `user_visible: true` and a `work_contract` containing the objective, scope,
   planned contract/worker totals, worker model/effort, minimum-safe rationale,
   exact tests, and stop conditions;
+- the disclosure `phase` (`task_start`, `spawn`, or `addition`), with the
+  addition fields present whenever `phase: addition`;
 - current Director model and effort, with source `user_selected_session`;
 - each worker's role, Task Contract, explicit model `gpt-5.6-luna`, explicit
   effort `max`, model ceiling, and concrete justification;

@@ -22,6 +22,15 @@ files, or change a running session's model. Defaults and named profiles are
 defense in depth. Prefer no named custom agent/type; if one is used, verify
 its profile is pinned to the same pair before dispatch.
 
+Every task begins with a visible `task_start` work-contract notice. A
+read-only task may plan zero workers only when it marks
+`work_contract.read_only: true`; worker batches use `spawn` and require
+positive totals. Any later worker, contract, revision, rescue, reviewer, or
+scope addition requires a new `addition` notice stating the changed scope,
+what the new worker will do, a classified reason, and why an existing worker
+cannot absorb it. The repository can validate this contract but cannot
+intercept the platform-owned `multi_agent_v1__spawn_agent` call.
+
 Returned/runtime metadata must be checked when exposed. A mismatched worker is
 rejected and closed and its output is discarded. If the surface cannot accept
 or verify the pair, stop and report a policy violation/fallback requirement.

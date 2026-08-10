@@ -6,7 +6,9 @@ the order, authority, minimality, and evidence rules.
 
 ## The delegation sequence
 
-For every non-trivial change, the director MUST follow this sequence:
+For every task, every state-changing operation, and every native-spawn attempt, the director MUST
+first publish a visible work-contract notice and then follow this sequence. A task may be read-only,
+but it still starts with the notice:
 
 1. **Analyze the repository.** Read the relevant code, structure, conventions, current instructions,
    and tests before forming an opinion.
@@ -26,11 +28,12 @@ For every non-trivial change, the director MUST follow this sequence:
 8. **Check runtime capacity.** Record native capacity when exposed. If it is unknown, do not invent
    a protocol limit; let the native surface return its actual result and handle slot-full with
    wait/close, re-scope, or return.
-9. **Disclose the agent composition.** Before any spawn, send one disclosure matching
+9. **Disclose the work contract and agent composition.** Before every task, state-changing
+   operation, and native-spawn attempt, send the appropriate visible disclosure matching
    [`agent-composition-disclosure.schema.json`](../schemas/agent-composition-disclosure.schema.json)
-   for the complete batch: user-selected director model/effort, worker roles, tasks, model/ceiling,
-   effort, justification, conflict domains, execution mode, counts, observed runtime capacity, and
-   approval status.
+   for the complete batch. It must contain `phase`, `user_visible: true`, objective, scope,
+   planned contract/worker totals, minimum-safe rationale, worker model/effort, exact tests,
+   stop conditions, and the composition fields for any worker batch.
 10. **Spawn through the adapter.** Only the director may create the disclosed workers. A worker may
     not create a child worker or silently split its own contract.
 11. **Collect actual evidence.** Workers run the stated tests and return the implementation report;
@@ -39,6 +42,29 @@ For every non-trivial change, the director MUST follow this sequence:
     output, scope, interfaces, preservation conditions, and completion criteria before integration.
 
 Skipping a step is a protocol violation even if the resulting code happens to work.
+
+## Mandatory disclosure phases
+
+Every task begins with `phase: task_start`. A zero-worker task start is valid only when the
+work contract explicitly sets `read_only: true` and no worker will be spawned. A worker batch uses
+`phase: spawn` and requires positive worker totals. A native-spawn attempt must never be silently
+introduced after a task-start notice; it needs its own visible spawn disclosure first.
+
+Any later addition or material change that introduces a contract, worker, investigator, reviewer,
+revision, rescue, or scope change requires a new `phase: addition` disclosure before dispatch. The
+addition must include all of these fields:
+
+- `changed_scope` — what scope changed;
+- `change_summary` — what changed;
+- `added_worker_task` — what the added worker will do;
+- `addition_basis` — exactly one of `newly_discovered_evidence`, `new_conflict_domain`,
+  `new_dependency`, `mandatory_independent_review`, or `classified_failure`;
+- `why_existing_workers_cannot_absorb` — why an existing contract or worker cannot absorb it; and
+- `new_disclosure: true` — the explicit new-notice marker.
+
+Speed, parallelism, efficiency, task size, empty slots, and tidy IDs are not valid addition bases.
+An adapter can validate and document this boundary, but a repository cannot assume that it can
+hard-intercept a platform-owned native spawn tool or add a required parameter to it.
 
 ## Fewest tasks first
 

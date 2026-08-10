@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   structure and evidence-based rationale before spawning; native slot-full
   responses require wait/close, re-scope, or return and never authorize
   Director takeover.
+- **Every task now has an explicit disclosure phase.** `task_start` begins
+  every task, `spawn` precedes a worker batch, and `addition` is required for
+  later workers, contracts, revisions, rescues, reviewers, or material scope
+  changes. Addition notices must explain the changed scope, assigned work,
+  classified reason, and why an existing worker cannot absorb it.
 
 ## [0.8.0] - 2026-08-09
 

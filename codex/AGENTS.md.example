@@ -57,21 +57,31 @@ Rules for this session:
    and an explanation of why an existing contract/worker cannot absorb it.
    Speed, parallelism, efficiency, task size/complexity, file count, context
    reduction, empty slots, and tidy/smaller task IDs are not justifications.
-7. Native runtime capacity is the only concurrency authority. Record observed
+7. Before every task, every state-changing operation, and every native-spawn
+   attempt, visibly publish a work-contract notice with `phase` and
+   `user_visible: true`. `task_start` begins every task; a zero-worker start is
+   valid only when `work_contract.read_only: true`. `spawn` and `addition`
+   require positive worker totals. An addition notice must include
+   `changed_scope`, `change_summary`, `added_worker_task`, one classified
+   `addition_basis`, `why_existing_workers_cannot_absorb`, and
+   `new_disclosure: true`. The repository cannot hard-intercept the
+   platform-owned `multi_agent_v1__spawn_agent` tool, so do not claim a hidden
+   runtime gate.
+8. Native runtime capacity is the only concurrency authority. Record observed
    capacity when exposed; if it is unknown, do not invent a numeric project
    limit. A native slot-full response requires wait/close, re-scope, or return;
-   it never authorizes Director fallback or takeover. Before the first spawn or
-   state change, visibly disclose objective/scope, planned total workers,
-   model/effort, tests, stop conditions, and an evidence-based minimum-safe
-   rationale tied to conflict boundaries, dependencies, independent review, or
-   blast-radius isolation.
-8. Workers must not spawn children. Reviewers are read-only by default and
+    it never authorizes Director fallback or takeover. The every-task notice
+    above must include objective/scope, planned total workers, model/effort,
+    tests, stop conditions, and an evidence-based minimum-safe rationale tied
+    to conflict boundaries, dependencies, independent review, or blast-radius
+    isolation.
+9. Workers must not spawn children. Reviewers are read-only by default and
    return evidence-based revision requests to the director.
-9. Rescue keeps the same Luna model and raises effort only when a supported
+10. Rescue keeps the same Luna model and raises effort only when a supported
    higher step exists. The normal baseline is already Luna `max`, so Rescue
    is unavailable for ordinary Codex ADP runs; preserve evidence and use the
    Core escalation/takeover gates. Do not silently change models.
-10. Preserve user changes and failed-worker evidence. Establish a real Git
+11. Preserve user changes and failed-worker evidence. Establish a real Git
     checkpoint before the first spawn and do not use destructive cleanup to
     hide ambiguity.
 

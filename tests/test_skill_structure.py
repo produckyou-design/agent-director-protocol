@@ -257,6 +257,23 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         self.assertIn("gpt-5.6-luna", manifest["description"])
         self.assertIn("fail-closed", manifest["description"])
 
+    def test_codex_disclosure_phases_are_explicit_and_platform_boundary_is_honest(self):
+        policy_files = [
+            REPO_ROOT / "core" / "DELEGATION-PROTOCOL.md",
+            REPO_ROOT / "core" / "CONCURRENCY-RULES.md",
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+        ]
+        for path in policy_files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
+                self.assertIn("task_start", source)
+                self.assertIn("addition_basis", source)
+                self.assertRegex(source, re.compile(r"before every task", re.I))
+
+        codex_skill = (REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("multi_agent_v1__spawn_agent", codex_skill)
+
 
 if __name__ == "__main__":
     unittest.main()

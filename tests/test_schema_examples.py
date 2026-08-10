@@ -97,6 +97,7 @@ def minimal_agent_composition_disclosure() -> dict:
         "director_model": "configured-director-model",
         "director_effort": "high",
         "director_model_source": "user_selected_session",
+        "phase": "spawn",
         "user_visible": True,
         "work_contract": {
             "objective": "Validate the widget correction with independent evidence.",
@@ -205,6 +206,45 @@ class TestNegativeValidation(unittest.TestCase):
 
         broken = copy.deepcopy(instance)
         del broken["subagents"][0]["justification"]
+        with self.assertRaises(ValidationError):
+            validator.validate(broken)
+
+    def test_task_start_zero_workers_requires_explicit_read_only_marker(self):
+        schema = load_schema("agent-composition-disclosure.schema.json")
+        validator = Draft7Validator(schema)
+
+        instance = minimal_agent_composition_disclosure()
+        instance["phase"] = "task_start"
+        instance["work_contract"]["planned_workers"] = 0
+        instance["work_contract"]["read_only"] = True
+        instance["subagent_count"] = 0
+        instance["subagents"] = []
+        instance["spawn_budget"]["this_batch_count"] = 0
+        validator.validate(instance)
+
+        broken = copy.deepcopy(instance)
+        del broken["work_contract"]["read_only"]
+        with self.assertRaises(ValidationError):
+            validator.validate(broken)
+
+    def test_addition_requires_scope_task_basis_absorption_reason_and_new_marker(self):
+        schema = load_schema("agent-composition-disclosure.schema.json")
+        validator = Draft7Validator(schema)
+
+        instance = minimal_agent_composition_disclosure()
+        instance["phase"] = "addition"
+        instance["addition"] = {
+            "changed_scope": ["tests/test_schema_examples.py"],
+            "change_summary": "Add an independent schema regression case.",
+            "added_worker_task": "Review the new disclosure phase contract.",
+            "addition_basis": "mandatory_independent_review",
+            "why_existing_workers_cannot_absorb": "The existing implementer cannot absorb the independent review without reviewing its own diff.",
+            "new_disclosure": True,
+        }
+        validator.validate(instance)
+
+        broken = copy.deepcopy(instance)
+        del broken["addition"]["why_existing_workers_cannot_absorb"]
         with self.assertRaises(ValidationError):
             validator.validate(broken)
 

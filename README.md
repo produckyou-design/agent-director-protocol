@@ -365,10 +365,20 @@ The Codex adapter does not impose a concurrent or cumulative numeric worker
 limit. It records native runtime capacity when exposed and records `unknown`
 when the surface provides no capacity metadata; a native slot-full response
 requires waiting, inspecting evidence, closing completed workers, re-scoping,
-or returning to the user. Before the first spawn or any state-changing work,
-the Director must visibly disclose `user_visible: true` plus the `work_contract`
-objective, scope, planned contract/worker totals, minimum-safe rationale,
-exact tests, and stop conditions.
+or returning to the user. Before every task, every state-changing operation,
+and every native-spawn attempt, the Director must visibly disclose
+`user_visible: true` plus the `work_contract` objective, scope, planned
+contract/worker totals, minimum-safe rationale, exact tests, and stop
+conditions. `task_start` begins every task; zero workers are valid only for an
+explicit `read_only: true` task. `spawn` and `addition` require positive worker
+totals.
+
+Every later worker, contract, revision, rescue, reviewer, or material scope
+change requires a new `addition` disclosure with `changed_scope`,
+`change_summary`, `added_worker_task`, a classified basis, and
+`why_existing_workers_cannot_absorb`. The repository documents and validates
+the boundary but cannot hard-intercept the platform-owned native
+`multi_agent_v1__spawn_agent` tool.
 
 Initial decomposition must justify why its contract size and total
 contract/worker count are the minimum safe structure, based on conflict

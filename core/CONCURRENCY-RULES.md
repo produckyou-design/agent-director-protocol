@@ -39,17 +39,30 @@ another runtime capacity value. That observed value is runtime capacity only;
 ADP does not add a concurrent or cumulative numeric cap. If capacity metadata
 is absent, record it as unknown and do not invent a project default.
 
-Before the first spawn or any state-changing work, the director must visibly
-disclose a checkable work contract to the user. It must state objective/scope,
+Before every task, every state-changing operation, and every native-spawn attempt, the director
+must visibly disclose a checkable work contract to the user. It must state objective/scope,
 planned total contracts/workers, the minimum-safe rationale based only on
 conflict boundaries, dependencies, independent evidence/review, or blast-radius
 isolation (and why fewer existing contracts/workers cannot absorb it), the model
 and effort, the complete batch plan, exact test commands, and stop conditions.
 
+Every task starts with `phase: task_start`. A zero-worker task start is valid only for a
+work contract marked `read_only: true`; `phase: spawn` and `phase: addition` require positive
+worker totals. The native-spawn attempt gets its own visible spawn disclosure even when the
+task-start notice already described the intended work.
+
 Before each later batch, send a continuation disclosure stating the previous
 batch's result and closure state, why the next batch remains necessary, the next
 batch size, and the updated plan. A preplanned later batch is not an
 unapproved addition, but it still requires this disclosure.
+
+Any later addition or material scope change requires a new `phase: addition` disclosure before
+dispatch. It must state `changed_scope`, `change_summary`, `added_worker_task`, one classified
+`addition_basis` (`newly_discovered_evidence`, `new_conflict_domain`, `new_dependency`,
+`mandatory_independent_review`, or `classified_failure`),
+`why_existing_workers_cannot_absorb`, and `new_disclosure: true`. Generic speed or parallelism
+reasons are invalid. The repository documents and validates this contract, but the native
+platform-owned `multi_agent_v1__spawn_agent` call remains outside repository interception.
 
 When active slots are full, wait for workers to finish, independently inspect
 the required evidence, close completed workers to release slots, and then

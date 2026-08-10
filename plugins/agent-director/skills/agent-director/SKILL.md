@@ -48,6 +48,20 @@ session or retroactively alter an already-running task.
 
 ## Required order before spawning
 
+Before every task, every state-changing operation, and every native-spawn
+attempt, visibly publish `user_visible: true` with a checkable work contract.
+Use `phase: task_start` for the start of every task; a zero-worker start is
+valid only with `work_contract.read_only: true`. Use `phase: spawn` immediately
+before a worker batch. Use `phase: addition` before any later worker, contract,
+revision, rescue, reviewer, or material scope change.
+
+An addition notice must include `changed_scope`, `change_summary`,
+`added_worker_task`, `addition_basis` set to newly discovered evidence, a new conflict or
+dependency, a mandatory independent-review boundary, or a classified failure,
+plus `why_existing_workers_cannot_absorb` and `new_disclosure: true`. The
+repository cannot hard-intercept the platform-owned
+`multi_agent_v1__spawn_agent` tool.
+
 1. Restate the mission, acceptance criteria, constraints, and dependencies.
 2. Inspect the repository and identify the actual files, symbols, interfaces,
    schemas, data, and tests involved.

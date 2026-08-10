@@ -22,6 +22,7 @@ reduction, empty slots, and tidy/smaller IDs.
   "director_model": "<actual user-selected model>",
   "director_effort": "<low|medium|high|xhigh|max>",
   "director_model_source": "user_selected_session",
+  "phase": "spawn",
   "user_visible": true,
   "work_contract": {
     "objective": "<checkable objective>",
@@ -76,6 +77,30 @@ reduction, empty slots, and tidy/smaller IDs.
   }
 }
 ```
+
+For a read-only task that will not spawn a worker, send a separate
+`phase: task_start` notice with `work_contract.read_only: true`,
+`planned_workers: 0`, `subagent_count: 0`, and an empty `subagents` array.
+Before any later contract, worker, revision, rescue, reviewer, or material
+scope change, send a new `phase: addition` notice with this shape:
+
+```json
+{
+  "phase": "addition",
+  "addition": {
+    "changed_scope": ["<new scope>"],
+    "change_summary": "<what changed>",
+    "added_worker_task": "<what the new worker will do>",
+    "addition_basis": "mandatory_independent_review",
+    "why_existing_workers_cannot_absorb": "The existing worker cannot absorb this fresh review boundary without reviewing its own diff.",
+    "new_disclosure": true
+  }
+}
+```
+
+The addition basis must be newly discovered evidence, a new conflict domain,
+a new dependency, a mandatory independent-review boundary, or a classified
+failure. Speed, parallelism, or empty slots are not valid bases.
 
 `execution_mode` is `parallel` only after the conflict check proves the
 workers independent. `capacity_source` records whether native runtime
