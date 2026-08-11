@@ -66,12 +66,21 @@ implementation path.
 ## Native worker lifecycle and recovery (mandatory)
 
 - `wait_agent` is result collection only. A timeout means no final worker
-  result and is never completion evidence.
-- For an active unresponsive worker, send one input with `interrupt=true`,
-  then use a bounded wait. If it remains non-final, close it once. A normal
-  queued message is not an interrupt.
-- Do not repeatedly resume an unresponsive worker. Recovery uses a fresh
-  implementer under a new addition disclosure and task contract.
+  result; it is never completion evidence and never, by itself, proof of an
+  unresponsive worker.
+- Track `progressing`, `completed_work_unreported`, `stalled`, and `unknown`
+  separately. Progress evidence includes recent worker/tool output, a status
+  transition, or an active command signal. Acceptance evidence without a final
+  message is `completed_work_unreported`, not failure. If the native surface
+  exposes no progress signal, use `unknown` rather than inventing a stall.
+- While progress or an explicitly declared long-running command exists, preserve
+  the worker and continue a task-appropriate bounded wait. Never interrupt,
+  close, split, or re-dispatch solely because a wait window expired.
+- Only `stalled` permits one `interrupt=true`, one bounded wait, and one close
+  if still non-final. A normal queued message is not an interrupt.
+- Do not repeatedly resume or re-dispatch an unresponsive worker. A fresh
+  implementer requires a new addition disclosure and revised contract; repeated
+  native stalls end in stop/report of native unavailability.
 - `close_agent` and `resume_agent` do not merge a worker fork into the main
   working tree. Inspect the fork diff or implementation report before
   integration; if the surface does not expose it, report the state as unknown.

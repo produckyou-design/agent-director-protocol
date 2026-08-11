@@ -376,6 +376,15 @@ conditions. `task_start` begins every task; zero workers are valid only for an
 explicit `read_only: true` task. `spawn` and `addition` require positive worker
 totals.
 
+Worker recovery is progress-aware. A wait timeout means only that no final
+result arrived. Recent tool output, a status transition, an active long-running
+command, or other declared progress keeps the worker alive; timeout alone never
+authorizes interrupt, close, splitting, or re-dispatch. Work that appears
+complete without a final report is `completed_work_unreported`. Only a running
+worker with no progress evidence for the declared observation window is
+`stalled`; the native surface's lack of telemetry is `unknown`, not proof of a
+stall.
+
 Every later worker, contract, revision, rescue, reviewer, or material scope
 change requires a new `addition` disclosure with `changed_scope`,
 `change_summary`, `added_worker_task`, a classified basis, and

@@ -131,5 +131,26 @@ but hold a task whose dependency failed. Each failed task follows its own failur
 If a failure invalidates the batch's design, stop integration and return to design rather than
 integrating half of a plan known to be wrong.
 
+## Progress-aware worker waiting
+
+A native wait timeout means only that no final result arrived during that wait. It does not mean that
+the worker was interrupted, failed, or became unresponsive. The director must distinguish these
+states before taking recovery action:
+
+- **`progressing`** — recent worker/tool output, a status transition, an active-command signal, or
+  another progress artifact declared in the contract. Preserve the worker and continue a
+  task-appropriate bounded wait; an expired default window is not a stop signal.
+- **`completed_work_unreported`** — acceptance evidence, a checkpoint, a diff, or test output shows
+  that work may be complete but no final report arrived. Inspect the available evidence without
+  claiming completion; do not rerun the work merely to obtain a final message.
+- **`stalled`** — native status remains running and no progress evidence exists for the declared
+  observation window. Only this state permits one `interrupt=true`, one bounded wait, and one close.
+- **`unknown`** — the native surface exposes no progress signal. Do not convert lack of telemetry
+  into a stall; report the monitoring limitation and preserve the worker state.
+
+No normal queued message is an interrupt. A fresh implementer or scope split requires a new
+addition disclosure and revised contract; repeated native stalls must stop/report native
+unavailability rather than becoming a timeout/re-dispatch loop.
+
 On user interruption, report what completed, what remains active, and where each state is preserved.
 Never abandon an in-flight write or discard its evidence silently.

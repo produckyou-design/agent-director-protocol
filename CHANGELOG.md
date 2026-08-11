@@ -23,6 +23,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes. Addition notices must explain the changed scope, assigned work,
   classified reason, and why an existing worker cannot absorb it.
 
+## [0.8.4] - 2026-08-11
+
+Worker recovery now distinguishes non-final work from a genuine native stall.
+
+### Fixed
+
+- A wait timeout no longer authorizes interrupt, close, splitting, or re-dispatch.
+- Progress, active long-running commands, completed-but-unreported work, stalled
+  workers, and unknown native telemetry now have separate states.
+- Recovery acts only on a no-progress stall within the declared observation window.
+
 ## [0.8.3] - 2026-08-11
 
 The Codex adapter now fails closed after worker and Rescue failures.

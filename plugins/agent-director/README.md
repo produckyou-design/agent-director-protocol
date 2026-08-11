@@ -63,6 +63,16 @@ compatible only when `agent_type` is omitted. Serialization failure is a
 pre-spawn dispatch failure, not an implementation failure. Rescue is
 unavailable at the active Luna/max baseline.
 
+The timeout path is progress-aware. A timeout only means that no final result
+arrived. Recent worker/tool output, a status transition, an active command, or
+other declared progress keeps the worker alive; an expired wait window alone
+never authorizes interrupt, close, splitting, or re-dispatch. Acceptance
+evidence without a final message is recorded as `completed_work_unreported`.
+Only a no-progress running state over the declared observation window is
+`stalled` and permits one interrupt, one bounded wait, and one close. If the
+native surface exposes no progress signal, report `unknown` rather than
+inventing a stall.
+
 Initial decomposition must justify why its contract size and total
 contract/worker count are minimal, using conflict boundaries, dependencies,
 independent evidence/review, or blast-radius isolation and explaining why fewer

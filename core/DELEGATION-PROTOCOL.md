@@ -37,7 +37,9 @@ but it still starts with the notice:
 10. **Spawn through the adapter.** Only the director may create the disclosed workers. A worker may
     not create a child worker or silently split its own contract.
 11. **Collect actual evidence.** Workers run the stated tests and return the implementation report;
-    they do not declare completion.
+    they do not declare completion. The contract must state any expected long-running command and
+    the progress evidence that distinguishes an active task from a stall; a wait timeout alone is
+    not a failure signal.
 12. **Review and integrate.** The director or an independent reviewer checks the real diff, real
     output, scope, interfaces, preservation conditions, and completion criteria before integration.
 

@@ -323,6 +323,12 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                     re.compile(r"never take over.*automatically|never.*takeover automatically", re.I | re.S),
                 )
                 self.assertIn("current-session user authorization", source)
+                self.assertRegex(source, re.compile(r"progress evidence", re.I))
+                self.assertIn("completed_work_unreported", source)
+                self.assertIn("stalled", source)
+                self.assertIn("active command", source)
+                self.assertIn("unknown", source)
+                self.assertRegex(source, re.compile(r"timeout.*never", re.I | re.S))
 
 if __name__ == "__main__":
     unittest.main()
