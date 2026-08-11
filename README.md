@@ -368,7 +368,7 @@ The Codex adapter does not impose a concurrent or cumulative numeric worker
 limit. It records native runtime capacity when exposed and records `unknown`
 when the surface provides no capacity metadata; a native slot-full response
 requires waiting, inspecting evidence, closing completed workers, re-scoping,
-or returning to the user. Before every task, every state-changing operation,
+or returning to the user — never an invented project cap. Before every task, every state-changing operation,
 and every native-spawn attempt, the Director must visibly disclose
 `user_visible: true` plus the `work_contract` objective, scope, planned
 contract/worker totals, minimum-safe rationale, exact tests, and stop
@@ -376,14 +376,44 @@ conditions. `task_start` begins every task; zero workers are valid only for an
 explicit `read_only: true` task. `spawn` and `addition` require positive worker
 totals.
 
-Worker recovery is progress-aware. A wait timeout means only that no final
-result arrived. Recent tool output, a status transition, an active long-running
-command, or other declared progress keeps the worker alive; timeout alone never
-authorizes interrupt, close, splitting, or re-dispatch. Work that appears
-complete without a final report is `completed_work_unreported`. Only a running
-worker with no progress evidence for the declared observation window is
-`stalled`; the native surface's lack of telemetry is `unknown`, not proof of a
-stall.
+Worker recovery is progress-aware. A native `RUNNING` worker is preserved by
+default. A wait timeout is an observation only: no final result arrived during
+that wait; timeout alone is never completion, interrupt, close, splitting, or
+re-dispatch evidence. On the first timeout, record the observation and perform
+another task-appropriate bounded wait by default, unless explicit fatal runtime
+evidence already exists: a crash, repeated tool error, explicit failure,
+runtime disconnect, or a demonstrably repeated identical command. During the
+longer wait, inspect exposed native status, recent tool output, active-command
+signals, or other declared progress evidence.
+
+File state is not lifecycle evidence: in read-only tasks, file changes or their
+absence are never stall evidence; in write tasks, absence of file changes alone
+never proves a stall. A read-only architecture/design final report counts as a
+completed-work artifact only when it includes concrete scope, evidence,
+findings, tests or inspection commands, and unresolved risks. If the native
+surface exposes no progress telemetry, classify the state as `unknown`, not
+`stalled`. Work that appears complete without a final report is
+`completed_work_unreported`.
+
+Only explicit fatal evidence or a declared bounded no-progress window with
+native status still `RUNNING` and no active command or progress signal permits
+one bounded interrupt (`interrupt=true`). The interrupt tells the worker: “Stop the current work,
+summarize only evidence already secured, do not start new work, tests, or edits,
+then exit.” A queued message/request to return progress is not an interrupt.
+Normal `RUNNING` or progressing workers are not closed. Close is allowed only
+after `stalled` classification, one interrupt, and one bounded wait if it
+remains non-final. Preserve `completed_work_unreported` and `unknown`; do not
+close either merely to obtain a final report.
+
+Repeated resume/re-dispatch is forbidden as a timeout-recovery loop; repeated
+native stalls must stop/report native unavailability. Any fresh implementer or
+scope split requires a new `addition` disclosure and revised contract.
+A named implementer uses `fork_context=false` or omits it; `fork_context=true`
+is compatible only when `agent_type` is omitted. Serialization failure is a
+pre-spawn dispatch failure, not an implementation failure.
+Rescue failure does not grant automatic Director takeover; takeover still
+requires explicit current-session user authorization after a takeover
+disclosure.
 
 Every later worker, contract, revision, rescue, reviewer, or material scope
 change requires a new `addition` disclosure with `changed_scope`,
@@ -631,10 +661,10 @@ that subagent's `justification` in the agent-composition disclosure (see
    implementer without self-review.
 
 "Smaller diffs" or "tidier task IDs" alone is never sufficient. The Codex
-adapter has no ADP batch or cumulative numeric cap: the native runtime is the
-only capacity authority. If the runtime reports full capacity, wait/close,
-re-scope, or return; user rationale cannot override the native refusal and
-capacity saturation never authorizes takeover. See
+adapter has no ADP batch or cumulative numeric worker cap: the native runtime
+is the only capacity authority. If the runtime reports full capacity, wait, inspect,
+close completed workers, re-scope, or return; user rationale cannot override
+the native refusal and capacity saturation never authorizes takeover. See
 [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md).
 
 When part of a batch fails, each task is resolved on its own evidence:

@@ -5,22 +5,14 @@
 # with /model, the director switches with you live; there is no file to update
 # for that. This profile does not select who the director is. It sets
 # operational policy that should hold steady regardless of which model is
-# currently in the director seat: how large a subagent batch can get before it
-# needs your approval, how many implementer failures trigger Rescue Protocol
-# classification, and what reasoning effort the implementer gets per task
-# kind. Copy this file and edit it (or point CLAUDE.md at your copy) only when
-# a project wants different policy values — not to "pick a director model."
+# currently in the director seat: adapter model/effort rules and how many
+# implementer failures trigger Rescue Protocol classification. Native runtime
+# capacity is observed by the adapter, not invented by this policy metadata.
+# Copy this file and edit it (or point CLAUDE.md at your copy) only when a
+# project wants different policy values — not to "pick a director model."
 director:
   preferred_models: [opus-5, fable-5]  # recommended tiers for this role, not a selection you must make
   effort: high        # optional hint; adapters map to platform mechanism or omit
-  # Above this many subagents in one disclosed batch (DELEGATION-PROTOCOL.md
-  # step 7), the agent-composition disclosure also becomes an approval
-  # request — dispatch waits for the user to grant it. This is a volume
-  # control independent of the conflict-domain check in
-  # core/CONCURRENCY-RULES.md, which only checks safety, not size. Lower it
-  # if you want to review every batch above e.g. 2; raise it if you trust
-  # larger disclosed batches in this project.
-  max_batch_agents: 4
 implementer:
   # ONE tier, deliberately. Nothing in the protocol picks between entries:
   # a Rescue Agent only ever raises reasoning effort, and a model change is a

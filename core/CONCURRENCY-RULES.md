@@ -133,24 +133,37 @@ integrating half of a plan known to be wrong.
 
 ## Progress-aware worker waiting
 
-A native wait timeout means only that no final result arrived during that wait. It does not mean that
-the worker was interrupted, failed, or became unresponsive. The director must distinguish these
-states before taking recovery action:
+A native `RUNNING` worker is preserved by default. A wait timeout records an observation event only:
+no final result arrived during that wait. It is not completion evidence, an interrupt signal, or stall
+evidence by itself. The director must inspect the native state before taking recovery action:
 
-- **`progressing`** — recent worker/tool output, a status transition, an active-command signal, or
-  another progress artifact declared in the contract. Preserve the worker and continue a
-  task-appropriate bounded wait; an expired default window is not a stop signal.
+- **`progressing`** — progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another progress artifact declared in the contract. Preserve the worker and continue a
+  task-appropriate bounded wait. A progressing worker or active command is never interrupted or
+  closed merely because a wait expired.
 - **`completed_work_unreported`** — acceptance evidence, a checkpoint, a diff, or test output shows
   that work may be complete but no final report arrived. Inspect the available evidence without
   claiming completion; do not rerun the work merely to obtain a final message.
-- **`stalled`** — native status remains running and no progress evidence exists for the declared
-  observation window. Only this state permits one `interrupt=true`, one bounded wait, and one close.
-- **`unknown`** — the native surface exposes no progress signal. Do not convert lack of telemetry
+- **`stalled`** — native status remains `RUNNING` and no active command or other progress signal
+  exists for the declared no-progress observation window.
+- **`unknown`** — the native surface exposes no progress telemetry. Do not convert lack of telemetry
   into a stall; report the monitoring limitation and preserve the worker state.
 
-No normal queued message is an interrupt. A fresh implementer or scope split requires a new
-addition disclosure and revised contract; repeated native stalls must stop/report native
-unavailability rather than becoming a timeout/re-dispatch loop.
+File state is never a standalone lifecycle signal. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report may be treated as a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+
+On the first timeout, record the observation and perform another task-appropriate bounded wait by
+default. Skip that additional wait only when explicit fatal runtime evidence already exists: a crash,
+repeated tool error, explicit failure, runtime disconnect, or a demonstrably repeated identical
+command. During the longer wait, inspect native status, recent tool output, active-command signals,
+or other declared progress when exposed. If the surface exposes no progress telemetry, classify the
+state as `unknown`, not `stalled`.
+
+An interrupt is permitted only after either explicit fatal runtime evidence (crash, repeated tool
+error, explicit failure, runtime disconnect, or demonstrably repeated identical command), or the
+declared no-progress observation window has elapsed with native status still `RUNNING` and no active
+command or progress signal. The no-progress path does not require an error message; it is a bounded
+recovery path and must not silently loop forever.
+
+After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt. Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. A fresh implementer or scope split requires a new addition disclosure and revised contract; repeated native stalls must stop/report native unavailability rather than becoming a timeout/re-dispatch loop.
 
 On user interruption, report what completed, what remains active, and where each state is preserved.
 Never abandon an in-flight write or discard its evidence silently.

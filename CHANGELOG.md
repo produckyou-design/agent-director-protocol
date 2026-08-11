@@ -23,6 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes. Addition notices must explain the changed scope, assigned work,
   classified reason, and why an existing worker cannot absorb it.
 
+## [0.8.5] - 2026-08-11
+
+Worker recovery now treats wait timeouts as observations and requires explicit
+progress or fatal-runtime evidence before interrupting or closing a native
+worker.
+
+### Fixed
+
+- Native `RUNNING`, progressing, active-command, completed-but-unreported, and
+  unknown states are preserved and distinguished instead of being inferred from
+  file changes or a wait timeout.
+- The first timeout records an observation and defaults to another bounded wait;
+  interrupt is limited to explicit fatal evidence or a declared no-progress
+  window, with one bounded post-interrupt close path.
+- The one permitted interrupt now tells the worker to stop current work,
+  summarize only secured evidence, start no new work/tests/edits, and exit.
+
 ## [0.8.4] - 2026-08-11
 
 Worker recovery now distinguishes non-final work from a genuine native stall.

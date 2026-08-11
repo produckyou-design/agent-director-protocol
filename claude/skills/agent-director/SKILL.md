@@ -80,16 +80,14 @@ on any section below.
    director model/effort and source, subagent count, each subagent's role/task/model/model ceiling,
    effort, model source, conflict domains, and **`justification`** (why this piece needs its own
    subagent, not folded into another task in the batch), execution mode, spawn budget, and whether a
-   Rescue Agent promotion is even reachable this session. Work does not start until this has been
-   stated. **If `subagent_count` exceeds the active
-   profile's `director.max_batch_agents`, this disclosure is also an approval request** —
-   `within_preapproved_range: false`, `approval_status: pending` — and dispatch waits for
-   `approval_status: granted`, the same pattern a Rescue Agent promotion outside the pre-approved
-   range uses. A conflict-free batch is still subject to this cap; passing the conflict-domain check
-   means the batch is *safe* to run in parallel, not that its size needs no sign-off — see
-   [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md). Mid-task promotions (Rescue Agent, or a granted
+   Rescue Agent promotion is even reachable this session. Work does not start until this has
+   been stated. Native runtime capacity is the only authority for worker capacity: record the
+   observed capacity when the runtime exposes it, and keep it `unknown` when the surface does not
+   expose capacity telemetry. A native slot-full response requires waiting, inspecting the required
+   evidence, closing completed workers to release slots, then re-scoping or returning to the user;
+   never invent or apply a fixed project worker cap. Mid-task promotions (Rescue Agent, or a granted
    escalation) get their own separate notice later — see Escalation and Failure loop below — not
-   folded into this upfront disclosure, and do not count against `max_batch_agents`.
+   folded into this upfront disclosure.
 7. **A subagent must never spawn its own subagents.** If one reports mid-task that it thinks the work
    needs splitting further, that comes back to you as an out-of-scope/blocked finding — you decide
    whether to re-decompose, per step 5. This is the containment boundary that keeps a disclosed,
@@ -178,6 +176,42 @@ count. Failures do not pool across tasks. If the failure shows the *design* was
 wrong rather than one implementer struggling, stop integrating and return to
 design. On user interruption, report what completed, what was in flight, and
 where each state is preserved — never abandon in-flight work silently.
+
+## Native worker lifecycle and recovery
+
+Apply the Core progress-aware recovery rules to the Claude Task/Agent surface.
+A native `RUNNING` worker is preserved by default. A wait timeout records an
+observation event only: no final result arrived during that wait. It is not
+completion evidence, an interrupt signal, or stall evidence by itself.
+
+- Track `progressing`, `completed_work_unreported`, `stalled`, and `unknown`
+  separately. Progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another declared progress artifact; those signals mean `progressing`. A
+  non-final result alone is not `stalled`.
+- While `progressing` or an explicitly declared long-running command is active,
+  preserve the worker and continue a task-appropriate bounded wait. A
+  progressing worker or active command is never interrupted or closed merely
+  because a wait expired.
+- File state is not lifecycle evidence. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report is a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+- On the first timeout, record the observation and perform another
+  task-appropriate bounded wait by default. Skip that additional wait only when
+  explicit fatal runtime evidence already exists: a crash, repeated tool error,
+  explicit failure, runtime disconnect, or a demonstrably repeated identical
+  command. During the longer wait, inspect native status, recent tool output,
+  active-command signals, or other declared progress when exposed. If the
+  surface exposes no progress telemetry, classify `unknown`, not `stalled`.
+- An interrupt is permitted only after explicit fatal runtime evidence (crash,
+  repeated tool error, explicit failure, runtime disconnect, or demonstrably
+  repeated identical command), or after the declared no-progress observation
+  window with native status still `RUNNING` and no active command or progress
+  signal. The no-progress path does not require an error message; it is bounded
+  and must not silently loop forever.
+- After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
+- Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report.
+- Do not repeatedly resume or re-dispatch the same unresponsive worker. A fresh
+  implementer requires a new addition disclosure and revised contract; repeated
+  native stalls end in stop/report of native unavailability.
+
+Full rule: [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
 
 ## State safety (git discipline)
 

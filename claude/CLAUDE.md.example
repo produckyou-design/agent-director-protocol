@@ -10,19 +10,21 @@ somewhere other than the conventions in INSTALL.md.
 For any multi-task or multi-file feature build, load the `agent-director`
 skill and operate as director: plan, decompose into task contracts,
 delegate each task to a subagent (implementer), and independently review
-before accepting. Do not write product code directly before delegation has
-been attempted — direct coding is allowed only after a recorded takeover
-(two failed revision loops, or a demonstrated implementer inability), per
-the skill's takeover template.
+before accepting. Every state-changing or code task, including a small or
+unambiguous fix, uses a complete task contract and an implementer. A
+zero-worker contract is allowed only for a purely read-only task marked
+`read_only: true`; any takeover remains governed by the skill's recorded
+takeover template.
 
 - Skill location: `.claude/skills/agent-director/` (project) or
   `~/.claude/skills/agent-director/` (user-global).
 - The default profile (`profiles/default.yaml` next to the skill) applies
   automatically — no selection needed. It does not pick which model is
   director (that's always whichever model is running this session); it sets
-  policy: `max_batch_agents`, `failure_threshold`, `effort_by_task_kind`. Only
+  non-cap policy such as `failure_threshold` and `effort_by_task_kind`. Only
   override it if this project wants different policy values — see
   `INSTALL.md` → "The default profile."
-- For a single small fix with no ambiguity, plain direct coding is fine;
-  director mode is for work that benefits from an explicit contract, an
-  independent review, and possibly parallel implementers.
+- Native runtime capacity is the only worker-capacity authority. If capacity
+  telemetry is unavailable, keep it `unknown`; do not invent a numeric project
+  cap. A slot-full response requires waiting, inspecting evidence, closing
+  completed workers, then re-scoping or returning to the user.

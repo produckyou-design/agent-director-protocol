@@ -52,16 +52,20 @@ start until it has been stated.
     "already_spawned_count": 0,
     "this_batch_count": 2,
     "total_after_spawn": 2,
-    "max_total_spawned_agents_per_request": 12,
-    "within_limit": true
+    "capacity_source": "observed_native_runtime",
+    "capacity_known": false,
+    "observed_capacity": null
   }
 }
 ```
 
 `execution_mode` is `parallel` only after the conflict check proves the
-workers independent. `within_preapproved_range` concerns the batch limit;
-`spawn_budget.within_limit` concerns the cumulative request limit. These are
-separate controls.
+workers independent. `spawn_budget` records request accounting and the
+capacity observation supplied by the native runtime. If that observation is
+unavailable, keep `capacity_known` false and `observed_capacity` null; the
+disclosure must not invent a project worker cap. `within_preapproved_range`
+and `approval_status` describe any separately authorized policy exception and
+do not create worker-capacity authority.
 
 ## Part 2 — Promotion notice
 

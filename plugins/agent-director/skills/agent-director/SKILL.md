@@ -65,20 +65,39 @@ implementation path.
 
 ## Native worker lifecycle and recovery (mandatory)
 
-- `wait_agent` is result collection only. A timeout means no final worker
-  result; it is never completion evidence and never, by itself, proof of an
-  unresponsive worker.
+- A native `RUNNING` worker is preserved by default. `wait_agent` only collects
+  a final result; a timeout records an observation event only: no final result
+  arrived during that wait. It is never completion evidence, an interrupt
+  signal, or stall evidence by itself.
 - Track `progressing`, `completed_work_unreported`, `stalled`, and `unknown`
   separately. Progress evidence includes recent worker/tool output, a status
-  transition, or an active command signal. Acceptance evidence without a final
-  message is `completed_work_unreported`, not failure. If the native surface
-  exposes no progress signal, use `unknown` rather than inventing a stall.
-- While progress or an explicitly declared long-running command exists, preserve
-  the worker and continue a task-appropriate bounded wait. Never interrupt,
-  close, split, or re-dispatch solely because a wait window expired.
-- Only `stalled` permits one `interrupt=true`, one bounded wait, and one close
-  if still non-final. A normal queued message is not an interrupt.
-- Do not repeatedly resume or re-dispatch an unresponsive worker. A fresh
+  transition, an active-command signal, or another declared progress artifact.
+  A non-final result alone is not `stalled`.
+- While `progressing` or an explicitly declared long-running command is active,
+  preserve the worker and continue a task-appropriate bounded wait. A
+  progressing worker or active command is never interrupted or closed merely
+  because a wait expired.
+- File state is not lifecycle evidence. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report is a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+- On the first timeout, record the observation and perform another
+  task-appropriate bounded wait by default. Skip that additional wait only when
+  explicit fatal runtime evidence already exists: a crash, repeated tool error,
+  explicit failure, runtime disconnect, or a demonstrably repeated identical
+  command. During the longer wait, inspect native status, recent tool output,
+  active-command signals, or other declared progress when exposed. If the
+  surface exposes no progress telemetry, classify `unknown`, not `stalled`.
+- An interrupt is permitted only after explicit fatal runtime evidence (crash,
+  repeated tool error, explicit failure, runtime disconnect, or demonstrably
+  repeated identical command), or after the declared no-progress observation
+  window with native status still `RUNNING` and no active command or progress
+  signal. The no-progress path does not require an error message; it is bounded
+  and must not silently loop forever.
+- After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
+- Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report.
+- For `completed_work_unreported`, inspect the fork, diff, checkpoint, and
+  available test output without claiming completion. If those surfaces are
+  unavailable, report the result as unknown; do not rerun the work merely to
+  obtain a final message.
+- Do not repeatedly resume or re-dispatch the same unresponsive worker. A fresh
   implementer requires a new addition disclosure and revised contract; repeated
   native stalls end in stop/report of native unavailability.
 - `close_agent` and `resume_agent` do not merge a worker fork into the main

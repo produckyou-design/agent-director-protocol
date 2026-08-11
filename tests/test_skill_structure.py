@@ -330,5 +330,164 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                 self.assertIn("unknown", source)
                 self.assertRegex(source, re.compile(r"timeout.*never", re.I | re.S))
 
+    def test_worker_recovery_policy_preserves_progress_and_bounds_recovery(self):
+        policy_files = [
+            REPO_ROOT / "core" / "CONCURRENCY-RULES.md",
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "README.md",
+            REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
+        ]
+        required_patterns = [
+            r"A native `RUNNING` worker is preserved by default",
+            r"file changes or their absence are never stall evidence",
+            r"absence of file changes alone never proves a stall",
+            r"read-only architecture/design.*concrete scope.*evidence.*findings.*tests or inspection commands.*unresolved risks",
+            r"first timeout.*another.*bounded wait",
+            r"explicit fatal runtime evidence",
+            r"crash.*repeated tool error.*explicit failure.*runtime disconnect.*repeated identical command",
+            r"During the longer wait.*native status.*recent tool output.*active-command signals",
+            r"no progress telemetry.*unknown.*not.*stalled",
+            r"An interrupt is permitted only after",
+            r"does not require an error message",
+            r"Stop the\s+current work.*evidence already secured.*do not start new work,\s+tests,\s+or edits",
+            r"queued request to\s+return progress is not an interrupt",
+            r"Close is allowed only after.*stalled.*one interrupt.*one bounded wait",
+            r"Preserve `completed_work_unreported` and `unknown`",
+        ]
+        for path in policy_files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
+                for pattern in required_patterns:
+                    self.assertRegex(source, re.compile(pattern, re.I | re.S), pattern)
+
+    def test_claude_guidance_has_no_stale_caps_or_direct_coding_exception(self):
+        guidance_files = [
+            REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "claude" / "profiles" / "default.yaml",
+            REPO_ROOT / "claude" / "skills" / "agent-director" / "references" / "agent-briefing-template.md",
+            REPO_ROOT / "claude" / "INSTALL.md",
+            REPO_ROOT / "claude" / "CLAUDE.md.example",
+            REPO_ROOT / "README.md",
+            REPO_ROOT / "README.ko.md",
+        ]
+        stale_fixed_cap_terms = (
+            "max_batch_agents",
+            "max_total_spawned_agents_per_request",
+            "within_limit",
+        )
+        stale_direct_coding_patterns = (
+            r"single\s+small\s+fix",
+            r"plain\s+direct\s+coding\s+is\s+fine",
+            r"direct\s+coding\s+is\s+fine",
+        )
+        for path in guidance_files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(guidance_file=path.relative_to(REPO_ROOT)):
+                for term in stale_fixed_cap_terms:
+                    self.assertNotIn(term, source)
+                for pattern in stale_direct_coding_patterns:
+                    self.assertNotRegex(source, re.compile(pattern, re.I | re.S))
+
+        claude_skill = (REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Native runtime capacity is the only authority for worker capacity", claude_skill)
+        self.assertIn("keep it `unknown`", claude_skill)
+        self.assertRegex(
+            claude_skill,
+            re.compile(r"slot-full.*wait.*inspect.*clos(?:e|ing) completed.*(?:re-scop|return)", re.I | re.S),
+        )
+
+        briefing = (REPO_ROOT / "claude" / "skills" / "agent-director" / "references" / "agent-briefing-template.md").read_text(encoding="utf-8")
+        self.assertNotRegex(briefing, re.compile(r"cumulative.{0,50}(?:limit|cap)", re.I | re.S))
+        match = re.search(r"```json\s*(\{.*?\})\s*```", briefing, re.S)
+        self.assertIsNotNone(match, "Claude briefing template has no JSON disclosure example")
+        disclosure = json.loads(match.group(1))
+        spawn_budget = disclosure["spawn_budget"]
+        self.assertEqual(
+            {
+                "already_spawned_count",
+                "this_batch_count",
+                "total_after_spawn",
+                "capacity_source",
+                "capacity_known",
+            },
+            set(spawn_budget) - {"observed_capacity"},
+        )
+        self.assertFalse(spawn_budget["capacity_known"])
+        self.assertEqual(spawn_budget["capacity_source"], "observed_native_runtime")
+        self.assertIn("observed_capacity", spawn_budget)
+        self.assertIsNone(spawn_budget["observed_capacity"])
+
+        example = (REPO_ROOT / "claude" / "CLAUDE.md.example").read_text(encoding="utf-8")
+        self.assertRegex(example, re.compile(r"Every state-changing or code task.*small.*task contract.*implementer", re.I | re.S))
+        self.assertIn("read_only: true", example)
+
+        for readme_path in [REPO_ROOT / "README.md", REPO_ROOT / "README.ko.md"]:
+            readme = readme_path.read_text(encoding="utf-8")
+            with self.subTest(readme=readme_path.name):
+                self.assertRegex(readme, re.compile(r"timeout.*observation", re.I | re.S))
+                self.assertIn("progress evidence", readme)
+                self.assertIn("unknown", readme)
+                self.assertIn("bounded interrupt", readme)
+                self.assertRegex(readme, re.compile(r"numeric worker cap", re.I))
+
+    def test_readme_recovery_summaries_have_full_parity(self):
+        recovery_patterns = {
+            "README.md": [
+                r"normal baseline is already\s+max, so Codex Rescue is unavailable",
+                r"Rescue failure does not grant\s+automatic Director takeover",
+                r"A native `RUNNING` worker is preserved by\s+default",
+                r"A wait timeout is an observation only",
+                r"On the first timeout, record the observation and perform\s+another task-appropriate bounded wait by default",
+                r"unless explicit fatal runtime\s+evidence already exists",
+                r"a crash, repeated tool error, explicit failure,\s+runtime disconnect, or a demonstrably repeated identical command",
+                r"During the\s+longer wait, inspect exposed native status, recent tool output, active-command\s+signals, or other declared progress evidence",
+                r"read-only tasks, file changes or their\s+absence are never stall evidence",
+                r"write tasks, absence of file changes alone\s+never proves a stall",
+                r"read-only architecture/design final report counts as a\s+completed-work artifact only when it includes concrete scope, evidence,\s+findings, tests or inspection commands, and unresolved risks",
+                r"no progress telemetry, classify the state as `unknown`, not\s+`stalled`",
+                r"Only explicit fatal evidence or a declared bounded no-progress window with\s+native status still `RUNNING` and no active command or progress signal permits\s+one bounded interrupt \(`interrupt=true`\)",
+                r"Stop the current work,\s+summarize only evidence already secured, do not start new work, tests, or edits,\s+then exit",
+                r"A queued message/request to return progress is not an interrupt",
+                r"Normal `RUNNING` or progressing workers are not closed",
+                r"Preserve `completed_work_unreported` and `unknown`",
+                r"Repeated resume/re-dispatch is forbidden as a timeout-recovery loop",
+                r"Any fresh implementer or\s+scope split requires a new `addition` disclosure and revised contract",
+                r"A named implementer uses\s+`fork_context=false` or omits it",
+                r"`fork_context=true`\s+is compatible only when\s+`agent_type` is omitted",
+                r"Serialization failure is a\s+pre-spawn dispatch failure, not an implementation failure",
+            ],
+            "README.ko.md": [
+                r"기본값이 이미\s+max이므로 Codex Rescue는 일반 ADP 실행에서\s+사용할 수 없으며",
+                r"Rescue 실패는\s+automatic Director takeover를\s+허용하지 않습니다",
+                r"네이티브 `RUNNING` worker는 기본적으로\s+보존합니다",
+                r"wait timeout은 해당 대기 동안 final result가 도착하지 않았다는\s+관찰일 뿐",
+                r"첫 timeout이 발생하면 관찰을 기록하고,\s+명시적인 fatal runtime evidence",
+                r"기본적으로 작업에 맞는 두 번째 bounded wait를 수행합니다",
+                r"충돌, 반복된 tool error, 명시적 failure,\s+runtime disconnect 또는 동일 command의 반복 실행이 입증된 경우",
+                r"더 긴 대기 동안 노출된 네이티브 status, 최근 tool output, active-command 신호\s+또는 선언된 progress를 확인합니다",
+                r"read-only 작업에서 파일이\s+변경되거나 변경되지 않은 것은 어떤 경우에도 stall evidence가 아니며",
+                r"write\s+작업에서 파일 변경이 없다는 사실만으로는 stall을 입증할 수 없습니다",
+                r"read-only architecture/design 최종 report는 concrete scope, evidence, findings,\s+tests 또는 inspection commands, unresolved risks를 포함할 때만\s+completed-work artifact로 인정합니다",
+                r"progress telemetry가 노출되지 않으면\s+stalled가 아니라 `unknown`으로 분류합니다",
+                r"명시적 fatal evidence 또는 네이티브 status가 여전히 `RUNNING`이고 active\s+command나 progress signal이 없는, 선언된 bounded no-progress observation\s+window가 끝난 경우에만\s+하나의 bounded interrupt\(`interrupt=true`\)를 허용합니다",
+                r"현재 작업을 중단하고, 이미 확보한\s+evidence만 요약하며, 새 work, tests 또는 edits를 시작하지 말고 종료하세요",
+                r"queued message/request to return progress는 interrupt가 아닙니다",
+                r"정상\s+`RUNNING` 또는 progressing worker는 close하지 않습니다",
+                r"`completed_work_unreported`와 `unknown`은 보존하며",
+                r"반복 resume/re-dispatch를 timeout 복구 루프로 사용하는 것은 금지하며",
+                r"새 implementer 또는 scope split에는 새 `addition` disclosure와\s+수정된 contract가 필요합니다",
+                r"이름이 지정된 implementer는\s+`fork_context=false`를 사용하거나 이를 생략합니다",
+                r"`fork_context=true`는\s+`agent_type`을 생략한 경우에만 호환됩니다",
+                r"serialization\s+failure는 구현 실패가 아니라\s+pre-spawn dispatch failure입니다",
+                r"모든 task, 모든 state-changing operation, 모든 native-spawn attempt 전에 Director는\s+`user_visible: true`인 work-contract disclosure를 먼저",
+            ],
+        }
+        for filename, patterns in recovery_patterns.items():
+            readme = (REPO_ROOT / filename).read_text(encoding="utf-8")
+            with self.subTest(readme=filename):
+                for pattern in patterns:
+                    self.assertRegex(readme, re.compile(pattern), pattern)
+
 if __name__ == "__main__":
     unittest.main()

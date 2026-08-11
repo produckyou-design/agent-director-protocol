@@ -127,20 +127,35 @@ Before every native spawn, the Director must:
 
 Treat native lifecycle states as separate from implementation evidence:
 
-- `wait_agent` only collects a final result. A timeout means no final result,
-  never completion and never proof that the worker is unresponsive.
-- Track a lifecycle state separately from completion: `progressing` (recent
-  worker/tool output, a status transition, or evidence of an active command),
-  `completed_work_unreported` (acceptance evidence exists but no final report),
-  `stalled` (no progress evidence for the declared observation window while
-  native status remains running), or `unknown` (the native surface exposes no
-  progress signal). A non-final result alone is not `stalled`.
+A native `RUNNING` worker is preserved by default. `wait_agent` only collects a
+final result; a timeout records an observation event only: no final result
+arrived during that wait. It is never completion evidence, an interrupt signal,
+or stall evidence by itself.
+- Track a lifecycle state separately from completion: `progressing` (progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another declared progress artifact), `completed_work_unreported` (acceptance evidence
+  exists but no final report), `stalled` (native status remains `RUNNING` with
+  no active command or progress signal for the declared no-progress observation
+  window), or `unknown` (the native surface exposes no progress telemetry).
+  A non-final result alone is not `stalled`.
 - While `progressing` or while an explicitly declared long-running command is
-  active, preserve the worker and use a task-appropriate bounded wait. Do not
-  interrupt, close, split, or re-dispatch solely because the default wait
-  window expired.
-- For `stalled` only, send one `interrupt=true` input, bounded-wait once, then
-  close once if it remains non-final. A queued message is not an interrupt.
+  active, preserve the worker and continue a task-appropriate bounded wait. A
+  progressing worker or active command is never interrupted or closed merely
+  because a wait expired.
+- File state is not lifecycle evidence. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report is a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+- On the first timeout, record the observation and perform another
+  task-appropriate bounded wait by default. Skip that additional wait only when
+  explicit fatal runtime evidence already exists: a crash, repeated tool error,
+  explicit failure, runtime disconnect, or a demonstrably repeated identical
+  command. During the longer wait, inspect native status, recent tool output,
+  active-command signals, or other declared progress when exposed. If the
+  surface exposes no progress telemetry, classify `unknown`, not `stalled`.
+- An interrupt is permitted only after explicit fatal runtime evidence (crash,
+  repeated tool error, explicit failure, runtime disconnect, or demonstrably
+  repeated identical command), or after the declared no-progress observation
+  window with native status still `RUNNING` and no active command or progress
+  signal. The no-progress path does not require an error message; it is bounded
+  and must not silently loop forever.
+- After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
+- Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report.
 - For `completed_work_unreported`, inspect the fork, diff, checkpoint, and
   available test output without claiming completion. If those surfaces are
   unavailable, report the result as unknown; do not rerun the work merely to

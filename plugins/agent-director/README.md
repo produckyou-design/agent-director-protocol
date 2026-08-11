@@ -52,26 +52,39 @@ At the max baseline, Codex Rescue is unavailable because no higher same-model
 effort exists; preserve evidence and stop/report or ask the user. Do not turn
 Rescue failure into automatic Director takeover.
 
-Native worker recovery is bounded and fail-closed. A wait timeout is not a
-result. For a stuck worker, send one interrupting input with `interrupt=true`,
-bounded-wait, then close once if it remains non-final; do not repeatedly
-resume it. Use a fresh implementer under a new addition disclosure. Closing
-or resuming does not merge fork changes into the main tree, so inspect and
-review the fork diff or implementation report before integration. A named
+Native worker recovery is progress-aware and fail-closed. A native `RUNNING` worker is preserved by default. A wait timeout is an observation only: no final
+result arrived during that wait; timeout alone is never completion, interrupt,
+close, splitting, or re-dispatch evidence. On the first timeout, record the
+observation and perform another task-appropriate bounded wait by default,
+unless explicit fatal runtime evidence already exists: a crash, repeated tool error, explicit failure, runtime disconnect, or a demonstrably repeated identical command. During the longer wait, inspect exposed native status, recent tool output, active-command signals, or other declared progress evidence.
+A progressing worker or active command is never interrupted or closed merely
+because a wait expired.
+
+File state is not lifecycle evidence: in read-only tasks, file changes or their absence are never stall evidence; in write tasks, absence of file changes alone never proves a stall. A read-only architecture/design final report counts as a
+completed-work artifact only when it includes concrete scope, evidence,
+findings, tests or inspection commands, and unresolved risks. If the native
+surface exposes no progress telemetry, classify the state as `unknown`, not
+`stalled`. Work that appears complete without a final report is recorded as
+`completed_work_unreported`.
+
+Only explicit fatal evidence or a declared bounded no-progress window with
+native status still `RUNNING` and no active command or progress signal permits
+one bounded interrupt (`interrupt=true`). An interrupt is permitted only after
+that same explicit fatal evidence or declared bounded no-progress window. The
+no-progress path does not require an error message and must not silently loop
+forever. The interrupt tells the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
+Normal `RUNNING` or progressing workers are not closed.
+Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. Do not
+repeatedly resume or re-dispatch the same unresponsive worker. A fresh
+implementer or scope split requires both a new `addition` disclosure and a
+revised contract.
+
+Closing or resuming does not merge fork changes into the main tree, so inspect
+and review the fork diff or implementation report before integration. A named
 implementer uses `fork_context=false` or omission; `fork_context=true` is
 compatible only when `agent_type` is omitted. Serialization failure is a
 pre-spawn dispatch failure, not an implementation failure. Rescue is
 unavailable at the active Luna/max baseline.
-
-The timeout path is progress-aware. A timeout only means that no final result
-arrived. Recent worker/tool output, a status transition, an active command, or
-other declared progress keeps the worker alive; an expired wait window alone
-never authorizes interrupt, close, splitting, or re-dispatch. Acceptance
-evidence without a final message is recorded as `completed_work_unreported`.
-Only a no-progress running state over the declared observation window is
-`stalled` and permits one interrupt, one bounded wait, and one close. If the
-native surface exposes no progress signal, report `unknown` rather than
-inventing a stall.
 
 Initial decomposition must justify why its contract size and total
 contract/worker count are minimal, using conflict boundaries, dependencies,

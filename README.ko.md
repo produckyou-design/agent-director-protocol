@@ -364,13 +364,56 @@ metadata가 노출되면 확인하고, 불일치한 worker는 거부하고 종�
 필요합니다. 기본값이 이미 max이므로 Codex Rescue는 일반 ADP 실행에서
 사용할 수 없으며, 증거를 보존하고 Core escalation/takeover 절차를 따릅니다.
 
-Codex 어댑터는 동시 또는 누적 worker 숫자 제한을 ADP에 추가하지 않습니다.
-노출되면 네이티브 런타임 capacity를 기록하고, capacity metadata가 없으면
-`unknown`으로 기록합니다. 네이티브 slot-full 응답은 대기, 증거 검사, 완료
-worker 종료, 범위 재조정 또는 사용자 반환으로 처리합니다. 첫 spawn이나 상태
-변경 전에 Director는 `user_visible: true`와 함께 objective, scope, 전체
-contract/worker 수, 최소 안전 근거, 정확한 테스트, stop conditions가 담긴
-`work_contract`를 사용자에게 고지해야 합니다.
+Codex 어댑터는 ADP에 고정된 동시/누적 numeric worker cap을 추가하지 않습니다.
+worker capacity의 유일한 권한은 네이티브 런타임입니다. capacity metadata가
+노출되면 기록하고, 없으면 `unknown`으로 유지합니다. 네이티브 slot-full 응답은
+대기, 증거 검사, 완료 worker 종료, 범위 재조정 또는 사용자 반환으로 처리하며,
+프로젝트 숫자 제한을 임의로 만들지 않습니다.
+
+Worker recovery도 progress-aware입니다. 네이티브 `RUNNING` worker는 기본적으로
+보존합니다. wait timeout은 해당 대기 동안 final result가 도착하지 않았다는
+관찰일 뿐이며, timeout만으로 completion, interrupt, close, splitting 또는
+re-dispatch를 판단하지 않습니다. 첫 timeout이 발생하면 관찰을 기록하고,
+명시적인 fatal runtime evidence(충돌, 반복된 tool error, 명시적 failure,
+runtime disconnect 또는 동일 command의 반복 실행이 입증된 경우)가 이미 있는
+때를 제외하고는 기본적으로 작업에 맞는 두 번째 bounded wait를 수행합니다.
+더 긴 대기 동안 노출된 네이티브 status, 최근 tool output, active-command 신호
+또는 선언된 progress를 확인합니다. 이 progress evidence를 함께 기록합니다.
+
+파일 상태는 lifecycle evidence가 아닙니다. read-only 작업에서 파일이
+변경되거나 변경되지 않은 것은 어떤 경우에도 stall evidence가 아니며, write
+작업에서 파일 변경이 없다는 사실만으로는 stall을 입증할 수 없습니다.
+read-only architecture/design 최종 report는 concrete scope, evidence, findings,
+tests 또는 inspection commands, unresolved risks를 포함할 때만
+completed-work artifact로 인정합니다. progress telemetry가 노출되지 않으면
+stalled가 아니라 `unknown`으로 분류합니다. final report 없이 완료된 것처럼
+보이는 작업은 `completed_work_unreported`로 보존합니다.
+
+명시적 fatal evidence 또는 네이티브 status가 여전히 `RUNNING`이고 active
+command나 progress signal이 없는, 선언된 bounded no-progress observation
+window가 끝난 경우에만 하나의 bounded interrupt(`interrupt=true`)를 허용합니다. interrupt는
+worker에게 다음을 지시해야 합니다: “현재 작업을 중단하고, 이미 확보한
+evidence만 요약하며, 새 work, tests 또는 edits를 시작하지 말고 종료하세요.”
+queued message/request to return progress는 interrupt가 아닙니다. 정상
+`RUNNING` 또는 progressing worker는 close하지 않습니다. `stalled`로 분류된
+뒤 interrupt 한 번과 bounded wait 한 번을 거쳤는데도 non-final이면 그때만
+close할 수 있습니다. `completed_work_unreported`와 `unknown`은 보존하며,
+final report를 받기 위해 그것들을 close하지 않습니다.
+
+반복 resume/re-dispatch를 timeout 복구 루프로 사용하는 것은 금지하며, 반복된
+native stall은 timeout/re-dispatch 루프가 아니라 stop/report native unavailability로
+처리해야 합니다. 새 implementer 또는 scope split에는 새 `addition` disclosure와
+수정된 contract가 필요합니다.
+이름이 지정된 implementer는 `fork_context=false`를 사용하거나 이를 생략합니다.
+`fork_context=true`는 `agent_type`을 생략한 경우에만 호환됩니다. serialization
+failure는 구현 실패가 아니라 pre-spawn dispatch failure입니다.
+Rescue 실패는 automatic Director takeover를 허용하지 않습니다. takeover는
+takeover disclosure 이후 현재 세션에서 사용자의 명시적 승인이 있어야 합니다.
+
+모든 task, 모든 state-changing operation, 모든 native-spawn attempt 전에 Director는
+`user_visible: true`인 work-contract disclosure를 먼저 사용자에게 고지해야 합니다.
+그 disclosure에는 objective, scope, 전체 contract/worker 수, 최소 안전 근거, 정확한
+테스트, stop conditions가 담겨야 합니다.
 
 초기 분해 시 contract 크기와 전체 contract/worker 수가 최소의 안전한
 구조인 이유를 conflict boundary, dependency, 독립 evidence/review 또는
@@ -592,8 +635,8 @@ reviewer:
 
 "더 작은 diff"나 "더 깔끔한 작업 ID" 같은 이유만으로는 절대 충분하지
 않습니다. Codex 어댑터에는 ADP 배치/누적 숫자 제한이 없고 네이티브 런타임이
-유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기/종료, 범위 재조정
-또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를
+유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기, 증거 검사, 완료
+worker 종료, 범위 재조정 또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를
 시작할 수 없습니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)를
 참고하세요.
 
