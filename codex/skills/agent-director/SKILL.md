@@ -123,6 +123,31 @@ Before every native spawn, the Director must:
    requirement. Do not claim that execution was forced or accept unverified
    output.
 
+## Native worker lifecycle recovery
+
+Treat native lifecycle states as separate from implementation evidence:
+
+- `wait_agent` only collects a final result. A timeout means no final result,
+  never completion.
+- For an active stuck worker, send one `interrupt=true` input, bounded-wait,
+  then close once if it remains non-final. A queued message is not an interrupt.
+- Do not repeatedly resume the same unresponsive worker. Start a fresh
+  implementer through a new addition disclosure and task contract instead.
+- Closing or resuming does not merge a fork into the main working tree. Inspect
+  the fork diff or report and explicitly integrate it after review.
+- A named implementer uses `fork_context=false` or omission. Use
+  `fork_context=true` only when `agent_type` is omitted.
+- Keep spawn messages plain. Serialization failure before worker creation is a
+  dispatch failure; sanitize and retry the same contract, not a worker failure.
+- At the active Luna/max baseline, Rescue is unavailable. Do not spawn a
+  rescue role at Luna/max; revise, narrow, return, or use approved escalation.
+
+Failure, escalation, and Rescue gates are evidence gates, not permission for
+Director implementation. Never choose takeover automatically after a worker
+or Rescue failure. Without explicit current-session user authorization after a
+takeover disclosure, stop and report or ask the user. “Fix it” and “Director
+mode” do not authorize direct product-code changes.
+
 Any non-Luna or non-`max` exception requires explicit user authorization and a
 disclosure naming the exception. There is no silent inheritance, downgrade, or
 promotion. A user-authorized exception is a disclosed policy change for that
@@ -254,7 +279,7 @@ Rescue is a bounded implementer assignment, not a stronger model tier:
 same GPT-5.6 Luna at max
   -> inspect failure evidence
   -> no higher same-model effort exists
-  -> preserve evidence and use Core escalation/takeover gates
+  -> preserve evidence and stop/report or ask the user; no automatic takeover
 ```
 
 The Director must classify the failure before promotion. Do not create a new

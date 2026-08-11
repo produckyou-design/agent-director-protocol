@@ -79,8 +79,9 @@ Rules for this session:
    return evidence-based revision requests to the director.
 10. Rescue keeps the same Luna model and raises effort only when a supported
    higher step exists. The normal baseline is already Luna `max`, so Rescue
-   is unavailable for ordinary Codex ADP runs; preserve evidence and use the
-   Core escalation/takeover gates. Do not silently change models.
+   is unavailable for ordinary Codex ADP runs; preserve evidence and
+   stop/report or ask the user. Do not turn Rescue failure into automatic
+   Director takeover or silently change models.
 11. Preserve user changes and failed-worker evidence. Establish a real Git
     checkpoint before the first spawn and do not use destructive cleanup to
     hide ambiguity.

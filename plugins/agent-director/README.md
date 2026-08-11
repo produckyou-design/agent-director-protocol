@@ -38,16 +38,30 @@ The Director is the coordinator and reviewer, not the ordinary implementer.
 Implementation and other state changes require a positive worker total. When
 files overlap, use one sequential implementer; do not convert the conflict to
 zero workers and direct Director edits. Luna/max on the Director session does
-not remove this boundary. Direct takeover is allowed only after the recorded
-failure, escalation, rescue, and takeover gates, followed by independent
-review.
+not remove this boundary. Direct takeover is never automatic: the failure,
+escalation, rescue, and takeover gates are evidence gates only. It requires
+explicit current-session user authorization after a takeover disclosure,
+followed by the required record and independent review. “Fix it” and “Director
+mode” do not authorize direct product-code implementation.
 
 Returned/runtime metadata must be checked when exposed. A mismatched worker is
 rejected and closed and its output is discarded. If the surface cannot accept
 or verify the pair, stop and report a policy violation/fallback requirement.
 Any non-Luna/non-max exception needs explicit user authorization and disclosure.
 At the max baseline, Codex Rescue is unavailable because no higher same-model
-effort exists; preserve evidence and use the Core escalation/takeover gates.
+effort exists; preserve evidence and stop/report or ask the user. Do not turn
+Rescue failure into automatic Director takeover.
+
+Native worker recovery is bounded and fail-closed. A wait timeout is not a
+result. For a stuck worker, send one interrupting input with `interrupt=true`,
+bounded-wait, then close once if it remains non-final; do not repeatedly
+resume it. Use a fresh implementer under a new addition disclosure. Closing
+or resuming does not merge fork changes into the main tree, so inspect and
+review the fork diff or implementation report before integration. A named
+implementer uses `fork_context=false` or omission; `fork_context=true` is
+compatible only when `agent_type` is omitted. Serialization failure is a
+pre-spawn dispatch failure, not an implementation failure. Rescue is
+unavailable at the active Luna/max baseline.
 
 Initial decomposition must justify why its contract size and total
 contract/worker count are minimal, using conflict boundaries, dependencies,

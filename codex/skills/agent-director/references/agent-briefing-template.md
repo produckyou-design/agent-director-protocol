@@ -117,7 +117,8 @@ reject/close and missing verification requires a fallback report.
 Send when a failed task is promoted to a Rescue Agent or a granted mid-task
 escalation begins. Rescue keeps the same model and raises effort only. At the
 normal `max` baseline there is no same-model headroom, so ordinary Codex ADP
-runs record Rescue as unavailable and use the Core escalation/takeover gates.
+runs record Rescue as unavailable and stop/report or ask the user; Rescue
+failure never grants automatic Director takeover.
 
 Before any mid-task contract/agent/investigator/reviewer/revision/rescue
 addition, send a new disclosure and state `addition_justification`. Classify

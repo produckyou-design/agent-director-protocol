@@ -213,11 +213,13 @@ last resort; the other four are for cases where the evidence points somewhere sp
 
 The director chooses exactly one:
 
-- **A. Director direct intervention.** Allowed ONLY when all four hold: the root cause is
-  sufficiently identified, the fix is local in scope, a verifying test exists, and direct
-  intervention is safer than reassigning to yet another agent. This is [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) — a
-  takeover record is still required before any code is touched. The director does not write
-  speculative code when the root cause is still unclear.
+- **A. Director direct intervention.** Never automatic. It is allowed ONLY when the root cause is
+  sufficiently identified, the fix is local in scope, a verifying test exists, direct intervention
+  is safer than reassigning to yet another agent, and the user explicitly authorizes direct
+  product-code implementation in the current session after a takeover disclosure. This is
+  [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) — a takeover record is still required before any
+  code is touched. A generic request to fix the task or Director mode does not count. Without the
+  user's authorization, choose user escalation, rollback, reduced scope, or a read-only investigation.
 - **B. Roll back to the last known-passing checkpoint.**
 - **C. Escalate to the user for judgment** — a `DIRECTOR_ESCALATION_REQUEST` per
   [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md)'s director self-escalation path. Use this when the block is a

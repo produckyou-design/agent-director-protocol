@@ -55,11 +55,35 @@ implementation path.
 - Shared CSS/HTML/JS, overlapping modules, or another shared conflict domain
   requires a sequential implementer. A conflict is a reason to serialize the
   worker, never a reason to silently make the Director implement directly.
-- The Director may take over implementation only after the recorded
-  failure-classification, escalation, rescue, and takeover gates are satisfied,
-  with the takeover disclosure and independent review required by the Core
-  protocol. The Director being Luna/max does not remove this role boundary or
-  make a worker unnecessary.
+- The Director may never take over implementation automatically. Failure,
+  escalation, rescue, and takeover gates are evidence gates only. Direct
+  product-code implementation requires current-session user authorization
+  explicitly after a takeover disclosure, plus the required record and
+  independent review. “Fix it” and “Director mode” do not authorize takeover.
+  The Director being Luna/max does not remove this role boundary or make a
+  worker unnecessary.
+
+## Native worker lifecycle and recovery (mandatory)
+
+- `wait_agent` is result collection only. A timeout means no final worker
+  result and is never completion evidence.
+- For an active unresponsive worker, send one input with `interrupt=true`,
+  then use a bounded wait. If it remains non-final, close it once. A normal
+  queued message is not an interrupt.
+- Do not repeatedly resume an unresponsive worker. Recovery uses a fresh
+  implementer under a new addition disclosure and task contract.
+- `close_agent` and `resume_agent` do not merge a worker fork into the main
+  working tree. Inspect the fork diff or implementation report before
+  integration; if the surface does not expose it, report the state as unknown.
+- A named implementer spawn uses `fork_context=false` or omits that field.
+  `fork_context=true` is compatible only when `agent_type` is omitted.
+- Keep spawn messages plain and structurally safe. Unescaped JSON or code
+  quoting that causes serialization failure is a pre-spawn dispatch failure,
+  not an implementation failure; sanitize the message before retrying.
+- With the active Luna/max baseline, Rescue is unavailable. Never spawn
+  `role=rescue` at Luna/max; return to the Director, revise or narrow the
+  contract, or use the approved escalation path. Do not turn that failure into
+  automatic Director implementation.
 
 ## Fail-closed worker verification
 
@@ -150,8 +174,8 @@ slot-full response never authorizes Director takeover or delegated fallback.
 Rescue only raises reasoning effort on the same model. The ordinary Codex ADP
 baseline is already `gpt-5.6-luna` at `max`, so Rescue is unavailable for
 ordinary runs because no higher same-model effort exists. Preserve failure
-evidence and use the Core failure-classification, escalation, and takeover
-gates. Never lower effort to pretend a rescue ladder exists.
+evidence and stop/report or ask the user; the failure gates never authorize
+automatic takeover. Never lower effort to pretend a rescue ladder exists.
 
 ## State safety and reporting
 

@@ -213,9 +213,10 @@ forbidden.**
    [`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md).
 4. **Only once the effort ladder is exhausted** (or the cause was never a
    reasoning/capability gap) does the director choose: escalate to the user,
-   direct intervention (takeover — still gated by a written record, still the
-   last resort, never the automatic next step), roll back, reduce scope, or
-   convert the task into a read-only investigation. See
+   roll back, reduce scope, or convert the task into a read-only investigation.
+   Direct intervention (takeover) is not automatic and is unavailable unless
+   the user explicitly authorizes direct product-code implementation in the
+   current session after a takeover disclosure. See
    [`core/TAKEOVER-PROTOCOL.md`](core/TAKEOVER-PROTOCOL.md).
 
    **Escalating after an exhausted effort ladder means raising the *director*,
@@ -360,7 +361,8 @@ a mismatch rejects and closes the worker and discards its output; a surface
 that cannot accept or verify the pair stops with a policy-violation/fallback
 report. Non-Luna/non-max exceptions require explicit user authorization and
 disclosure. The normal baseline is already max, so Codex Rescue is unavailable;
-preserve evidence and use the Core escalation/takeover gates.
+preserve evidence and stop/report or ask the user; Rescue failure never grants
+automatic Director takeover.
 
 The Codex adapter does not impose a concurrent or cumulative numeric worker
 limit. It records native runtime capacity when exposed and records `unknown`

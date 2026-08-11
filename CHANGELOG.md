@@ -23,6 +23,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes. Addition notices must explain the changed scope, assigned work,
   classified reason, and why an existing worker cannot absorb it.
 
+## [0.8.3] - 2026-08-11
+
+The Codex adapter now fails closed after worker and Rescue failures.
+
+### Fixed
+
+- Director takeover is no longer automatic after implementer or Rescue failure.
+- Direct product-code takeover requires explicit current-session user authorization,
+  a takeover disclosure and record, and independent review.
+- Takeover records now carry explicit user-authorization evidence.
+
+## [0.8.2] - 2026-08-11
+
+The Codex adapter now handles native worker lifecycle failures explicitly.
+
+### Fixed
+
+- Worker timeout, interrupt, close/resume, and fork integration states are now fail-closed.
+- Pre-spawn serialization failures are separated from implementation failures.
+- Rescue is blocked when the active Luna/max baseline has no effort headroom.
+
 ## [0.8.1] - 2026-08-11
 
 The Codex adapter now enforces the Director/implementer boundary for state-changing work.

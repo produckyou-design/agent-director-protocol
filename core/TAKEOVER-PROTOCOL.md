@@ -1,7 +1,8 @@
 # Takeover Protocol
 
 This document defines the only conditions under which the director may write product code directly,
-and the record it must produce before doing so.
+and the record it must produce before doing so. It does not grant permission by itself: direct
+takeover also requires explicit authorization from the user in the current session.
 
 **Sequencing note:** reaching the failure threshold (the active profile's `implementer.failure_threshold`,
 two by default) does NOT by itself authorize takeover, and takeover is never the automatic next step
@@ -10,7 +11,8 @@ the failure cause and, for a reasoning or model capability gap, promotes the tas
 one-shot Rescue Agent (at most two attempts, one axis raised at a time); for a requirement conflict,
 it revises the task contract and re-delegates instead — before takeover is even considered.
 Condition (b) below is satisfied only once that Rescue Agent step or revised contract has been tried
-and failed, or was inapplicable per Rescue Protocol's classification. [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) covers
+and failed, or was inapplicable per Rescue Protocol's classification. Even then, the result is a
+stop/report or user-escalation state, not automatic direct implementation. [ESCALATION-PROTOCOL.md](ESCALATION-PROTOCOL.md) covers
 the separate case of a mid-task request for more power (before the failure threshold is reached).
 
 ## Capacity is not takeover
@@ -29,7 +31,7 @@ wait/close cycle instead.
 ## When takeover is allowed
 
 Per [ROLE-CONTRACT.md](ROLE-CONTRACT.md), the director does not write product code. Takeover is the sole, narrow exception, permitted
-ONLY when:
+ONLY when all of the evidence and authorization gates below hold:
 
 - **(a)** the implementer demonstrably cannot perform the task — for example, the task requires
   access, tooling, or a capability the implementer role genuinely lacks, and this has been
@@ -44,11 +46,17 @@ ONLY when:
   classified as `environment_issue` (see [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 1). **Reaching the failure
   threshold alone, without having gone through that classification (and, where applicable, a Rescue
   Agent or a revised contract), does NOT satisfy condition (b).**
+- **(c)** the user has explicitly authorized direct product-code implementation in the current
+  session after seeing a takeover disclosure that names the reason, exact files, scope, and required
+  independent review. “Fix it,” “Director mode,” or permission to continue the task is not this
+  authorization.
 
-Both conditions require evidence gathered through the normal delegation and review cycle. Takeover
-is never a shortcut chosen instead of delegation, and it is never a shortcut chosen instead of a
-Rescue Agent; it is a fallback reached only after delegation — and, for condition (b), Rescue Agent
-promotion — has been tried and has objectively failed, or shown to be inapplicable.
+All conditions require evidence gathered through the normal delegation and review cycle. The
+failure and Rescue gates do not grant permission automatically. Without condition (c), the director
+must stop and report the block or ask the user whether to authorize a direct takeover. Takeover is
+never a shortcut chosen instead of delegation, and it is never a shortcut chosen instead of a
+Rescue Agent; it is a user-authorized fallback reached only after delegation — and, for condition
+(b), Rescue Agent promotion — has been tried and has objectively failed, or shown to be inapplicable.
 
 **"The task is small or simple" is explicitly NOT a valid exception.** Task size, perceived
 triviality, or time pressure never justify skipping delegation. If a task is genuinely trivial,
@@ -76,6 +84,9 @@ implementer's second loop in either case.
   a real causal analysis, not a restatement of "it still didn't work."
 - **`takeover_justification`** — why direct intervention is required now. MUST NOT be, or reduce to,
   "the task is small or simple."
+- **`user_authorization_evidence`** — the user's explicit current-session authorization for direct
+  product-code implementation, including the disclosure it accepted. A generic task instruction is
+  insufficient.
 - **`files_to_modify`** — the exact files the director will change directly (at least one entry).
 - **`modification_scope`** — the bounded scope of the direct changes.
 

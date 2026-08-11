@@ -61,12 +61,15 @@ evidence trail is whatever the director chooses to report about itself. Read-onl
 (reading logs, querying status, running tests to verify someone else's work) is not covered by this
 rule; it is part of the director's review duty.
 
-The single exception is takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md), which is permitted only when the implementer
-demonstrably cannot perform the task, or when a [Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion
-assigned after the active failure threshold — has also failed or was inapplicable. **Reaching the
-failure threshold alone does not authorize takeover;** it triggers failure-cause classification and, for
-a reasoning or model capability gap, a Rescue Agent attempt first. Takeover requires a written
-takeover record before any code is touched.
+The single exception is a user-authorized takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md),
+which is permitted only when the implementer demonstrably cannot perform the task, or when a
+[Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion assigned after the active
+failure threshold — has also failed or was inapplicable. **Reaching the failure threshold or a
+Rescue failure never authorizes takeover automatically.** It triggers failure-cause classification,
+then a stop/report or user-escalation path. A direct takeover requires explicit authorization from
+the user in the current session, a new takeover disclosure, and a written takeover record before
+any product code is touched. A generic request to fix the task, Director mode, or prior delegation
+does not count as direct-takeover authorization.
 
 **"The task is small or simple" is NEVER a valid exception to this rule.** Task size and difficulty
 do not authorize the director to bypass delegation. A one-line fix still goes through a task

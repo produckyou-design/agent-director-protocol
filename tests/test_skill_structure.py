@@ -303,5 +303,26 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         self.assertRegex(skill, re.compile(r"Luna/max .*does not remove", re.I | re.S))
 
 
+    def test_native_worker_lifecycle_recovery_is_fail_closed(self):
+        policy_files = [
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+        ]
+        for path in policy_files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
+                self.assertIn("wait_agent", source)
+                self.assertIn("interrupt=true", source)
+                self.assertIn("Do not repeatedly resume", source)
+                self.assertRegex(source, re.compile(r"(?:does|do) not merge", re.I))
+                self.assertIn("fork_context=false", source)
+                self.assertRegex(source, re.compile(r"serialization failure", re.I))
+                self.assertIn("Rescue is unavailable", source)
+                self.assertRegex(
+                    source,
+                    re.compile(r"never take over.*automatically|never.*takeover automatically", re.I | re.S),
+                )
+                self.assertIn("current-session user authorization", source)
+
 if __name__ == "__main__":
     unittest.main()

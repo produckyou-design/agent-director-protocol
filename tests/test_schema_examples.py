@@ -147,6 +147,7 @@ def minimal_takeover_record() -> dict:
         "second_revision_instruction": "Re-read resize() signature and fix the call site.",
         "repeated_failure_cause": "Implementer keeps calling a removed method name.",
         "takeover_justification": "Two full revision loops both failed on the same root cause.",
+        "user_authorization_evidence": "User explicitly authorized direct implementation after the takeover disclosure.",
         "files_to_modify": ["src/widget.py"],
         "modification_scope": "Only the resize() method body in src/widget.py.",
     }
