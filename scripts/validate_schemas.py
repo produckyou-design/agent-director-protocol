@@ -14,6 +14,7 @@ Steps:
      failure (unmapped example).
 
 Exit codes: 0 = pass, 1 = failure, 2 = jsonschema is not installed.
+@author Son Nguyen <hoangson091104@gmail.com>
 """
 
 from __future__ import annotations
@@ -21,6 +22,8 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+
+from validate_dispatch_plan import validate_dispatch_plan
 
 try:
     import jsonschema
@@ -36,6 +39,7 @@ except ImportError:
 
 
 FILENAME_TO_SCHEMA = [
+    ("agent-composition", "agent-composition-disclosure.schema.json"),
     ("task-contract", "task-contract.schema.json"),
     ("implementation-report", "implementation-report.schema.json"),
     ("review-result", "review-result.schema.json"),
@@ -116,6 +120,11 @@ def run(root: Path) -> tuple[list[str], list[str]]:
                 + (f" ({len(errors) - 1} more error(s))" if len(errors) > 1 else "")
             )
         else:
+            if schema_name == "agent-composition-disclosure.schema.json":
+                semantic_errors = validate_dispatch_plan(instance, str(rel))
+                if semantic_errors:
+                    failures.extend(semantic_errors)
+                    continue
             oks.append(f"{rel}: valid against {schema_name}")
 
     return oks, failures

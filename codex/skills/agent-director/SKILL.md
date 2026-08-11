@@ -205,8 +205,10 @@ Use these phases:
   `mandatory_independent_review`, or `classified_failure`,
   `why_existing_workers_cannot_absorb`, and `new_disclosure: true`.
 
-Speed, parallelism, efficiency, task size/complexity, file count, empty slots,
-and tidy IDs are never valid addition or scale reasons.
+Speed and efficiency may be recorded as outcomes, and an explicit latency
+priority may be recorded, but neither is a standalone reason to add a worker or
+mark a batch parallel. The deterministic group, conflict, dependency,
+isolation, and capacity proof controls; parallelism is its result.
 
 The Codex repository can validate and document this boundary, but it cannot
 hard-intercept or add parameters to the platform-owned native
@@ -221,17 +223,18 @@ follow this exact order:
 1. Repository analysis.
 2. Requirement interpretation.
 3. Design.
-4. Fewest-first task decomposition.
-   Before any spawn, record a concrete contract-scale justification for why
-   this contract size and the total contract/worker count are the minimum safe
-   structure and why the work cannot be folded into fewer existing contracts.
+4. Fewest-first task decomposition. Describe the independently verifiable
+   work groups first. Before any spawn, record a concrete contract-scale
+   justification for why this contract size and the total contract/worker count
+   are the minimum safe structure and why the work cannot be folded into fewer
+   existing contracts.
 5. Complete [`task-contract.schema.json`](../../../schemas/task-contract.schema.json),
    including `delegation.role`, `delegation.model`, `delegation.model_ceiling`,
    `delegation.reasoning_effort`, `delegation.execution`, and a concrete
    `delegation.justification`.
 6. Conflict-domain check across files, code regions, interfaces, schemas,
    migrations, shared state, generated artifacts, build/config files, and user
-   flows.
+   flows; record the cross-group dependency edges.
 7. Agent composition disclosure, including the explicit worker pair and spawn
    budget.
 8. Native subagent spawn by the Director only.
@@ -246,9 +249,11 @@ decomposition reports it to the Director and stops; it never spawns a child.
 
 The initial `delegation.justification` set must explain conflict boundaries,
 dependencies, independent evidence/review needs, or blast-radius isolation and
-why fewer existing contracts/workers cannot safely absorb the work. Speed,
-parallelism, efficiency, task size/complexity, many files, context reduction,
-empty slots, and tidy/smaller task IDs are rejected.
+why fewer existing contracts/workers cannot safely absorb the work. For a
+parallel batch it must identify at least two independently verifiable groups,
+their disjoint domains, empty dependency edges, and the capacity observation
+used for `planned_workers`. A speed, parallelism, efficiency, task-size, or
+vague "large task" statement alone is not sufficient.
 
 Every mid-task addition of a contract, worker, investigator, reviewer,
 revision, or rescue requires a new disclosure first. Its concrete addition
@@ -258,11 +263,14 @@ failure and explain why an existing contract/worker cannot absorb it.
 
 ## Conflict-safe execution
 
-Use the Task Contract `conflict_domains` object and compare every pair before
-dispatch. Read/read work may run in parallel when there is no dependency. Any
-write/write overlap, shared interface/schema/config/state, or read/write
-consistency dependency is sequential. Different filenames do not prove that
-two API or schema changes are independent.
+The visible `work_contract` must disclose `independent_groups`, each group's
+complete `conflict_domains`, `dependency_edges`, `planned_workers`,
+`capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`. Parallel dispatch is
+valid only when there are two or more independently verifiable groups, every
+pair is disjoint across files, code regions, generated output, shared state,
+data, interfaces/schemas, build targets, and user flows, and the dependency
+edge list is empty. A shared/conflicting or sequential write domain uses one
+worker and runs sequentially.
 
 Native subagents inherit the parent session's sandbox and approval context. In
 the normal local workflow they should be treated as sharing the working tree;
@@ -271,8 +279,12 @@ isolated worktree, otherwise they run sequentially.
 
 Native capacity comes from the active Codex runtime through
 `agents.max_concurrent_threads_per_session` or returned metadata, when exposed.
-The adapter does not add a concurrent or cumulative numeric cap. If capacity is
-unknown, record it as unknown and do not invent a project limit.
+For `N` eligible groups and known capacity of at least two, set
+`planned_workers = min(N, observed_capacity)`. If capacity is unknown, record
+`capacity_source: "unknown"` (or a capacity below two) and use a conservative one-worker sequential
+fallback; never invent a project capacity. A full/zero-capacity result requires
+wait, inspection, re-scope, or return and never authorizes a zero-worker write
+or Director takeover.
 
 ## Agent composition disclosure
 
@@ -280,8 +292,10 @@ Before the first spawn in every batch, send one disclosure matching
 [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json):
 
 - `user_visible: true` and a `work_contract` containing the objective, scope,
-  planned contract/worker totals, worker model/effort, minimum-safe rationale,
-  exact tests, and stop conditions;
+   planned contract/worker totals, worker model/effort, minimum-safe rationale,
+   exact tests, stop conditions, `independent_groups`, `dependency_edges`,
+   `planned_workers`, `capacity_source`, `write_isolation`, and
+   `why_fewer_workers_cannot_absorb`;
 - the disclosure `phase` (`task_start`, `spawn`, or `addition`), with the
   addition fields present whenever `phase: addition`;
 - current Director model and effort, with source `user_selected_session`;

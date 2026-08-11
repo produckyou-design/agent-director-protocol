@@ -67,11 +67,11 @@ on any section below.
    a hypothesis the director expected, **raise effort one step on
    re-delegation** instead of merely restating the same instruction — see
    [`FAILURE-LOOP.md`](../../../core/FAILURE-LOOP.md).
-5. **Decompose to the fewest tasks that qualify, not the most.** Before disclosing anything, check
-   whether this really needs N subagents or whether some pieces belong in one broader task contract.
-   Splitting further than the minimum needs a concrete reason — genuine parallelism benefit, a
-   distinct effort/model tier for one part, blast-radius isolation, or genuinely independent
-   verifiable outcomes — not "smaller diffs." See
+5. **Decompose to the fewest tasks that qualify, not the most.** Before disclosing anything, describe
+   the independently verifiable work groups and check whether this really needs N subagents or
+   whether some pieces belong in one broader task contract. Parallel dispatch requires at least two
+   groups with disjoint conflict domains, no cross-group dependency edges, isolated write state, and
+   observed native capacity. A shared/conflicting or sequential write domain has one worker. See
    [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md) step 4.
 6. **Disclose the agent composition before spawning anything.** Once per batch — not per individual
    spawn — tell the user what is about to run, filling in
@@ -79,13 +79,15 @@ on any section below.
    [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json)):
    director model/effort and source, subagent count, each subagent's role/task/model/model ceiling,
    effort, model source, conflict domains, and **`justification`** (why this piece needs its own
-   subagent, not folded into another task in the batch), execution mode, spawn budget, and whether a
-   Rescue Agent promotion is even reachable this session. Work does not start until this has
-   been stated. Native runtime capacity is the only authority for worker capacity: record the
-   observed capacity when the runtime exposes it, and keep it `unknown` when the surface does not
-   expose capacity telemetry. A native slot-full response requires waiting, inspecting the required
-   evidence, closing completed workers to release slots, then re-scoping or returning to the user;
-   never invent or apply a fixed project worker cap. Mid-task promotions (Rescue Agent, or a granted
+   subagent, not folded into another task in the batch), execution mode, spawn budget,
+   `independent_groups`, `dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`,
+   `why_fewer_workers_cannot_absorb`, and whether a Rescue Agent promotion is even reachable this
+   session. Work does not start until this has been stated. Native runtime capacity is the only authority for worker capacity. For N eligible groups and known capacity of at least two,
+   `planned_workers = min(N, observed_capacity)`; when capacity is unknown, use one sequential
+   worker and keep it `unknown` without inventing a cap. A native slot-full response requires
+   waiting, inspecting the required evidence, closing completed workers to release slots, then
+   re-scoping or returning to the user; never invent or apply a fixed project worker cap. Mid-task
+   promotions (Rescue Agent, or a granted
    escalation) get their own separate notice later — see Escalation and Failure loop below — not
    folded into this upfront disclosure.
 7. **A subagent must never spawn its own subagents.** If one reports mid-task that it thinks the work
@@ -158,15 +160,21 @@ Full rule: [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md).
 
 ## Concurrency
 
-Spawn parallel subagents only when their `conflict_domains` (files,
-data_structures, interfaces, db_entities, shared_configs, state_stores,
-build_targets, user_flows) do not overlap. Any overlap forces sequential
-execution. Never let two subagents edit the same file concurrently. When the
-environment supports isolated working copies (e.g. the Agent tool's
-`worktree` isolation), use it for anything running in parallel — the
-conflict-domain check covers *intended* changes, not a stray write or
+The visible work contract must disclose `independent_groups`, each group's
+complete `conflict_domains`, `dependency_edges`, `planned_workers`,
+`capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`. Spawn parallel
+  subagents only when there are two or more independently verifiable groups,
+their domains are disjoint across files, code regions, generated output,
+shared state, data, interfaces/schemas, build targets, and user flows, and
+there are no cross-group dependency edges. Any overlap or dependency forces
+sequential execution with one worker for the shared/conflicting or sequential
+write domain. When the environment supports isolated working copies (e.g. the
+Agent tool's `worktree` isolation), use it for anything running in parallel —
+the conflict-domain check covers *intended* changes, not a stray write or
 regenerated artifact from one subagent landing in another's diff. Where no
-isolation is available, run sequentially. Full rule:
+isolation is available, run sequentially. Speed and efficiency may be outcomes,
+and an explicit latency priority may be recorded, but neither is a standalone
+reason or an override. Full rule:
 [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
 
 **When part of a batch fails**, resolve each task on its own evidence: integrate

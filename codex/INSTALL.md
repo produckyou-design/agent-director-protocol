@@ -42,15 +42,19 @@ worker totals. An addition must include `changed_scope`, `change_summary`,
 The repository documents and validates this contract, but cannot hard-intercept
 the platform-owned `multi_agent_v1__spawn_agent` tool or add parameters to it.
 
-Before initial dispatch, record why the chosen contract size and total
-contract/worker count are the minimum safe structure. Cite conflict boundaries,
-dependencies, independent evidence/review, or blast-radius isolation and
-explain why fewer existing contracts cannot absorb the work. Speed,
-parallelism, efficiency, task size/complexity, many files, context reduction,
-empty slots, and tidy/smaller task IDs are rejected. Any mid-task contract or
-agent addition requires a new disclosure based on newly discovered evidence, a
-new conflict domain/dependency, a mandatory independent-review boundary, or a
-classified failure, plus why an existing contract/worker cannot absorb it.
+Before initial dispatch, describe the independently verifiable work groups and
+record why the chosen contract size and total contract/worker count are the
+minimum safe structure. Cite conflict boundaries, dependencies, independent
+evidence/review, or blast-radius isolation and explain why fewer existing
+contracts cannot absorb the work. Parallel dispatch additionally requires
+pairwise-disjoint conflict domains, empty cross-group dependency edges,
+isolated write state, and observed capacity. Speed and efficiency may be
+recorded as outcomes, and an explicit latency priority may be recorded, but
+neither is a standalone reason for a worker or parallel mode. Any mid-task
+contract or agent addition requires a new disclosure based on newly discovered
+evidence, a new conflict domain/dependency, a mandatory independent-review
+boundary, or a classified failure, plus why an existing contract/worker cannot
+absorb it.
 
 ## Files supplied by this repository
 
@@ -166,10 +170,13 @@ policy violation/fallback requirement rather than accepting its output. A
 non-Luna/non-max exception requires explicit user authorization and disclosure.
 
 Native runtime capacity is the only worker limit; the adapter does not invent a
-concurrent or cumulative numeric cap. If capacity metadata is unknown, record
-unknown and observe the native spawn result. Overlapping write or read/write
-conflict domains still run sequentially. A native slot-full response requires
-wait/close, re-scope, or return and never authorizes Director takeover.
+concurrent or cumulative numeric cap. For N eligible groups with known capacity
+of at least two, set `planned_workers = min(N, observed_capacity)`. If capacity is
+unknown, use the conservative one-worker sequential fallback and record
+`capacity_source: "unknown"`; never invent a cap. Overlapping write or
+read/write conflict domains still run sequentially with one worker. A native
+slot-full response requires wait/close, re-scope, or return and never
+authorizes Director takeover.
 
 ## How to use it
 

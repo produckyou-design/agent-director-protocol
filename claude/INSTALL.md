@@ -167,6 +167,15 @@ director today:
   authority. If capacity telemetry is unavailable, keep it `unknown`; do not
   invent a numeric project cap. A slot-full response requires waiting,
   inspecting evidence, closing completed workers, then re-scoping or returning.
+- Parallel dispatch is deterministic: it requires at least two independently
+  verifiable work groups, pairwise-disjoint conflict domains, no cross-group
+  dependency edges, isolated write state, and observed native capacity. With
+  known capacity of at least two, set `planned_workers = min(group count,
+  observed_capacity)`; with unknown capacity, use one sequential worker and
+  record `capacity_source: "unknown"` without inventing a cap. A shared,
+  conflicting, or sequential write domain always has one worker. Speed and
+  efficiency may be outcomes or an explicit latency priority, but neither is a
+  standalone reason or an override.
 
 **Only override it if a project wants different policy** — e.g. a stricter
 project changes `failure_threshold`. To override:

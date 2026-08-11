@@ -14,26 +14,37 @@ but it still starts with the notice:
    and tests before forming an opinion.
 2. **Interpret the requirement.** State the observed current behavior and the precise target behavior.
 3. **Design.** Decide the overall shape and order before inventing task IDs.
-4. **Decompose fewest-first.** Use the smallest number of independently verifiable Task Contracts
-   that satisfies the design. A contract may cover multiple related files and steps.
+4. **Decompose fewest-first.** Describe the independently verifiable work groups first, then use
+   the smallest number of Task Contracts that satisfies the design. A contract may cover multiple
+   related files and steps. Parallel dispatch is permitted only for two or more groups whose
+   conflict domains are disjoint and whose dependency edges are empty; otherwise one worker owns
+   the shared or sequential write domain.
 5. **Write each Task Contract.** Every contract must validate against
    [`task-contract.schema.json`](../schemas/task-contract.schema.json), including its worker role,
    model ceiling, reasoning effort, execution mode, concrete subagent justification, and complete
    conflict domains.
 6. **Order by dependency.** A task may start only after its `depends_on` tasks have been reviewed
-   and approved. Independent read-heavy tasks are candidates for parallel execution.
+   and approved. The batch disclosure records the resulting `dependency_edges`; independent
+   read-heavy or write-isolated groups are candidates for parallel execution only after the full
+   deterministic eligibility proof.
 7. **Run the conflict check.** Compare every pair across files, code regions, data structures,
    interfaces, schemas, database entities, shared configs, state stores, generated artifacts, build
    targets, and user flows. Any overlap or read/write consistency dependency becomes sequential.
-8. **Check runtime capacity.** Record native capacity when exposed. If it is unknown, do not invent
-   a protocol limit; let the native surface return its actual result and handle slot-full with
-   wait/close, re-scope, or return.
+8. **Check runtime capacity.** Record native capacity when exposed. For `N` eligible independent
+   groups, set `planned_workers = min(N, observed_capacity)` when the observed capacity is known
+   and at least two. If capacity is unknown or below two, keep the capacity source `unknown` and use the conservative
+   one-worker sequential fallback; never invent a protocol limit or a numeric capacity. A zero
+   available-capacity result stops or waits rather than becoming a zero-worker write task. Handle
+   slot-full with wait/close, re-scope, or return.
 9. **Disclose the work contract and agent composition.** Before every task, state-changing
    operation, and native-spawn attempt, send the appropriate visible disclosure matching
    [`agent-composition-disclosure.schema.json`](../schemas/agent-composition-disclosure.schema.json)
    for the complete batch. It must contain `phase`, `user_visible: true`, objective, scope,
-   planned contract/worker totals, minimum-safe rationale, worker model/effort, exact tests,
-   stop conditions, and the composition fields for any worker batch.
+    planned contract/worker totals, minimum-safe rationale, worker model/effort, exact tests,
+    stop conditions, and the composition fields for any worker batch. The work contract must also
+     disclose `independent_groups`, each group's `conflict_domains`, `dependency_edges`,
+     `planned_workers`, `capacity_source`, `write_isolation`, and
+     `why_fewer_workers_cannot_absorb`.
 10. **Spawn through the adapter.** Only the director may create the disclosed workers. A worker may
     not create a child worker or silently split its own contract.
 11. **Collect actual evidence.** Workers run the stated tests and return the implementation report;
@@ -64,13 +75,19 @@ addition must include all of these fields:
 - `why_existing_workers_cannot_absorb` — why an existing contract or worker cannot absorb it; and
 - `new_disclosure: true` — the explicit new-notice marker.
 
-Speed, parallelism, efficiency, task size, empty slots, and tidy IDs are not valid addition bases.
-An adapter can validate and document this boundary, but a repository cannot assume that it can
-hard-intercept a platform-owned native spawn tool or add a required parameter to it.
+Speed and efficiency may be recorded as outcomes, and an explicit latency priority may be recorded
+as an optional user priority. None of them is a standalone reason to add a worker or to mark a
+batch parallel; the independent-group, disjoint-domain, dependency, isolation, and capacity proof
+always controls. Parallelism is the result of that proof, not a substitute for it. An adapter can
+validate and document this boundary, but a repository cannot assume that it can hard-intercept a
+platform-owned native spawn tool or add a required parameter to it.
 
 ## Fewest tasks first
 
-Splitting beyond the minimum requires a concrete reason recorded in the contract and disclosure:
+Splitting beyond the minimum requires a concrete reason recorded in the contract and disclosure.
+For a parallel batch, the reason must identify at least two independently verifiable groups, their
+disjoint conflict domains, empty cross-group dependency edges, and the observed capacity used to
+compute `planned_workers`. The permitted structural reasons are:
 
 - a distinct conflict boundary or dependency that an existing contract/worker
   cannot safely absorb;
@@ -79,8 +96,8 @@ Splitting beyond the minimum requires a concrete reason recorded in the contract
 - an independent reviewer context.
 
 These are not valid reasons by themselves: many files, a large-looking diff, tidy task IDs, an empty
-agent slot, or a previous worker failure. A failed task normally enters its own evidence-based
-revision/rescue path; it does not automatically create a replacement worker.
+agent slot, a speed/efficiency claim, or a previous worker failure. A failed task normally enters
+its own evidence-based revision/rescue path; it does not automatically create a replacement worker.
 
 ## Justification gate
 
@@ -88,9 +105,10 @@ Every subagent entry must answer:
 
 > Why can this work not be included in an existing Task Contract or performed by an existing worker?
 
-The answer must name the actual independent result, conflict boundary, investigation need, or review
-independence. Abstract wording such as “for efficiency” is insufficient. Missing or formalistic
-justification blocks the spawn.
+The answer must name the actual independent result, group conflict boundary, empty dependency-edge
+set, capacity observation, investigation need, or review independence. Abstract wording such as
+"for speed", "for parallelism", "for efficiency", "large task", or "many files" is insufficient.
+Missing or formalistic justification blocks the spawn.
 
 ## Approval and runtime-capacity rules
 

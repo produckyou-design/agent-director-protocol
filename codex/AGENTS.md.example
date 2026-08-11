@@ -47,16 +47,19 @@ Rules for this session:
    generated artifacts, build/config files, and user flows before parallel
    execution. Overlapping writes or read/write consistency dependencies run
    sequentially.
-6. Disclose the entire composition before spawning: director, worker roles,
+  6. Disclose the entire composition before spawning: director, worker roles,
    task contracts, model/effort, justifications, conflict domains, execution
    mode, spawn accounting (existing, batch, and cumulative counts), and the
-   observed runtime-capacity result. Do not silently add agents later. Any
+    observed runtime-capacity result. Do not silently add agents later. Any
    mid-task contract or agent
    addition needs a new disclosure, a newly discovered evidence/conflict/
    dependency, mandatory independent-review boundary, or classified failure,
    and an explanation of why an existing contract/worker cannot absorb it.
-   Speed, parallelism, efficiency, task size/complexity, file count, context
-   reduction, empty slots, and tidy/smaller task IDs are not justifications.
+    Parallel dispatch additionally requires at least two independently
+    verifiable groups, pairwise-disjoint conflict domains, empty cross-group
+    dependency edges, isolated write state, and observed capacity. Speed and
+    efficiency may be outcomes, and an explicit latency priority may be
+    recorded, but neither is a standalone justification.
 7. Before every task, every state-changing operation, and every native-spawn
    attempt, visibly publish a work-contract notice with `phase` and
    `user_visible: true`. `task_start` begins every task; a zero-worker start is
@@ -67,13 +70,17 @@ Rules for this session:
    `new_disclosure: true`. The repository cannot hard-intercept the
    platform-owned `multi_agent_v1__spawn_agent` tool, so do not claim a hidden
    runtime gate.
-8. Native runtime capacity is the only concurrency authority. Record observed
-   capacity when exposed; if it is unknown, do not invent a numeric project
-   limit. A native slot-full response requires wait/close, re-scope, or return;
-    it never authorizes Director fallback or takeover. The every-task notice
-    above must include objective/scope, planned total workers, model/effort,
-    tests, stop conditions, and an evidence-based minimum-safe rationale tied
-    to conflict boundaries, dependencies, independent review, or blast-radius
+  8. Native runtime capacity is the only concurrency authority. For N eligible
+    groups with known capacity of at least two, set `planned_workers = min(N,
+    observed_capacity)`. If it is unknown, use the conservative one-worker
+    sequential fallback and record `capacity_source: "unknown"`; do not invent
+    a numeric project limit. A native slot-full response requires wait/close,
+    re-scope, or return; it never authorizes Director fallback or takeover. The
+    every-task notice above must include objective/scope, independent_groups,
+    conflict_domains, dependency_edges, planned_workers, capacity_source,
+    write_isolation, why_fewer_workers_cannot_absorb, planned total workers, model/effort, tests,
+    stop conditions, and an evidence-based minimum-safe rationale tied to
+    conflict boundaries, dependencies, independent review, or blast-radius
     isolation.
 9. Workers must not spawn children. Reviewers are read-only by default and
    return evidence-based revision requests to the director.

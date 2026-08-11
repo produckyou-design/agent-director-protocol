@@ -22,6 +22,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   later workers, contracts, revisions, rescues, reviewers, or material scope
   changes. Addition notices must explain the changed scope, assigned work,
   classified reason, and why an existing worker cannot absorb it.
+- **Parallel dispatch is now deterministic.** A parallel batch requires at
+  least two independently verifiable work groups, pairwise-disjoint conflict
+  domains, no cross-group dependency edges, isolated write state, and observed
+  native capacity. The work contract records `independent_groups`,
+  `conflict_domains`, `dependency_edges`, `planned_workers`,
+  `capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`;
+  known capacity of at least two uses `min(group count, observed capacity)`,
+  while unknown or lower capacity falls back to one sequential worker without
+  inventing a cap. The semantic dispatch validator checks domain/glob overlap
+  and the capacity formula after schema validation. Speed or efficiency is an
+  outcome/optional latency priority only and never overrides conflicts,
+  dependencies, capacity, or the no-automatic-takeover rule.
+
+## [0.8.6] - 2026-08-12
+
+Parallel worker selection is now deterministic instead of treating parallelism
+as categorically invalid or relying on vague speed justifications.
+
+### Changed
+
+- Parallel execution requires at least two independently verifiable groups,
+  pairwise-disjoint conflict domains, empty dependency edges, isolated writes,
+  and observed native capacity of at least two.
+- `planned_workers` is the smaller of the eligible independent-group count and
+  observed capacity; shared or sequential domains use one worker, and unknown
+  capacity falls back conservatively to one sequential worker.
+- Speed and efficiency are recorded as outcomes or explicit user latency
+  priorities only; they never override conflict, dependency, isolation, or
+  capacity checks.
 
 ## [0.8.5] - 2026-08-11
 

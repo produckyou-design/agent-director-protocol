@@ -54,7 +54,7 @@ probably do not need this repository.
 | The agent burns turns retrying the same broken fix on a loop | A third guess-based fix at the same root cause is forbidden; it must [escalate with evidence](core/ESCALATION-PROTOCOL.md) instead |
 | Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) raises **reasoning effort only, never the model** — one task, ≤2 attempts, and only for a genuine reasoning/capability gap. A model change needs the user's say-so; when effort runs out the protocol escalates the *director* (the plan is the likely suspect), not the implementer |
 | A model quietly upgrades itself, or spawns workers you never approved | Every promotion and worker plan is disclosed *before* it runs, with a per-subagent `justification`; native capacity is observed at runtime, and implementers cannot spawn subagents at all |
-| Two parallel agents clobber the same file | An eight-domain [conflict check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
+| Two parallel agents clobber the same file | A complete [conflict-domain check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
 | A failed attempt gets `git checkout .`-ed away, taking the evidence with it | [State safety](core/STATE-SAFETY.md): failed work is preserved until reviewed, and the checkpoint is a real commit SHA |
 | Vague work ("fix the UI") gets handed off and comes back as something else | A [task contract](core/TASK-CONTRACT.md) with `current_state`, `target_behavior`, and objective `completion_criteria` is required before delegation |
 
@@ -376,6 +376,23 @@ conditions. `task_start` begins every task; zero workers are valid only for an
 explicit `read_only: true` task. `spawn` and `addition` require positive worker
 totals.
 
+The work contract also discloses `independent_groups`, each group's complete
+`conflict_domains`, `dependency_edges`, `planned_workers`, `capacity_source`,
+`write_isolation`,
+and `why_fewer_workers_cannot_absorb`. A batch is parallel-eligible only when
+there are at least two independently verifiable groups, all pairwise conflict
+domains are disjoint across files, code regions, generated output, shared
+state, data, interfaces/schemas, build targets, and user flows, and there are
+no cross-group dependency edges. A shared/conflicting or sequential write
+domain uses one worker; parallel writes additionally require isolated working
+copies. With known native capacity of at least two,
+`planned_workers = min(independent-group count, observed_capacity)`. If capacity
+is unknown, use a conservative one-worker sequential fallback and record
+`capacity_source: "unknown"`; never invent a capacity or project cap. Speed and
+efficiency may be outcomes, and an explicit latency priority may be recorded,
+but neither is a standalone reason or an override of conflicts, dependencies,
+isolation, or capacity.
+
 Worker recovery is progress-aware. A native `RUNNING` worker is preserved by
 default. A wait timeout is an observation only: no final result arrived during
 that wait; timeout alone is never completion, interrupt, close, splitting, or
@@ -635,19 +652,28 @@ bounded direct edit, scoped to one function body, per
 
 ## Parallel work rules
 
-Two tasks may be dispatched to implementers at the same time only if none of
-eight conflict domains overlap: `files`, `data_structures`, `interfaces`,
-`db_entities`, `shared_configs`, `state_stores`, `build_targets`, `user_flows`.
-Any nonempty intersection on any single domain forces sequential execution,
-even if the tasks seem unrelated in intent — a shared file alone is always
-enough to force sequencing. Full rule and worked examples:
+Two or more work groups may be dispatched to implementers at the same time
+only when each group is independently verifiable, their conflict domains are
+pairwise disjoint, and the batch has no cross-group dependency edges. Compare
+`files`, `code_regions`, `interfaces`, `schemas`, generated output, shared
+state, data, build targets, and `user_flows`; a shared file or interface alone
+forces sequencing even if the tasks seem unrelated in intent. A shared,
+conflicting, or sequential write domain uses one worker. Full rule and worked
+examples:
 [`core/CONCURRENCY-RULES.md`](core/CONCURRENCY-RULES.md).
 
-Passing that check makes a split *safe*, not *warranted*. The default is the
-fewest task contracts that satisfy the verifiable-unit rule — one implementer
-working through several steps in sequence is the common case, not the
-exception. Splitting into more than one subagent needs one of these reasons, stated as
-that subagent's `justification` in the agent-composition disclosure (see
+Passing that check makes a split eligible. The default is the fewest task
+contracts that satisfy the verifiable-unit rule — one implementer working
+through several steps in sequence is the common case, not the exception. The
+work contract must disclose `independent_groups`, their `conflict_domains`,
+`dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`, and
+`why_fewer_workers_cannot_absorb`. For a parallel batch, set
+`planned_workers = min(independent-group count, observed native runtime
+capacity)` when capacity is known and at least two. If capacity is unknown or
+below two, use one sequential worker and record `unknown`; do not invent a
+capacity.
+The structural reasons for separate workers, stated in each subagent's
+`justification`, are (see
 [`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)):
 
 1. **A distinct conflict boundary or dependency** that an existing
@@ -660,11 +686,13 @@ that subagent's `justification` in the agent-composition disclosure (see
 4. **An independent reviewer context** that cannot be supplied by the
    implementer without self-review.
 
-"Smaller diffs" or "tidier task IDs" alone is never sufficient. The Codex
-adapter has no ADP batch or cumulative numeric worker cap: the native runtime
-is the only capacity authority. If the runtime reports full capacity, wait, inspect,
-close completed workers, re-scope, or return; user rationale cannot override
-the native refusal and capacity saturation never authorizes takeover. See
+"Smaller diffs", a speed/efficiency claim, or a vague parallelism claim alone
+is never sufficient. There is no numeric worker cap in the Codex adapter: the
+native runtime is the only capacity authority, not an ADP batch or cumulative
+project limit. If the runtime
+reports full capacity, wait, inspect, close completed workers, re-scope, or
+return; user rationale cannot override the native refusal and capacity
+saturation never authorizes takeover. See
 [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md).
 
 When part of a batch fails, each task is resolved on its own evidence:
@@ -733,12 +761,15 @@ explicitly:
   must fit the observed native runtime capacity — passing the conflict-domain
   check makes a batch *safe* to execute, not *sized appropriately*. See
   `core/DELEGATION-PROTOCOL.md` and `core/CONCURRENCY-RULES.md`.
-- **Using generic contract-scale or addition reasons.** Speed, parallelism,
-  efficiency, task size/complexity, many files, context reduction, empty slots,
-  and tidy/smaller task IDs do not justify another contract or worker. Initial
-  decomposition must explain the minimum structure and why fewer contracts
-  cannot absorb it; every mid-task addition needs a new evidence-based
-  disclosure and the same absorption explanation.
+- **Using a speed-only or vague parallelism claim.** Parallel dispatch requires
+  at least two independently verifiable groups, pairwise-disjoint conflict
+  domains, no cross-group dependency edges, isolated write state, and observed
+  native capacity. The work contract must disclose
+  `independent_groups`, `conflict_domains`, `dependency_edges`,
+  `planned_workers`, `capacity_source`, `write_isolation`, and
+  `why_fewer_workers_cannot_absorb`. Speed and efficiency may be outcomes, and
+  an explicit latency priority may be recorded, but neither overrides a
+  conflict, dependency, isolation requirement, or capacity refusal.
 - **An implementer spawning its own subagents.** Only the director delegates.
   An implementer that decides mid-task it needs more help reports that as a
   blocked/out-of-scope finding — it does not act on it. See

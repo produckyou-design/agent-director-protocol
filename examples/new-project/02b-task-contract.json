@@ -4,9 +4,7 @@
     "objective":  "Provide a config loader so the service can read its listen address and log level from a YAML file at startup, with sensible defaults when the file is absent.",
     "current_state":  "internal/config/ package does not exist yet. cmd/server/main.go already calls config.Load(configPath) in anticipation of this package, so the binary will not build until this task lands.",
     "target_behavior":  "internal/config exports Load(path string) (*Config, error), where Config has fields ListenAddr and LogLevel (both string). Load reads YAML from path; a missing file yields default values (ListenAddr=\":8080\", LogLevel=\"info\") with a nil error; a present file\u0027s fields override the defaults for any field it sets; malformed YAML returns a non-nil, descriptive error and a nil *Config.",
-    "must_read_files":  [
-                            "cmd/server/main.go"
-                        ],
+    "must_read_files":  [],
     "editable_files":  [
                            "internal/config/config.go",
                            "internal/config/config_test.go",
@@ -66,7 +64,7 @@
 
                                               ],
                              "build_targets":  [
-
+                                                    "go test ./internal/config/..."
                                                ],
                              "user_flows":  [
                                                 "server startup config loading"
@@ -78,7 +76,7 @@
                        "model_ceiling":  "configured-worker-model-ceiling",
                        "reasoning_effort":  "medium",
                        "execution":  "parallel",
-                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "justification":  "T-402 is one of two independently verifiable work groups; its files, interfaces, data, generated output, shared state, and user flow are disjoint from T-401, the batch has no cross-group dependency edge, and planned_workers is bounded by observed native capacity.",
                        "spawn_authority":  "director"
                    }
 }

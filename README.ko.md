@@ -53,7 +53,7 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | 같은 잘못된 수정을 반복하며 턴을 태움 | 동일 근본 원인에 대한 세 번째 추측성 수정은 금지. 대신 [증거 기반 에스컬레이션](core/ESCALATION-PROTOCOL.md)을 해야 함 |
 | 에스컬레이션 = "그냥 제일 큰 모델 박기" | [구조 에이전트](core/RESCUE-PROTOCOL.md)는 **추론 수준만 올리고 모델은 절대 안 바꿉니다** — 작업 하나, 최대 2회, 진짜 추론/능력 격차일 때만. 모델 변경은 사용자 승인 사항이고, 노력 수준이 바닥나면 구현자가 아니라 *디렉터*를 상향합니다(계획이 유력한 용의자니까) |
 | 모델이 조용히 자기를 승격시키거나, 승인한 적 없는 서브에이전트를 우르르 생성 | 모든 승격과 배치는 실행 *전에* 고지되고 서브에이전트마다 `justification` 필수. 네이티브 런타임 capacity만 사용하며, implementer는 아예 서브에이전트를 못 만듦 |
-| 병렬 에이전트 둘이 같은 파일을 덮어씀 | 배정 전 8개 도메인 [충돌 검사](core/CONCURRENCY-RULES.md). 파일 하나만 공유해도 무조건 순차 실행 |
+| 병렬 에이전트 둘이 같은 파일을 덮어씀 | 배정 전 전체 [충돌 도메인 검사](core/CONCURRENCY-RULES.md). 파일 하나만 공유해도 무조건 순차 실행 |
 | 실패한 시도가 `git checkout .`으로 날아가면서 증거까지 같이 사라짐 | [상태 안전성](core/STATE-SAFETY.md): 실패한 작업은 검토 전까지 보존되고, 체크포인트는 실제 커밋 SHA |
 | 모호한 지시("UI 고쳐줘")를 넘겼더니 엉뚱한 게 돌아옴 | 위임 전에 `current_state`, `target_behavior`, 객관적 `completion_criteria`를 갖춘 [작업 계약](core/TASK-CONTRACT.md)이 필수 |
 
@@ -370,6 +370,21 @@ worker capacity의 유일한 권한은 네이티브 런타임입니다. capacity
 대기, 증거 검사, 완료 worker 종료, 범위 재조정 또는 사용자 반환으로 처리하며,
 프로젝트 숫자 제한을 임의로 만들지 않습니다.
 
+work contract에는 `independent_groups`, 각 그룹의 전체
+`conflict_domains`, `dependency_edges`, `planned_workers`, `capacity_source`,
+`why_fewer_workers_cannot_absorb`와 `write_isolation`도 포함해야 합니다. 병렬 배치는 독립적으로
+검증 가능한 그룹이 두 개 이상이고, files, code regions, generated output,
+shared state, data, interfaces/schemas, build targets, user flows의 모든
+충돌 도메인이 쌍별로 분리되어 있으며, 그룹 간 dependency edge가 없을 때만
+허용됩니다. 공유/충돌 또는 순차 write domain은 worker 하나가 맡습니다.
+write를 병렬로 실행하려면 격리된 worktree도 필요합니다. 2 이상으로 관찰된
+네이티브 capacity가 2 이상일 때는 `planned_workers = min(독립 그룹 수,
+observed_capacity)`로 정합니다. capacity를 알 수 없으면 보수적으로 worker
+하나를 순차 실행하고 `capacity_source: "unknown"`을 기록하며 숫자를
+발명하지 않습니다. 속도와 효율은 결과로 기록할 수 있고 명시적인 latency
+priority도 선택적으로 기록할 수 있지만, 충돌/의존성/격리/capacity를
+무시하는 단독 근거나 override가 될 수 없습니다.
+
 Worker recovery도 progress-aware입니다. 네이티브 `RUNNING` worker는 기본적으로
 보존합니다. wait timeout은 해당 대기 동안 final result가 도착하지 않았다는
 관찰일 뿐이며, timeout만으로 completion, interrupt, close, splitting 또는
@@ -421,8 +436,9 @@ blast-radius 격리와 연결해 설명하고, 기존의 더 적은 contract가 
 흡수할 수 없는 이유를 명시해야 합니다. 중간에 contract나 agent를 추가할
 때는 새로 발견된 증거, 새 conflict/dependency, 필수 독립 review 경계 또는
 분류된 failure에 근거한 새 disclosure와 기존 contract/worker가 흡수할 수
-없는 이유가 먼저 필요합니다. 속도, 병렬화, 효율, 단순한 규모/복잡성,
-파일 수, context 축소, 빈 slot, 깔끔하거나 작은 task ID는 근거가 아닙니다.
+없는 이유가 먼저 필요합니다. 병렬화는 위의 독립 그룹/도메인/의존성/
+capacity 증명에서 나오는 결과이며, 속도나 효율만으로 worker를 추가하거나
+병렬 모드를 선택할 수 없습니다.
 
 새 task/thread에서 `$agent-director`를 호출하거나 “Director mode on”이라고
 말하면 됩니다. 이 플러그인은 현재 세션을 director로 선언하고 네이티브
@@ -609,17 +625,24 @@ reviewer:
 
 ## 병렬 작업 규칙
 
-두 작업을 동시에 구현자에게 배정할 수 있는 것은 여덟 개의 충돌 도메인
-(`files`, `data_structures`, `interfaces`, `db_entities`, `shared_configs`,
-`state_stores`, `build_targets`, `user_flows`) 중 어느 것도 겹치지 않을 때뿐입니다.
-단 하나의 도메인이라도 교집합이 있으면, 설령 두 작업이 의도상 무관해 보여도
-순차 실행으로 강제됩니다 — 파일 하나만 공유해도 항상 순차화를 강제하기에
-충분합니다. 전체 규칙과 실제 예시는
+두 개 이상의 독립적으로 검증 가능한 work group을 동시에 구현자에게
+배정할 수 있는 것은 각 그룹의 충돌 도메인이 쌍별로 분리되고 그룹 간
+dependency edge가 없을 때뿐입니다. files, code regions, interfaces,
+schemas, generated output, shared state, data, build targets, user_flows를
+비교하며, 단 하나의 교집합이라도 있으면 순차 실행으로 강제됩니다 — 파일
+하나나 interface 하나만 공유해도 충분합니다. 공유/충돌 또는 순차 write
+domain은 worker 하나가 맡습니다. 전체 규칙과 실제 예시는
 [`core/CONCURRENCY-RULES.md`](core/CONCURRENCY-RULES.md)를 참고하세요.
 
-이 검사를 통과하는 것은 분리가 *안전하다*는 뜻이지 *필요하다*는 뜻이 아닙니다.
-기본값은 검증 가능한 단위 규칙을 만족하는 최소 개수의 작업 계약이며, 구현자
-하나가 여러 단계를 순차적으로 처리하는 게 예외가 아니라 흔한 경우입니다.
+work contract에는 `independent_groups`, `conflict_domains`,
+`dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`,
+`why_fewer_workers_cannot_absorb`를 명시해야 합니다. 2 이상으로 관찰된 네이티브
+capacity가 있고 병렬 eligibility를 통과한 경우에만
+`planned_workers = min(독립 그룹 수, observed_capacity)`를 사용합니다.
+capacity가 unknown이면 worker 하나로 순차 실행하고 capacity 숫자를 만들지
+않습니다. 기본값은 검증 가능한 단위 규칙을 만족하는 최소 개수의 작업
+계약이며, 구현자 하나가 여러 단계를 순차적으로 처리하는 게 예외가 아니라
+흔한 경우입니다.
 서브에이전트를 하나 이상으로 나누려면 다음 사유 중 하나가 그 서브에이전트의
 `justification`으로 명시돼야 합니다
 ([`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json) 참고):
@@ -633,7 +656,7 @@ reviewer:
 4. **독립 reviewer context**가 필요하고 implementer의 자기 검토로
    대체할 수 없을 때.
 
-"더 작은 diff"나 "더 깔끔한 작업 ID" 같은 이유만으로는 절대 충분하지
+"더 작은 diff", 속도/효율 주장, 모호한 병렬화 주장만으로는 절대 충분하지
 않습니다. Codex 어댑터에는 ADP 배치/누적 숫자 제한이 없고 네이티브 런타임이
 유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기, 증거 검사, 완료
 worker 종료, 범위 재조정 또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를

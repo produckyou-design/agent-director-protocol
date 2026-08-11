@@ -56,13 +56,16 @@ Fill every field before delegating. The shape mirrors
   contract's size and the total contract/worker count are the minimum safe
   structure. Identify conflict boundaries, dependencies, independent
   evidence/review needs, or blast-radius isolation and why fewer existing
-  contracts/workers cannot absorb the work.
-- Reject speed, parallelism, efficiency, task size/complexity, many files,
-  context reduction, empty slots, and tidy/smaller task IDs. A mid-task
-  addition also needs a new disclosure based on newly discovered evidence, a
-  new conflict domain/dependency, a mandatory independent-review boundary, or
-  a classified failure, including why an existing contract/worker cannot
-  absorb it.
+  contracts/workers cannot absorb the work. A parallel batch must name at least
+  two independently verifiable groups, prove pairwise-disjoint domains and
+  empty dependency edges, and show the observed capacity used for
+  `planned_workers`.
+- Speed and efficiency may be recorded as outcomes, and an explicit latency
+  priority may be recorded, but neither is a standalone reason for a worker or
+  parallel mode. A mid-task addition still needs a new disclosure based on
+  newly discovered evidence, a new conflict domain/dependency, a mandatory
+  independent-review boundary, or a classified failure, including why an
+  existing contract/worker cannot absorb it.
 - `delegation.model` and `delegation.reasoning_effort` must match the
   explicit native spawn fields: `gpt-5.6-luna` and `max`. Defaults and
   named profiles are defense in depth, not a substitute for those fields.
@@ -75,4 +78,7 @@ Fill every field before delegating. The shape mirrors
 - `conflict_domains` is not just a file list. Include interfaces, schemas, shared state, generated
   artifacts, and build/config targets whenever the task can affect them.
 - `depends_on` is for real output dependencies. A conflict-only ordering decision should be stated
-  in the disclosure without inventing a dependency.
+  in the disclosure without inventing a dependency. The batch-level work contract additionally
+  discloses `independent_groups`, each group's `conflict_domains`, `dependency_edges`,
+  `planned_workers`, `capacity_source`, `write_isolation`, and
+  `why_fewer_workers_cannot_absorb`.

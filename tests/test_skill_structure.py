@@ -413,10 +413,23 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
             },
             set(spawn_budget) - {"observed_capacity"},
         )
-        self.assertFalse(spawn_budget["capacity_known"])
+        self.assertTrue(spawn_budget["capacity_known"])
         self.assertEqual(spawn_budget["capacity_source"], "observed_native_runtime")
         self.assertIn("observed_capacity", spawn_budget)
-        self.assertIsNone(spawn_budget["observed_capacity"])
+        self.assertEqual(spawn_budget["observed_capacity"], 2)
+
+        work_contract = disclosure["work_contract"]
+        for field in (
+            "independent_groups",
+            "dependency_edges",
+            "planned_workers",
+            "capacity_source",
+            "why_fewer_workers_cannot_absorb",
+        ):
+            self.assertIn(field, work_contract)
+        self.assertEqual(len(work_contract["independent_groups"]), 2)
+        self.assertEqual(work_contract["dependency_edges"], [])
+        self.assertEqual(work_contract["planned_workers"], 2)
 
         example = (REPO_ROOT / "claude" / "CLAUDE.md.example").read_text(encoding="utf-8")
         self.assertRegex(example, re.compile(r"Every state-changing or code task.*small.*task contract.*implementer", re.I | re.S))

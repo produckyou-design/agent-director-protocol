@@ -2,8 +2,9 @@
 
 ## Outcome
 
-Both tasks approved on their first loop, delegated and reviewed in
-parallel.
+Both tasks approved on their first loop, delegated and reviewed as two
+independently verifiable groups under the deterministic parallel-dispatch
+rule.
 
 ## What was delivered
 
@@ -31,10 +32,18 @@ parallel.
 
 ## Why this was safe to parallelize
 
-The conflict-domain table in `01-director-analysis.md` showed zero overlap
-across all eight domains: disjoint files, disjoint interfaces, no shared
-data structures, and neither task edited the shared integration point
-(`cmd/server/main.go`) — both only read it, to confirm the function
-signatures main.go already expected. Each task's completion criteria and
-tests were self-contained within its own package, so neither review had to
-wait on or reference the other implementation report.
+The batch disclosed two independently verifiable groups: T-401 (the health
+package and its HTTP flow) and T-402 (the config package and startup config
+flow). Their conflict domains were pairwise disjoint across files, code
+regions, interfaces, data structures, generated output/build targets, shared
+  state, and user flows. `dependency_edges` was empty; the contracts did not
+  share a required context file, and `cmd/server/main.go` remained a forbidden
+  post-batch integration file rather than a shared read set. The observed
+native capacity was 2, so `planned_workers = min(2, 2) = 2`. Each group's
+package tests supplied independent verification; the final `go build ./...`
+was a post-batch integration check, not a dependency edge between the two
+implementation groups.
+
+If native capacity had been unknown, the safe fallback would have been one
+sequential worker with `capacity_source: "unknown"`; speed or efficiency
+alone would not have justified parallel dispatch.

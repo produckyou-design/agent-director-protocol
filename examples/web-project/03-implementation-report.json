@@ -86,7 +86,7 @@
     "deviations":  [
 
                    ],
-    "notes":  "ExportButton was built and tested as a standalone component for speed; it is ready to be dropped into OrdersPage\u0027s toolbar.",
+    "notes":  "ExportButton was built and tested as a standalone independently verifiable component; it is ready to be dropped into OrdersPage\u0027s toolbar.",
     "assigned_model":  "configured-worker-model",
     "model_ceiling":  "configured-worker-model-ceiling",
     "assigned_effort":  "medium",

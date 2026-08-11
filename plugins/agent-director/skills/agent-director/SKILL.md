@@ -142,22 +142,30 @@ repository cannot hard-intercept the platform-owned
 1. Restate the mission, acceptance criteria, constraints, and dependencies.
 2. Inspect the repository and identify the actual files, symbols, interfaces,
    schemas, data, and tests involved.
-3. Write the smallest sufficient Task Contract set and justify why its contract
-   size and total contract/worker count are the minimum safe structure. Cite
-   conflict boundaries, dependencies, independent evidence/review, or
-   blast-radius isolation and why fewer existing contracts cannot absorb it.
+3. Describe the independently verifiable work groups, then write the smallest
+   sufficient Task Contract set and justify why its contract size and total
+   contract/worker count are the minimum safe structure. Cite conflict
+   boundaries, dependencies, independent evidence/review, or blast-radius
+   isolation and why fewer existing contracts cannot absorb it.
 4. Declare conflict domains, including files, code regions, generated output,
    shared state, schemas, database records, and user flows.
 5. Choose the narrowest suitable role: investigator, implementer, reviewer, or
    rescue.
-6. Reject speed, parallelism, efficiency, task size/complexity, many files,
-   context reduction, empty slots, and tidy/smaller task IDs as scale reasons.
+6. Apply the deterministic parallel-dispatch rule: parallel requires at least
+   two independently verifiable groups, pairwise-disjoint conflict domains,
+   no cross-group dependency edges, isolated write state, and observed native
+   capacity. Otherwise use one worker for the shared/conflicting or sequential
+   write domain.
 7. Publish the full composition disclosure: Director model/effort/source,
    every worker's role, task, explicit model, explicit max effort, model
    ceiling, justification, conflict domains, execution mode, rescue policy,
-   and observed runtime-capacity result.
-8. Check the observed native runtime capacity before each spawn; never invent a
-   project batch or cumulative limit.
+   independent_groups, dependency_edges, planned_workers, capacity_source,
+   write_isolation,
+   why_fewer_workers_cannot_absorb, and observed runtime-capacity result.
+8. Set `planned_workers = min(independent-group count, observed native runtime
+    capacity)` when the proof passes and capacity is at least two. If capacity is
+    unknown or below two, use the conservative one-worker sequential fallback and record
+   `capacity_source: "unknown"`; never invent a capacity or project cap.
 9. Spawn native Codex subagent threads by default. Use `codex exec` only
    for CI, non-interactive process isolation, or unavailable native subagents,
    with the same explicit model/effort and verification gates.
@@ -176,14 +184,24 @@ contract/worker cannot absorb it.
 
 ## Conflict, concurrency, and runtime capacity
 
-- Run independent read-only work in parallel only when evidence sources are
-  independent.
-- Run overlapping writes sequentially. Shared working-tree writes are
-  conflicts even when the agents believe their files are different.
-- Respect only the actual native runtime capacity exposed by
-  `agents.max_concurrent_threads_per_session` or returned runtime metadata.
-  The adapter does not define a concurrent or cumulative numeric cap. If
-  capacity is unknown, record it as unknown and do not invent a limit.
+The visible `work_contract` must disclose `independent_groups`, each group's
+complete `conflict_domains`, `dependency_edges`, `planned_workers`,
+`capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`. Parallel dispatch is
+valid only when there are two or more independently verifiable groups, every
+pair is disjoint across files, code regions, generated output, shared state,
+data, interfaces/schemas, build targets, and user flows, and the dependency
+edge list is empty. A shared/conflicting or sequential write domain uses one
+worker and runs sequentially.
+
+Native capacity comes from the active runtime through
+`agents.max_concurrent_threads_per_session` or returned metadata. For `N`
+   eligible groups and known capacity of at least two, set
+`planned_workers = min(N, observed_capacity)`. If capacity is unknown, record
+`capacity_source: "unknown"`, use a conservative one-worker sequential
+fallback, and never invent a numeric capacity. A full/zero-capacity result
+requires wait, inspection, re-scope, or return and never authorizes a zero-
+worker write or Director takeover.
+
 - Workers may not spawn subagents. The Director owns the topology.
 
 Before the first spawn or state-changing work, visibly disclose objective/scope,
@@ -191,11 +209,11 @@ the planned total contracts/workers, the minimum-safe rationale based on
 conflict boundaries, dependencies, independent evidence/review, or blast-radius
 isolation and why fewer existing contracts/workers cannot absorb it, model/
 effort, exact tests, stop conditions, and the complete disclosed batch plan.
-Any positive total permitted by the observed native runtime is valid; speed,
-parallelism, efficiency, task size/complexity, file count, context reduction,
-empty slots, and tidy IDs are not scale reasons. When native capacity is full,
-wait, inspect evidence, close completed workers, re-scope, or return. A native
-slot-full response never authorizes Director takeover or delegated fallback.
+The worker total must follow the deterministic group/domain/dependency proof and
+observed-capacity formula; a vague parallelism or speed claim is not enough.
+When native capacity is full, wait, inspect evidence, close completed workers,
+re-scope, or return. A native slot-full response never authorizes Director
+takeover or delegated fallback.
 
 ## Rescue and Core escalation
 

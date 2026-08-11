@@ -24,7 +24,8 @@ the only valid unit of delegation.
 - **`manual_verification`** — Manual checks when automation is insufficient; may be empty.
 - **`report_format`** — Normally `implementation-report.schema.json`.
 - **`delegation`** — The role, model, model ceiling, reasoning effort, execution mode, concrete
-  justification, and `spawn_authority: director`.
+  justification, and `spawn_authority: director`. `execution: parallel` is valid only after the
+  batch-level independent-group, disjoint-domain, empty-dependency, isolation, and capacity checks.
 - **`conflict_domains`** — The complete resource set for conflict checking. Include files, code
   regions, data structures, interfaces, schemas, database entities/migrations, shared configs, state
   stores, generated artifacts, build targets, and user flows when applicable. Empty arrays are valid
@@ -37,12 +38,38 @@ the only valid unit of delegation.
 policy. `delegation.model_ceiling` records the active adapter policy ceiling.
 `delegation.reasoning_effort` records the selected supported effort, not a promise
 that every platform exposes the same labels. `delegation.execution` is `parallel` or `sequential`
-after the conflict check. `delegation.justification` must explain why this work cannot be folded into
-an existing contract or worker; “large task”, “many files”, and “efficiency” are not enough.
+after the deterministic batch check. `delegation.justification` must identify the independently
+verifiable result, conflict boundary, dependency state, isolation/review need, and why an existing
+worker cannot absorb it. Speed, parallelism, or efficiency claims alone do not qualify; an explicit
+latency priority may be recorded only as an optional priority after the eligibility proof.
 
 ## Optional fields
 
 - **`depends_on`** — Task IDs that must be reviewed and approved before this task starts.
+
+## Batch work-contract disclosure
+
+The visible batch work contract (the `work_contract` object in
+[`agent-composition-disclosure.schema.json`](../schemas/agent-composition-disclosure.schema.json))
+must add these dispatch fields for new task/state-changing disclosures:
+
+- **`independent_groups`** — At least two groups for a parallel batch; each group needs its own
+  independently verifiable completion/evidence path and complete `conflict_domains`.
+- **`dependency_edges`** — The explicit cross-group edges, including `depends_on`, read/write
+  consistency, generated-output, and integration dependencies. It must be empty for parallel work.
+- **`planned_workers`** — `min(independent-group count, observed native runtime capacity)` when the
+  parallel proof passes and capacity is known; `1` for a sequential/shared write domain or the
+  conservative unknown-capacity fallback.
+- **`capacity_source`** — The observed native runtime source, or `unknown`; a project cap must never
+  be invented.
+- **`write_isolation`** — `isolated` for parallel writes, `read_only` for parallel read-only work,
+  or `sequential` when shared state must remain under one worker.
+- **`why_fewer_workers_cannot_absorb`** — Why one worker cannot safely absorb the independently
+  verifiable groups, or why one worker is the minimum safe owner of a sequential/shared domain.
+
+These fields are optional in the JSON Schema for backward compatibility with previously recorded
+disclosures, but the current protocol requires them in every new non-read-only work-contract
+disclosure. They do not override native capacity or authorize automatic Director takeover.
 
 ## Example
 

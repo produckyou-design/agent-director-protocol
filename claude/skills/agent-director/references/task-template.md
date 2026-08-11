@@ -53,11 +53,16 @@ Fill every field before delegating. The shape mirrors
 - `objective` and `target_behavior` must explain the why and the precise after-state.
 - `editable_files` and `forbidden_files` are disjoint and must contain every expected write boundary.
 - `delegation.justification` must identify a concrete independent result, conflict boundary,
-  investigation need, blast-radius boundary, or independent reviewer context. “For efficiency” or
-  “many files” is not sufficient.
+  investigation need, blast-radius boundary, or independent reviewer context. A parallel batch must
+  name at least two independently verifiable groups, disjoint domains, empty dependency edges, and
+  the observed capacity used for `planned_workers`. Speed and efficiency may be outcomes or an
+  explicit latency priority, but neither is a standalone justification.
 - `delegation.model_ceiling` is the active adapter policy ceiling; a
   different model requires explicit user policy and disclosure.
 - `conflict_domains` is not just a file list. Include interfaces, schemas, shared state, generated
   artifacts, and build/config targets whenever the task can affect them.
 - `depends_on` is for real output dependencies. A conflict-only ordering decision should be stated
-  in the disclosure without inventing a dependency.
+  in the disclosure without inventing a dependency. The batch-level work contract additionally
+  discloses `independent_groups`, each group's `conflict_domains`, `dependency_edges`,
+  `planned_workers`, `capacity_source`, `write_isolation`, and
+  `why_fewer_workers_cannot_absorb`.

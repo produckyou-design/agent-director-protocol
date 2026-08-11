@@ -28,3 +28,16 @@ takeover template.
   telemetry is unavailable, keep it `unknown`; do not invent a numeric project
   cap. A slot-full response requires waiting, inspecting evidence, closing
   completed workers, then re-scoping or returning to the user.
+- A batch may run in parallel only when it contains at least two independently
+  verifiable work groups, their conflict domains are disjoint across files,
+  code regions, interfaces, schemas, generated output, build targets, shared
+  state, data, and user flows, and there are no cross-group dependency edges.
+  Parallel writes require isolated working copies. A shared/conflicting or
+  sequential write domain uses one worker.
+  Disclose `independent_groups`, `conflict_domains`, `dependency_edges`,
+  `planned_workers`, `capacity_source`, `write_isolation`, and
+  `why_fewer_workers_cannot_absorb` in the work contract. With known capacity
+  of at least two, `planned_workers = min(group count, observed_capacity)`; with
+  unknown capacity, use one sequential worker and do not invent a cap. Speed
+  and efficiency are outcomes, and an explicit latency priority is optional;
+  neither is a standalone justification or an override.

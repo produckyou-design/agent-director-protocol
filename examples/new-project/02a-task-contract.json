@@ -4,9 +4,7 @@
     "objective":  "Provide a health-check endpoint so load balancers and operators can verify the service process is up and responding.",
     "current_state":  "internal/health/ package does not exist yet. cmd/server/main.go already calls health.RegisterRoutes(mux) in anticipation of this package, so the binary will not build until this task lands.",
     "target_behavior":  "internal/health exports RegisterRoutes(mux *http.ServeMux), which registers a GET /health route. A GET request responds 200 with JSON body {\"status\":\"ok\"} and Content-Type: application/json. Any other HTTP method on /health responds 405.",
-    "must_read_files":  [
-                            "cmd/server/main.go"
-                        ],
+    "must_read_files":  [],
     "editable_files":  [
                            "internal/health/handler.go",
                            "internal/health/handler_test.go"
@@ -60,7 +58,7 @@
 
                                               ],
                              "build_targets":  [
-
+                                                    "go test ./internal/health/..."
                                                ],
                              "user_flows":  [
                                                 "GET /health request flow"
@@ -72,7 +70,7 @@
                        "model_ceiling":  "configured-worker-model-ceiling",
                        "reasoning_effort":  "medium",
                        "execution":  "parallel",
-                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "justification":  "T-401 is one of two independently verifiable work groups; its files, interfaces, data, generated output, shared state, and user flow are disjoint from T-402, the batch has no cross-group dependency edge, and planned_workers is bounded by observed native capacity.",
                        "spawn_authority":  "director"
                    }
 }

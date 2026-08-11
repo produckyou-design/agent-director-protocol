@@ -96,7 +96,7 @@ propagates outward in this order:
    field-for-field.
 5. **Update `README.md` and `README.ko.md`** if the change affects anything
    quoted or summarized there (e.g. the ten review-check keys, the ten
-   failure reasons, the eight conflict domains).
+   failure reasons, or the complete conflict-domain set).
 
 A schema change that lands without matching example, template, and doc
 updates will fail `scripts/check_repository.py` and should not be merged.

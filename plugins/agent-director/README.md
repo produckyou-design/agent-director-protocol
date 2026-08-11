@@ -92,9 +92,23 @@ independent evidence/review, or blast-radius isolation and explaining why fewer
 existing contracts cannot absorb the work. Mid-task additions require a new
 disclosure grounded in newly discovered evidence, a new conflict/dependency,
 a mandatory independent-review boundary, or a classified failure, plus why an
-existing worker cannot absorb it. Speed, parallelism, efficiency, task
-size/complexity, file count, context reduction, empty slots, and tidy/smaller
-IDs are rejected.
+existing worker cannot absorb it. Speed and efficiency may be recorded as
+outcomes, and an explicit latency priority may be recorded, but neither is a
+standalone reason to add a worker or mark a batch parallel.
+
+Parallel dispatch is deterministic: the visible `work_contract` must disclose
+`independent_groups`, each group's `conflict_domains`, `dependency_edges`,
+`planned_workers`, `capacity_source`, `write_isolation`, and
+`why_fewer_workers_cannot_absorb`. Parallel is allowed only for two or more
+independently verifiable groups with pairwise-disjoint domains across files,
+code regions, interfaces, schemas, generated output, build targets, shared
+state, data, and user flows, with no
+cross-group dependency edges and with isolated write state. A
+shared/conflicting or sequential write domain uses one worker. With known
+native capacity of at least two, `planned_workers = min(group count,
+observed_capacity)`; with unknown capacity, use one sequential worker and
+record `unknown` without inventing a cap. Capacity saturation never authorizes
+Director takeover.
 
 For persistent project defaults, follow
 [codex/INSTALL.md](../../codex/INSTALL.md) and install the project's
