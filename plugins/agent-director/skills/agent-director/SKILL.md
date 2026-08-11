@@ -41,6 +41,26 @@ fallback.
   disclosure naming the exception. There is no silent inheritance or
   escalation.
 
+## Director boundary (mandatory)
+
+The Director coordinates the task, publishes contracts, delegates execution,
+reviews evidence, and makes the completion judgment. The Director does not
+directly edit product code or execute state-changing commands as the ordinary
+implementation path.
+
+- Any implementation or other state-changing task must have
+  `planned_workers > 0`; `planned_workers: 0` is valid only when the contract
+  explicitly sets `work_contract.read_only: true` and the task performs no
+  writes, installs, commits, builds, deployments, or other state changes.
+- Shared CSS/HTML/JS, overlapping modules, or another shared conflict domain
+  requires a sequential implementer. A conflict is a reason to serialize the
+  worker, never a reason to silently make the Director implement directly.
+- The Director may take over implementation only after the recorded
+  failure-classification, escalation, rescue, and takeover gates are satisfied,
+  with the takeover disclosure and independent review required by the Core
+  protocol. The Director being Luna/max does not remove this role boundary or
+  make a worker unnecessary.
+
 ## Fail-closed worker verification
 
 - When returned/runtime metadata exposes model and effort, verify both before

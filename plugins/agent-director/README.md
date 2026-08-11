@@ -34,6 +34,14 @@ what the new worker will do, a classified reason, and why an existing worker
 cannot absorb it. The repository can validate this contract but cannot
 intercept the platform-owned `multi_agent_v1__spawn_agent` call.
 
+The Director is the coordinator and reviewer, not the ordinary implementer.
+Implementation and other state changes require a positive worker total. When
+files overlap, use one sequential implementer; do not convert the conflict to
+zero workers and direct Director edits. Luna/max on the Director session does
+not remove this boundary. Direct takeover is allowed only after the recorded
+failure, escalation, rescue, and takeover gates, followed by independent
+review.
+
 Returned/runtime metadata must be checked when exposed. A mismatched worker is
 rejected and closed and its output is discarded. If the surface cannot accept
 or verify the pair, stop and report a policy violation/fallback requirement.

@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   changes. Addition notices must explain the changed scope, assigned work,
   classified reason, and why an existing worker cannot absorb it.
 
+## [0.8.1] - 2026-08-11
+
+The Codex adapter now enforces the Director/implementer boundary for state-changing work.
+
+### Fixed
+
+- The Director cannot directly implement ordinary product-code or state-changing tasks.
+- Shared-file conflicts now require a sequential implementer instead of silently using zero workers.
+
 ## [0.8.0] - 2026-08-09
 
 The Codex adapter now treats explicit Director-mode activation as a fixed,

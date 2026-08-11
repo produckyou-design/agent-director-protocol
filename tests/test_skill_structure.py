@@ -287,6 +287,21 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         codex_skill = (REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("multi_agent_v1__spawn_agent", codex_skill)
 
+    def test_plugin_skill_blocks_unapproved_director_implementation(self):
+        skill = (
+            REPO_ROOT
+            / "plugins"
+            / "agent-director"
+            / "skills"
+            / "agent-director"
+            / "SKILL.md"
+        ).read_text(encoding="utf-8")
+        self.assertRegex(skill, re.compile(r"Director .*does not\s+directly edit product code", re.I | re.S))
+        self.assertIn("planned_workers > 0", skill)
+        self.assertIn("work_contract.read_only: true", skill)
+        self.assertRegex(skill, re.compile(r"shared .*conflict domain", re.I | re.S))
+        self.assertRegex(skill, re.compile(r"Luna/max .*does not remove", re.I | re.S))
+
 
 if __name__ == "__main__":
     unittest.main()
