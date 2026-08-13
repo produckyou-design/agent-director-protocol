@@ -49,6 +49,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outcome/optional latency priority only and never overrides conflicts,
   dependencies, capacity, or the no-automatic-takeover rule.
 
+## [0.8.8] - 2026-08-14
+
+Native worker lifecycle cleanup now distinguishes successful terminal results
+from non-final stalled recovery.
+
+### Fixed
+
+- Terminal native results (`completed`, `errored`, `interrupted`, and
+  `shutdown`) now require the Director to capture/persist available
+  report/evidence before entering an atomic cleanup-claim state machine; at
+  most one cleanup call may be accepted per worker lifecycle cycle.
+- A `task_complete`/final evidence signal with an open native edge is treated
+  as completed terminal work awaiting cleanup, not as `RUNNING`; timeout,
+  progressing, `completed_work_unreported`, and `unknown` protections remain
+  unchanged.
+- Root finalization now reconciles every spawned worker before the Director
+  emits its final response or ends the task, preserving/reporting non-final
+  workers and preventing unreconciled owned children from being left open.
+- Authoritative native terminal status now takes precedence over inferred
+  non-final classifications, and a per-worker lifecycle-cycle reconciliation
+  record prevents duplicate cleanup while allowing a resumed worker to start a
+  new cleanup cycle.
+- Shared Core and Claude guidance now use platform-neutral terminal-cleanup
+  terminology; Codex-only API names remain confined to Codex adapter and plugin
+  guidance.
+- Cleanup records distinguish `unclaimed`, `in_flight`, `succeeded`, `failed`,
+  and `unknown`; both initial and bounded-retry invocations require an atomic
+  claim, while root finalization explicitly claims `unclaimed`. Failed or
+  ambiguous invocations are reconciled against authoritative native state
+  before one atomically claimed bounded retry, preventing duplicate cleanup and
+  claim-before-call slot leaks.
+
 ## [0.8.7] - 2026-08-13
 
 Worker-boundary and contract-gate rules are now explicit for every spawned

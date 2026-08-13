@@ -195,8 +195,14 @@ of at least two, set `planned_workers = min(N, observed_capacity)`. If capacity 
 unknown, use the conservative one-worker sequential fallback and record
 `capacity_source: "unknown"`; never invent a cap. Overlapping write or
 read/write conflict domains still run sequentially with one worker. A native
-slot-full response requires wait/close, re-scope, or return and never
-authorizes Director takeover.
+slot-full response requires waiting and inspecting evidence; capture terminal
+reports, close only authoritative terminal workers with `close_agent`, preserve
+non-final `RUNNING`, progressing, `completed_work_unreported`, and `unknown`
+workers, then re-scope or return. Record cleanup per worker lifecycle cycle,
+atomically claim both initial and retry invocations, explicitly claim
+`unclaimed` during root finalization, and resolve failed/unknown close outcomes
+from native state before any bounded retry claim. Slot-full never authorizes
+Director takeover.
 
 ## How to use it
 

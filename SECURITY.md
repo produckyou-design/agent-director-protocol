@@ -4,8 +4,8 @@
 
 | Version | Supported |
 |---|---|
-| 0.7.x | yes |
-| < 0.7 | no |
+| 0.8.x | yes |
+| < 0.8 | no |
 
 This project is pre-1.0; security fixes land on the latest `0.x` release.
 There is no long-term support branch at this stage.

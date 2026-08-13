@@ -166,7 +166,9 @@ director today:
 - Native runtime capacity — the active runtime is the only worker-capacity
   authority. If capacity telemetry is unavailable, keep it `unknown`; do not
   invent a numeric project cap. A slot-full response requires waiting,
-  inspecting evidence, closing completed workers, then re-scoping or returning.
+  inspecting evidence, capturing terminal reports/evidence, reconciling terminal
+  workers through atomic cleanup claims, preserving non-final
+  workers, then re-scoping or returning.
 - Parallel dispatch is deterministic: it requires at least two independently
   verifiable work groups, pairwise-disjoint conflict domains, no cross-group
   dependency edges, isolated write state, and observed native capacity. With

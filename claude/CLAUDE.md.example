@@ -50,8 +50,10 @@ is a pre-spawn failure: do not create the worker.
   `INSTALL.md` → "The default profile."
 - Native runtime capacity is the only worker-capacity authority. If capacity
   telemetry is unavailable, keep it `unknown`; do not invent a numeric project
-  cap. A slot-full response requires waiting, inspecting evidence, closing
-  completed workers, then re-scoping or returning to the user.
+  cap. A slot-full response requires waiting, inspecting evidence, capturing
+  terminal reports/evidence, reconciling terminal workers through atomic cleanup
+  claims, preserving non-final workers, then re-scoping or
+  returning to the user.
 - A batch may run in parallel only when it contains at least two independently
   verifiable work groups, their conflict domains are disjoint across files,
   code regions, interfaces, schemas, generated output, build targets, shared
