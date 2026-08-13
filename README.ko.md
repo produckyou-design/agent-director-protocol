@@ -99,6 +99,33 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | implementer | 예, 계약 범위 내에서 | 예 | 아니오 (상태만 자가 보고) |
 | reviewer | 아니오 | 아니오 | 아니오 (director에게 조언) |
 
+## 하나의 Director와 worker-mode 경계
+
+하나의 task tree에는 Director가 정확히 하나뿐이며, 그 역할은
+`root/current parent session`입니다. 모든 spawned subagent는 배정된 역할에
+따라 worker 또는 reviewer입니다. 부모 Director의 Task Contract가 권위 있는
+계약(parent Director's Task Contract is authoritative)입니다. worker는 배정된
+임무만 실행하고 부모에게 evidence 또는 status를 보고해야 하며,
+`director_mode: on`을 announce하거나 root-level `task_start` 또는 composition
+disclosure를 게시하거나, 부모 contract를 다시 쓰거나 재분해하거나, worker를
+spawn하거나 관리하거나, 작업을 integrate하거나 merge하거나,
+`overall task complete`를 선언해서는 안 됩니다.
+
+부모 역할이나 contract를 사용할 수 없거나 서로 모순되면 worker는 스스로
+Director가 되지 말고 부모에게 `role ambiguity`(역할 모호성)를 보고한 뒤
+멈춰야 합니다. 이것은 instruction/contract 경계이며 런타임 강제 기능이라는
+주장이 아닙니다. 노출되는 경우 native runtime role metadata가 우선합니다.
+부모 contract에 명시적으로 포함된 경우에 한해 worker가 배포나 다른
+state-changing operation을 수행할 수 있습니다.
+
+생성 전에 root/current parent Director는 각 subagent에 유효한
+비-Director 역할을 반드시 부여해야 합니다. spawned subagent는 어떤
+경우에도 Director가 아니며 `director`는 유효한 역할이 아닙니다. 각 worker
+Task Contract에는 scope와 non-goals, 그리고 정확한 worker 전용 필드인
+`goal`, `success_criteria`, `failure_criteria`, `termination_criteria`,
+`required_evidence`가 반드시 있어야 합니다. 역할이 없거나 모호하거나
+필드가 하나라도 빠지면 pre-spawn failure이므로 생성하지 않습니다.
+
 **구조 에이전트(Rescue Agent)**는 네 번째 역할이 아닙니다 — 이미 실패한 하나의
 작업을 **더 높은 추론 수준으로(모델은 절대 바꾸지 않고)** 다시 돌리는 implementer
 역할이며, 더 좁은 범위와 엄격한 시도 횟수 제한 아래 놓입니다. 다른 implementer
@@ -349,7 +376,7 @@ codex plugin add agent-director@agent-director-protocol-plugins
 ```
 
 Codex 명시적 디스패치 정책: $agent-director를 호출하거나 "Director mode on"이라고
-말하면 현재 사용자 선택 세션은 Director로 유지됩니다. ADP가 만드는 모든
+말하면 `root/current parent session`이 Director로 유지됩니다. ADP가 만드는 모든
 네이티브 worker spawn에는 model="gpt-5.6-luna"와
 reasoning_effort="max"를 반드시 명시해야 하며, worker가 Director를
 상속하거나 작업 종류에 따라 effort를 선택해서는 안 됩니다. 기본 설정과
@@ -441,7 +468,7 @@ capacity 증명에서 나오는 결과이며, 속도나 효율만으로 worker�
 병렬 모드를 선택할 수 없습니다.
 
 새 task/thread에서 `$agent-director`를 호출하거나 “Director mode on”이라고
-말하면 됩니다. 이 플러그인은 현재 세션을 director로 선언하고 네이티브
+말하면 됩니다. 이 플러그인은 `root/current parent session`을 director로 선언하고 네이티브
 서브에이전트를 사용하게 하는 지침 스위치입니다. 현재 세션의 선택 모델을
 바꾸거나 프로젝트 파일을 설치하거나, 이미 실행 중인 task를 소급해 다시
 로드하지는 않습니다. 정확한 경계는

@@ -28,6 +28,41 @@ on any section below.
   `reviewer.inherit` to something else. Full rule:
   [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md).
 
+## Worker-mode boundary (mandatory)
+
+A task tree has exactly one Director: the root/current parent session. Every
+spawned subagent is a worker or reviewer according to its assigned role. The
+spawned subagent is never a Director under any circumstance; only the
+root/current parent session is Director. The role name must be assigned before
+creation, and `director` is not a valid worker role.
+parent Director's Task Contract is authoritative. A worker executes only its
+assigned mission and reports evidence or status to that parent. It MUST NOT
+announce `director_mode: on`, publish a root-level `task_start` or composition
+disclosure, rewrite or re-decompose the parent contract, spawn or manage
+workers, integrate or merge work, or declare the overall task complete.
+
+A reviewer has the same root-level boundary and returns review evidence or
+advice; it does not make the overall completion judgment. If the parent role or
+contract is unavailable or contradictory, the worker stops and reports role
+ambiguity to the parent; it never self-promotes to Director. This is an
+instruction/contract boundary, not a runtime enforcement claim; native runtime
+role metadata remains authoritative where exposed. A worker may perform a
+deployment or another external/state-changing operation only when the parent
+contract explicitly includes that operation; worker status alone does not
+prohibit a contracted operation.
+
+## Pre-spawn worker-contract gate (mandatory)
+
+Before every worker spawn, the root/current parent Director must assign the
+worker's non-Director role and provide a complete per-worker Task Contract.
+The contract must explicitly include scope and non-goals plus the exact
+worker-specific fields `goal`, `success_criteria`, `failure_criteria`,
+`termination_criteria`, and `required_evidence`. The overall `objective`,
+`completion_criteria`, or generic `error_handling` fields are not substitutes.
+Missing, ambiguous, or `director` role assignment, or any missing field, is a
+pre-spawn failure: do not create the worker. Repair the contract or stop and
+report the failure first.
+
 ## Delegating a task
 
 1. Write a complete task contract before spawning any implementer. Fill in

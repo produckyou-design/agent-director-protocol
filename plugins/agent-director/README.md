@@ -19,6 +19,32 @@ Director and requires every ADP-created native worker spawn to include
 `reasoning_effort="max"`. The user-selected model continues to own
 the Director session; it is never inherited by a worker.
 
+That Director announcement is root-only. A task tree has exactly one Director:
+the root/current parent session. Every spawned subagent is a worker or reviewer
+according to its assigned role, and the parent Director's Task Contract is
+authoritative. A worker must execute only its assigned mission and report
+evidence or status; a spawned subagent is never a Director under any
+circumstance. Only the root/current parent session is Director, and the parent
+must assign a valid non-Director role before creation; `director` is invalid.
+It must not announce `director_mode: on`, publish a
+root-level `task_start` or composition disclosure, rewrite or re-decompose the
+parent contract, spawn or manage workers, integrate or merge work, or declare
+the overall task complete. If the parent role or contract is unavailable or
+contradictory, stop and report role ambiguity to the parent rather than
+self-promoting to Director. This is an instruction/contract boundary; native
+runtime role metadata remains authoritative where exposed. A worker may perform
+a deployment or another state-changing operation when the parent contract
+explicitly includes it.
+
+Before every worker spawn, the root/current parent Director must assign the
+non-Director role before creation and provide a complete per-worker Task
+Contract containing scope and non-goals plus the exact fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence` (evidence/deliverables). Overall `objective`,
+`completion_criteria`, and generic `error_handling` do not substitute for
+worker-specific fields. Missing, ambiguous, or `director` role assignment, or
+any required field, is a pre-spawn failure; the worker must not be created.
+
 The plugin is a behavior/instruction switch, not a hidden model or runtime
 toggle. It does not retroactively reload an existing task, install project
 files, or change a running session's model. Defaults and named profiles are

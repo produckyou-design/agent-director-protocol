@@ -23,13 +23,33 @@ The custom-agent files must contain `name`, `description`, and
 are role settings. The adapter does not invent depth, runtime, or model-list
 configuration keys.
 
-The user-selected current Codex session is the director. The protocol does not
-choose the director model. ADP is active by default for repository and code
+The root/current parent Codex session is the Director. The protocol does not
+choose the Director model. ADP is active by default for repository and code
 tasks; explicit `$agent-director` or "Director mode on" is optional. Every
 ADP-created native worker is dispatched with explicit
 `model="gpt-5.6-luna"` and `reasoning_effort="max"`; the Director's
 model is never inherited and effort is not selected by task kind. Configuration
 defaults and role files are defense in depth, not the enforcement claim.
+
+A task tree has exactly one Director. Every spawned subagent is a worker or
+reviewer according to its assigned role, and the parent Director's Task
+Contract is authoritative. A worker must not announce `director_mode: on`,
+publish a root-level `task_start` or composition disclosure, rewrite or
+re-decompose the parent contract, spawn or manage workers, integrate or merge,
+or declare the overall task complete. If the parent role or contract is
+unavailable or contradictory, stop and report role ambiguity to the parent;
+never self-promote. This is an instruction/contract boundary; native runtime
+role metadata remains authoritative where exposed. A worker may perform a
+deployment or another state-changing operation only when the parent contract
+explicitly includes it.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role; a spawned subagent is never a Director under any
+circumstance, and `director` is invalid. Every worker Task Contract must also
+state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`. Missing or ambiguous role assignment or any missing field
+is a pre-spawn failure: do not create the worker.
 
 Before every task, every state-changing operation, and every native-spawn
 attempt, publish a visible disclosure with `phase` and `user_visible: true`.

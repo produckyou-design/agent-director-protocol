@@ -39,6 +39,22 @@
                                 "`expense total` prints the correct decimal sum of all recorded amounts, formatted to two decimal places.",
                                 "`pytest tests/ -v` passes with zero failures."
                             ],
+    "goal":  "Build the bounded expense-tracker CLI and persistence behavior in the listed files, then return reproducible test evidence.",
+    "success_criteria":  [
+                                "Add, list, total, invalid, negative, missing-file, and corrupted-line cases satisfy the completion criteria.",
+                                "The named pytest command passes and its output is reported verbatim."
+                            ],
+    "failure_criteria":  [
+                                "The worker needs to change files outside the declared scope or the CLI/storage tests remain failing after scoped fixes."
+                            ],
+    "termination_criteria":  [
+                                "Stop after the CLI and storage tests pass with required evidence captured.",
+                                "Stop and report if packaging or persistence requirements conflict with the parent contract."
+                            ],
+    "required_evidence":  [
+                                "Changed-file list, exact pytest command, and verbatim test output.",
+                                "Manual command evidence for a successful add/list flow and rejected negative amount."
+                            ],
     "test_commands":  [
                           "pytest tests/ -v"
                       ],

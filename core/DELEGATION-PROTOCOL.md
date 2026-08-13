@@ -21,8 +21,8 @@ but it still starts with the notice:
    the shared or sequential write domain.
 5. **Write each Task Contract.** Every contract must validate against
    [`task-contract.schema.json`](../schemas/task-contract.schema.json), including its worker role,
-   model ceiling, reasoning effort, execution mode, concrete subagent justification, and complete
-   conflict domains.
+   model ceiling, reasoning effort, execution mode, concrete subagent justification, complete
+   conflict domains, and worker-specific goal, success, failure, termination, and evidence fields.
 6. **Order by dependency.** A task may start only after its `depends_on` tasks have been reviewed
    and approved. The batch disclosure records the resulting `dependency_edges`; independent
    read-heavy or write-isolated groups are candidates for parallel execution only after the full
@@ -130,6 +130,37 @@ The allowed topology is a star:
 
 Workers report decomposition needs, newly discovered conflicts, or out-of-scope requirements back
 to the director. They do not spawn, reassign, or approve another worker.
+
+## Worker-mode boundary
+
+A task tree has exactly one Director: the root/current parent session. Every spawned subagent is a
+worker or reviewer according to an explicitly assigned non-Director role recorded before creation.
+A spawned subagent is never a Director under any circumstance. The word `director` is not a valid
+worker role; only the root/current parent session is Director. The parent Director's Task Contract
+is authoritative. A worker must not announce `director_mode: on`, publish a root-level `task_start`
+or composition disclosure, rewrite or re-decompose the parent contract, spawn or manage workers,
+integrate or merge work, or declare the overall task complete.
+
+If the parent role or contract is unavailable or contradictory, the worker stops and reports role
+ambiguity to the parent; it never self-promotes to Director. This is an instruction/contract
+boundary, not a runtime enforcement claim; native runtime role metadata remains authoritative where
+exposed. A worker may perform a deployment or another state-changing operation only when the parent
+contract explicitly includes that operation; worker status alone does not prohibit a contracted
+operation.
+
+## Pre-spawn worker contract gate (mandatory)
+
+Before every worker or reviewer is created, the root/current parent Director must assign the
+non-Director role and validate a complete per-worker Task Contract. The role must be unambiguous and
+assigned before creation; a missing role, ambiguous role, or `director` role is a pre-spawn failure
+and the subagent must not be created.
+
+The per-worker contract must explicitly include the role name, goal, scope and non-goals, success
+criteria, failure criteria, termination/stop criteria, and required evidence/deliverables. The
+machine-readable fields `goal`, `success_criteria`, `failure_criteria`, `termination_criteria`,
+and `required_evidence` are required for every new delegated contract. Overall `objective`,
+`completion_criteria`, and `error_handling` are not substitutes for worker-specific fields. Repair
+the contract or stop and report before attempting another spawn.
 
 ## Vague scopes are not delegable
 

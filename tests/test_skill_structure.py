@@ -502,5 +502,364 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                 for pattern in patterns:
                     self.assertRegex(readme, re.compile(pattern), pattern)
 
+
+class TestWorkerRoleBoundary(unittest.TestCase):
+    """Guards against spawned workers reactivating root-level Director mode."""
+
+    COMMON_BOUNDARY_CLAUSES = {
+        "one_director": r"(?:task tree has exactly one Director|exactly one Director in a task tree)",
+        "parent_contract_authority": r"parent Director(?:'s|’s)\s+Task Contract\s+is authoritative",
+        "no_director_mode": r"(?:MUST NOT|must not|do not)\s*:?\s*(?:[-*]\s*)?announce\s+`director_mode:\s*on`",
+        "no_root_disclosures": r"publish\s+(?:a\s+)?root-level\s+`?task_start`?\s+or\s+composition\s+disclosure",
+        "no_overall_completion": r"declare\s+the\s+overall\s+task\s+complete",
+        "role_ambiguity": r"stop(?:s)?\s+and\s+report(?:s)?\s+role\s+ambiguity\s+to\s+the\s+parent",
+    }
+
+    ADAPTER_BOUNDARY_CLAUSES = {
+        "no_parent_rewrite": r"(?:create,\s*)?rewrite,?\s+or\s+re-decompose\s+the\s+parent\s+contract",
+        "no_worker_management": r"spawn\s+or\s+manage\s+workers",
+        "no_integration": r"integrate\s+or\s+merge(?:\s+work)?",
+    }
+
+    ASSIGNED_MISSION_CLAUSES = {
+        "assigned_mission": r"worker (?:must )?execute(?:s)? only its assigned mission and report(?:s)? evidence or status",
+    }
+
+    COMMON_BOUNDARY_PROHIBITIONS = {
+        name: pattern
+        for name, pattern in {
+            **COMMON_BOUNDARY_CLAUSES,
+            **ADAPTER_BOUNDARY_CLAUSES,
+        }.items()
+        if name.startswith("no_")
+    }
+
+    CONTRACTED_OPERATION_CLAUSES = {
+        "contracted_operation": r"worker may (?:perform|carry out) a deployment or another (?:external/)?state-changing operation.*parent contract explicitly includes",
+        "native_runtime_metadata": r"native runtime role metadata remains authoritative",
+    }
+
+    ABSOLUTE_ROLE_CLAUSES = {
+        "subagent_never_director": r"spawned subagent is never a Director under any circumstance",
+        "role_before_creation": r"(?:assign|assigned|assigns).*role.*before (?:creation|spawn)",
+        "director_invalid": r"(?:role name )?`?director`?.{0,40}(?:invalid|not a valid)",
+    }
+
+    WORKER_CONTRACT_CLAUSES = {
+        "scope_and_non_goals": r"scope(?:\s+and\s+|/)non-goals",
+        "goal": r"\bgoal\b",
+        "success_criteria": r"success_criteria",
+        "failure_criteria": r"failure_criteria",
+        "termination_criteria": r"termination_criteria",
+        "required_evidence": r"required_evidence",
+        "pre_spawn_failure": r"pre-spawn failure",
+    }
+
+    WORKER_CONTRACT_FIELDS = (
+        "goal",
+        "success_criteria",
+        "failure_criteria",
+        "termination_criteria",
+        "required_evidence",
+    )
+
+    YAML_PROMPT_CLAUSES = {
+        "root_only_director": r"root/current parent session is the only Director",
+        "assigned_worker_roles": r"spawned workers/reviewers remain in their assigned roles",
+        "parent_contract_authority": r"parent Director(?:'s|’s)\s+Task Contract is authoritative",
+        "assigned_mission": r"execute only the assigned mission and report evidence/status",
+        "no_director_mode": r"do not announce\s+director_mode:\s*on",
+        "no_root_disclosures": r"publish root-level\s+task_start/composition disclosures",
+        "no_parent_rewrite": r"rewrite or re-decompose the parent contract",
+        "no_worker_management": r"spawn/manage workers",
+        "no_integration": r"integrate/merge",
+        "no_overall_completion": r"declare overall completion",
+        "role_ambiguity": r"stop and report role ambiguity to the parent",
+        "contracted_operation": r"parent-contracted deployment or other external/state-changing operation remains allowed",
+    }
+
+    KOREAN_BOUNDARY_CLAUSES = {
+        "one_director": r"Director가 정확히 하나뿐",
+        "root_parent": r"`root/current parent session`",
+        "parent_contract_authority": r"부모 Director의 Task Contract가 권위 있는 계약",
+        "assigned_mission": r"worker는 배정된 임무만 실행하고 부모에게 evidence 또는 status를 보고",
+        "no_director_mode": r"`director_mode: on`을 announce하거나",
+        "no_root_disclosures": r"root-level `task_start` 또는 composition disclosure를 게시",
+        "no_parent_rewrite": r"부모 contract를 다시 쓰거나 재분해",
+        "no_worker_management": r"worker를 spawn하거나 관리",
+        "no_integration": r"작업을 integrate하거나 merge",
+        "no_overall_completion": r"`overall task complete`를 선언해서는 안 됩니다",
+        "role_ambiguity": r"부모에게 `role ambiguity`\s*\(역할 모호성\)를 보고",
+        "contracted_operation": r"부모 contract에 명시적으로 포함된 경우에 한해 worker가 배포나 다른 state-changing operation을 수행",
+        "native_runtime_metadata": r"native runtime role metadata가 우선",
+    }
+
+    @staticmethod
+    def _normalized(source: str) -> str:
+        return re.sub(r"\s+", " ", source).strip()
+
+    def _section(self, path: Path, heading_pattern: str) -> str:
+        source = path.read_text(encoding="utf-8")
+        match = re.search(rf"(?im)^(?P<level>##)\s+{heading_pattern}\s*$", source)
+        if match is None:
+            self.fail(f"{path.relative_to(REPO_ROOT)} has no matching boundary heading")
+        level = len(match.group("level"))
+        remainder = source[match.end() :]
+        next_heading = re.search(rf"(?m)^#{{1,{level}}}\s+", remainder)
+        end = match.end() + (next_heading.start() if next_heading else len(remainder))
+        return self._normalized(source[match.start() : end])
+
+    def _between(self, path: Path, start_pattern: str, end_pattern: str) -> str:
+        source = path.read_text(encoding="utf-8")
+        start = re.search(start_pattern, source, re.I | re.M)
+        if start is None:
+            self.fail(f"{path.relative_to(REPO_ROOT)} has no boundary start marker")
+        remainder = source[start.end() :]
+        end = re.search(end_pattern, remainder, re.I | re.M)
+        end_offset = end.start() if end else len(remainder)
+        return self._normalized(source[start.start() : start.end() + end_offset])
+
+    def _assert_clauses(self, source: str, clauses: dict[str, str], surface: str) -> None:
+        for name, pattern in clauses.items():
+            with self.subTest(surface=surface, clause=name):
+                self.assertRegex(source, re.compile(pattern, re.I | re.S), pattern)
+
+    def _english_policy_boundaries(self) -> list[tuple[str, str]]:
+        return [
+            (
+                "core/ROLE-CONTRACT.md",
+                self._section(
+                    REPO_ROOT / "core" / "ROLE-CONTRACT.md",
+                    r"Single-Director and worker-mode boundary",
+                ),
+            ),
+            (
+                "core/DELEGATION-PROTOCOL.md",
+                self._section(REPO_ROOT / "core" / "DELEGATION-PROTOCOL.md", r"Worker-mode boundary"),
+            ),
+            (
+                "plugins/agent-director/skills/agent-director/SKILL.md",
+                self._section(
+                    REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+                    r"Worker-mode boundary \(mandatory\)",
+                ),
+            ),
+            (
+                "codex/skills/agent-director/SKILL.md",
+                self._section(
+                    REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+                    r"Worker-mode boundary \(mandatory\)",
+                ),
+            ),
+            (
+                "claude/skills/agent-director/SKILL.md",
+                self._section(
+                    REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
+                    r"Worker-mode boundary \(mandatory\)",
+                ),
+            ),
+        ]
+
+    def test_core_and_adapter_boundaries_require_each_clause(self):
+        clauses = {**self.COMMON_BOUNDARY_CLAUSES, **self.ADAPTER_BOUNDARY_CLAUSES}
+        for surface, boundary in self._english_policy_boundaries():
+            self._assert_clauses(boundary, clauses, surface)
+
+    def test_assigned_mission_is_present_on_role_and_adapter_skills(self):
+        surfaces = [
+            (surface, boundary)
+            for surface, boundary in self._english_policy_boundaries()
+            if surface != "core/DELEGATION-PROTOCOL.md"
+        ]
+        for surface, boundary in surfaces:
+            self._assert_clauses(boundary, self.ASSIGNED_MISSION_CLAUSES, surface)
+
+    def test_contracted_operations_and_runtime_metadata_are_scoped_to_core_and_adapters(self):
+        for surface, boundary in self._english_policy_boundaries():
+            self._assert_clauses(boundary, self.CONTRACTED_OPERATION_CLAUSES, surface)
+
+    def test_public_guidance_requires_each_english_boundary_prohibition(self):
+        public_boundaries = [
+            (
+                "plugins/agent-director/README.md",
+                self._between(
+                    REPO_ROOT / "plugins" / "agent-director" / "README.md",
+                    r"That Director announcement is root-only\.",
+                    r"\r?\n\r?\nThe plugin is",
+                ),
+            ),
+            (
+                "codex/AGENTS.md.example",
+                self._between(
+                    REPO_ROOT / "codex" / "AGENTS.md.example",
+                    r"The root/current parent Codex session is the Director\.",
+                    r"Rules for this session:",
+                ),
+            ),
+            (
+                "codex/INSTALL.md",
+                self._between(
+                    REPO_ROOT / "codex" / "INSTALL.md",
+                    r"The root/current parent Codex session is the Director\.",
+                    r"Before every task, every state-changing operation",
+                ),
+            ),
+            (
+                "claude/CLAUDE.md.example",
+                self._section(REPO_ROOT / "claude" / "CLAUDE.md.example", r"Director mode"),
+            ),
+            (
+                "README.md",
+                self._section(REPO_ROOT / "README.md", r"Single-Director and worker-mode boundary"),
+            ),
+        ]
+        for surface, boundary in public_boundaries:
+            self._assert_clauses(boundary, self.COMMON_BOUNDARY_CLAUSES, surface)
+
+    def test_korean_public_guidance_uses_korean_boundary_markers(self):
+        boundary = self._section(REPO_ROOT / "README.ko.md", r"하나의 Director와 worker-mode 경계")
+        self._assert_clauses(boundary, self.KOREAN_BOUNDARY_CLAUSES, "README.ko.md")
+
+    def test_codex_activation_is_root_only_and_workers_skip_it(self):
+        activation = self._section(
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            r"Activation and Director model",
+        )
+        self.assertRegex(
+            activation,
+            re.compile(r"Only the root/current parent session is the Director", re.I),
+        )
+        self.assertRegex(
+            activation,
+            re.compile(r"that session announces\s+`director_mode:\s*on`", re.I),
+        )
+        self.assertRegex(
+            activation,
+            re.compile(r"Spawned workers and reviewers skip that announcement and remain in their assigned roles", re.I),
+        )
+        self.assertNotRegex(
+            activation,
+            re.compile(
+                r"Apply this policy by default to every repository and code task\.\s+Announce\s+`director_mode:\s*on`\s+at the start",
+                re.I,
+            ),
+        )
+
+    def test_claude_activation_is_root_only_and_workers_skip_it(self):
+        director_mode = self._section(REPO_ROOT / "claude" / "CLAUDE.md.example", r"Director mode")
+        self.assertRegex(
+            director_mode,
+            re.compile(r"Only the root/current parent session operates as Director", re.I),
+        )
+        self.assertRegex(
+            director_mode,
+            re.compile(r"Spawned workers and reviewers do not activate Director mode", re.I),
+        )
+        self.assertNotRegex(
+            director_mode,
+            re.compile(r"load the `agent-director` skill and operate as director:", re.I),
+        )
+
+    @staticmethod
+    def _yaml_prompt(path: Path) -> str:
+        lines = path.read_text(encoding="utf-8").splitlines()
+        prefix = "  default_prompt:"
+        index = next(i for i, line in enumerate(lines) if line.startswith(prefix))
+        value = lines[index].split(":", 1)[1].strip()
+        if value.startswith((">", "|")):
+            body = []
+            for line in lines[index + 1 :]:
+                if line.startswith("    "):
+                    body.append(line[4:].strip())
+                elif not line.strip():
+                    continue
+                else:
+                    break
+            return " ".join(body)
+        return value.strip("\"'")
+
+    def test_codex_plugin_metadata_checks_each_worker_clause(self):
+        metadata_path = (
+            REPO_ROOT
+            / "plugins"
+            / "agent-director"
+            / "skills"
+            / "agent-director"
+            / "agents"
+            / "openai.yaml"
+        )
+        prompt = self._normalized(self._yaml_prompt(metadata_path))
+        self._assert_clauses(prompt, self.YAML_PROMPT_CLAUSES, "plugins/.../openai.yaml default_prompt")
+
+    def test_schema_requires_worker_execution_criteria_and_forbids_director_role(self):
+        schema = json.loads(
+            (REPO_ROOT / "schemas" / "task-contract.schema.json").read_text(encoding="utf-8")
+        )
+        for field in self.WORKER_CONTRACT_FIELDS:
+            with self.subTest(field=field):
+                self.assertIn(field, schema["required"])
+                self.assertIn(field, schema["properties"])
+        role_schema = schema["properties"]["delegation"]["properties"]["role"]
+        self.assertNotIn("director", role_schema["enum"])
+        self.assertRegex(role_schema["description"], re.compile(r"non-Director|director.*invalid", re.I))
+
+    def test_both_task_templates_expose_worker_contract_fields(self):
+        template_paths = [
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "references" / "task-template.md",
+            REPO_ROOT / "claude" / "skills" / "agent-director" / "references" / "task-template.md",
+        ]
+        for path in template_paths:
+            source = self._normalized(path.read_text(encoding="utf-8"))
+            with self.subTest(template=path.relative_to(REPO_ROOT)):
+                self._assert_clauses(source, self.ABSOLUTE_ROLE_CLAUSES, str(path.relative_to(REPO_ROOT)))
+                for field in self.WORKER_CONTRACT_FIELDS:
+                    self.assertIn(f'"{field}"', source)
+
+    def test_platform_and_plugin_surfaces_require_absolute_worker_boundary_and_contract(self):
+        surfaces = [
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "codex" / "AGENTS.md.example",
+            REPO_ROOT / "codex" / "INSTALL.md",
+            REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "claude" / "CLAUDE.md.example",
+            REPO_ROOT / "plugins" / "agent-director" / "README.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "agents" / "openai.yaml",
+            REPO_ROOT / "README.md",
+        ]
+        for path in surfaces:
+            source = self._normalized(path.read_text(encoding="utf-8"))
+            surface = str(path.relative_to(REPO_ROOT))
+            with self.subTest(surface=surface):
+                self._assert_clauses(source, self.ABSOLUTE_ROLE_CLAUSES, surface)
+                self._assert_clauses(source, self.WORKER_CONTRACT_CLAUSES, surface)
+
+    def test_korean_public_guidance_exposes_worker_contract_fields(self):
+        source = self._normalized((REPO_ROOT / "README.ko.md").read_text(encoding="utf-8"))
+        self.assertIn("어떤 경우에도 Director가 아니며", source)
+        self.assertIn("director`는 유효한 역할이 아닙니다", source)
+        for field in self.WORKER_CONTRACT_FIELDS:
+            with self.subTest(field=field):
+                self.assertIn(field, source)
+
+    def test_absolute_role_and_contract_mutants_are_rejected(self):
+        path = REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md"
+        source = self._normalized(path.read_text(encoding="utf-8"))
+        clauses = {**self.ABSOLUTE_ROLE_CLAUSES, **self.WORKER_CONTRACT_CLAUSES}
+        for name, pattern in clauses.items():
+            mutant = re.sub(pattern, "", source, count=1, flags=re.I | re.S)
+            with self.subTest(clause=name):
+                self.assertNotRegex(mutant, re.compile(pattern, re.I | re.S), pattern)
+
+    def test_individual_prohibition_mutants_are_rejected(self):
+        boundary = self._section(
+            REPO_ROOT / "core" / "ROLE-CONTRACT.md",
+            r"Single-Director and worker-mode boundary",
+        )
+        for name, pattern in self.COMMON_BOUNDARY_PROHIBITIONS.items():
+            mutant = re.sub(pattern, "", boundary, count=1, flags=re.I | re.S)
+            with self.subTest(clause=name):
+                self.assertNotRegex(mutant, re.compile(pattern, re.I | re.S), pattern)
+
 if __name__ == "__main__":
     unittest.main()

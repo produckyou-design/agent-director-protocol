@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Worker contracts now require explicit execution criteria.** Before a
+  subagent is created, the root/current parent Director must assign a valid
+  non-Director role and provide worker-specific `goal`, `success_criteria`,
+  `failure_criteria`, `termination_criteria`, and `required_evidence` fields,
+  in addition to scope and non-goals. A spawned subagent is never a Director
+  under any circumstance; missing or ambiguous role/criteria is a pre-spawn
+  failure.
+- **Worker role boundaries are now explicit.** Each task tree has exactly one
+  Director (the root/current parent session); spawned workers and reviewers
+  treat the parent Director's Task Contract as authoritative and cannot
+  reactivate Director mode, publish root-level disclosures, re-decompose or
+  integrate the parent task, spawn/manage workers, or declare the overall task
+  complete. Contracted deployments and other state-changing operations remain
+  allowed when explicitly included in the parent contract.
 - **ADP is now the default for Codex repository and code tasks.** The skill can
   still be invoked explicitly, but model/effort exceptions remain user-
   authorized and fail-closed.

@@ -102,6 +102,31 @@ mechanism fits your project, and judge the outcome yourself.
 | implementer | yes, within contract scope | yes | no (self-reports status only) |
 | reviewer | no | no | no (advises the director) |
 
+## Single-Director and worker-mode boundary
+
+A task tree has exactly one Director: the root/current parent session. Every
+spawned subagent is a worker or reviewer according to its assigned role. The
+parent Director's Task Contract is authoritative. A worker executes only its
+assigned mission and reports evidence or status to that parent; it must not
+announce `director_mode: on`, publish a root-level `task_start` or composition
+disclosure, rewrite or re-decompose the parent contract, spawn or manage
+workers, integrate or merge work, or declare the overall task complete.
+
+If the parent role or contract is unavailable or contradictory, the worker
+stops and reports role ambiguity to the parent rather than self-promoting to
+Director. This is an instruction/contract boundary, not a runtime enforcement
+claim; native runtime role metadata remains authoritative where exposed. A
+worker may perform a deployment or another state-changing operation only when
+the parent contract explicitly includes that operation.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role. A spawned subagent is never a Director under any
+circumstance, and `director` is not a valid role. Each worker Task Contract
+must state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`; missing or ambiguous role assignment or any missing field
+is a pre-spawn failure.
+
 A **Rescue Agent** is not a fourth role — it's the implementer role run at a
 higher reasoning effort (never a different model) for one already-failed task,
 under tighter scope and a hard attempt limit. It is reviewed exactly like any
@@ -343,7 +368,7 @@ Get-ChildItem agent-director-protocol\codex\agents\*.toml.example | ForEach-Obje
 }
 ```
 
-Codex's main session is the Director and native subagent threads are the normal
+Codex's root/current parent session is the Director and native subagent threads are the normal
 delegation path. `.codex/config.toml` and `.codex/agents/*.toml` are the actual
 project-scoped settings; `codex exec` is only the documented fallback for
 non-interactive or process-isolated work. `codex/profiles/default.yaml` is
@@ -456,8 +481,8 @@ codex plugin add agent-director@agent-director-protocol-plugins
 ```
 
 In a new task/thread, invoke `$agent-director` or say “Director mode on”. The
-plugin is an instruction switch: it announces the current session as Director
-and uses native subagents, but it cannot change the current session's selected
+plugin is an instruction switch: it announces the root/current parent session
+as Director and uses native subagents, but it cannot change the current session's selected
 model, install project files, or retroactively reload an already-running task.
 Use [`plugins/agent-director/README.md`](plugins/agent-director/README.md) for
 the exact boundary and [`codex/INSTALL.md`](codex/INSTALL.md) for persistent

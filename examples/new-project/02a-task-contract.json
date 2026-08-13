@@ -30,6 +30,22 @@
                                 "POST /health returns HTTP 405.",
                                 "go test ./internal/health/... passes with zero failures."
                             ],
+    "goal":  "Implement the bounded GET /health route and its tests without changing the server entrypoint, then return reproducible evidence.",
+    "success_criteria":  [
+                                "GET /health returns the required JSON 200 response and non-GET requests return 405.",
+                                "The named Go test command passes and its output is reported verbatim."
+                            ],
+    "failure_criteria":  [
+                                "The worker needs to edit a forbidden file or the health package tests fail after scoped fixes."
+                            ],
+    "termination_criteria":  [
+                                "Stop after the route behavior and tests pass with the required evidence captured.",
+                                "Stop and report if the parent contract requires changes outside the health package."
+                            ],
+    "required_evidence":  [
+                                "Changed-file list, exact Go test command, and verbatim test output.",
+                                "Direct evidence for GET /health and a non-GET 405 response."
+                            ],
     "test_commands":  [
                           "go test ./internal/health/... -v"
                       ],

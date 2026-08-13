@@ -15,10 +15,30 @@ or running a state-changing operation, read and follow:
 - the relevant documents in `core/`
 - the relevant schemas in `schemas/`
 
-The current Codex session is the director. The user chooses the director model
-and reasoning effort. The protocol records those actual session values; it does
-not select a director model or treat `codex/profiles/default.yaml` as a native
-Codex profile.
+The root/current parent Codex session is the Director. The user chooses the
+Director model and reasoning effort. The protocol records those actual session
+values; it does not select a Director model or treat
+`codex/profiles/default.yaml` as a native Codex profile.
+
+There is exactly one Director in a task tree. Every spawned subagent is a worker
+or reviewer according to its assigned role, and the parent Director's Task
+Contract is authoritative. A worker must not announce `director_mode: on`,
+publish a root-level `task_start` or composition disclosure, rewrite or
+re-decompose the parent contract, spawn or manage workers, integrate or merge,
+or declare the overall task complete. If the parent role or contract is
+unavailable or contradictory, stop and report role ambiguity to the parent;
+never self-promote. This is an instruction/contract boundary, and native
+runtime role metadata remains authoritative where exposed. A worker may carry
+out a deployment or other state-changing operation when the parent contract
+explicitly includes it.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role; a spawned subagent is never a Director under any
+circumstance, and `director` is invalid. Every worker Task Contract must also
+state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`. Missing or ambiguous role assignment or any missing field
+is a pre-spawn failure: do not create the worker.
 
 Rules for this session:
 

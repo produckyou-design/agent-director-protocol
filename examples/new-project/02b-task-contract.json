@@ -34,6 +34,22 @@
                                 "Load() on a malformed YAML fixture returns a non-nil error and a nil *Config.",
                                 "go test ./internal/config/... passes with zero failures."
                             ],
+    "goal":  "Implement the bounded YAML configuration loader with defaults and descriptive parse errors, then return reproducible evidence.",
+    "success_criteria":  [
+                                "Missing, valid, and malformed configuration cases satisfy the completion criteria.",
+                                "The named Go test command passes and its output is reported verbatim."
+                            ],
+    "failure_criteria":  [
+                                "The worker needs to edit a forbidden server or health file or scoped config tests remain failing."
+                            ],
+    "termination_criteria":  [
+                                "Stop after the loader tests pass and all required evidence is captured.",
+                                "Stop and report if an out-of-scope startup integration change is required."
+                            ],
+    "required_evidence":  [
+                                "Changed-file list, exact Go test command, and verbatim test output.",
+                                "Evidence for defaults, YAML overrides, and malformed-input handling."
+                            ],
     "test_commands":  [
                           "go test ./internal/config/... -v"
                       ],

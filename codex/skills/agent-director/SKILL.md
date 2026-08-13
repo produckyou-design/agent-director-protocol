@@ -51,11 +51,13 @@ Official references: [Codex subagents](https://learn.chatgpt.com/docs/agent-conf
 
 ## Activation and Director model
 
-Apply this policy by default to every repository and code task. Announce
-`director_mode: on` at the start of the task. Explicit `$agent-director` or
-`Director mode on` remains a supported way to request the same policy, but it
-is not required for normal activation. This is an instruction policy, not a
-hidden product or system setting.
+Apply this policy by default to every repository and code task. Only the
+root/current parent session is the Director, and that session announces
+`director_mode: on` at the start of the task. Spawned workers and reviewers
+skip that announcement and remain in their assigned roles. Explicit
+`$agent-director` or `Director mode on` remains a supported way to request the
+same policy, but it is not required for normal activation. This is an
+instruction policy, not a hidden product or system setting.
 
 The Director is the main Codex session the user is speaking to. **The user
 chooses the Director model and effort.** The protocol never selects Sol, Terra,
@@ -76,6 +78,41 @@ only exception is a recorded takeover under
 [`TAKEOVER-PROTOCOL.md`](../../../core/TAKEOVER-PROTOCOL.md). If the Director
 authored a diff under takeover, it must use an independent reviewer context and
 must not self-review.
+
+## Worker-mode boundary (mandatory)
+
+A task tree has exactly one Director: the root/current parent session. Every
+spawned subagent is a worker or reviewer according to its assigned role. The
+spawned subagent is never a Director under any circumstance; only the
+root/current parent session is Director. The role name must be assigned before
+creation, and `director` is not a valid worker role.
+parent Director's Task Contract is authoritative. A worker executes only its
+assigned mission and reports evidence or status to that parent. It MUST NOT
+announce `director_mode: on`, publish a root-level `task_start` or composition
+disclosure, rewrite or re-decompose the parent contract, spawn or manage
+workers, integrate or merge work, or declare the overall task complete.
+
+A reviewer has the same root-level boundary and returns review evidence or
+advice; it does not make the overall completion judgment. If the parent role or
+contract is unavailable or contradictory, the worker stops and reports role
+ambiguity to the parent; it never self-promotes to Director. This is an
+instruction/contract boundary, not a runtime enforcement claim; native runtime
+role metadata remains authoritative where exposed. A worker may perform a
+deployment or another external/state-changing operation only when the parent
+contract explicitly includes that operation; worker status alone does not
+prohibit a contracted operation.
+
+## Pre-spawn worker-contract gate (mandatory)
+
+Before every worker spawn, the root/current parent Director must assign the
+worker's non-Director role and provide a complete per-worker Task Contract.
+The contract must explicitly include scope and non-goals plus the exact
+worker-specific fields `goal`, `success_criteria`, `failure_criteria`,
+`termination_criteria`, and `required_evidence`. The overall `objective`,
+`completion_criteria`, or generic `error_handling` fields are not substitutes.
+Missing, ambiguous, or `director` role assignment, or any missing field, is a
+pre-spawn failure: do not create the worker. Repair the contract or stop and
+report the failure first.
 
 ## Worker dispatch policy: explicit Luna/max baseline
 

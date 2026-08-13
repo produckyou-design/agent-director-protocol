@@ -3,11 +3,18 @@
 Fill every field before delegating. The shape mirrors
 [`schemas/task-contract.schema.json`](../../../../schemas/task-contract.schema.json).
 
+Before creation, the root/current parent session must assign
+`delegation.role` as a non-Director worker role. A spawned subagent is never a
+Director under any circumstance; `director` is invalid, and a missing or
+ambiguous role is a pre-spawn failure. Replace the placeholders below with the
+parent-assigned role and worker-specific contract values before spawning.
+
 ```json
 {
   "task_id": "T-001",
   "title": "",
   "objective": "",
+  "goal": "",
   "current_state": "",
   "target_behavior": "",
   "must_read_files": [],
@@ -19,6 +26,10 @@ Fill every field before delegating. The shape mirrors
   "error_handling": [],
   "preservation_conditions": [],
   "completion_criteria": [],
+  "success_criteria": [],
+  "failure_criteria": [],
+  "termination_criteria": [],
+  "required_evidence": [],
   "test_commands": [],
   "manual_verification": [],
   "report_format": "implementation-report.schema.json",
@@ -51,6 +62,14 @@ Fill every field before delegating. The shape mirrors
 ## Field notes
 
 - `objective` and `target_behavior` must explain the why and the precise after-state.
+- `goal` is the concrete goal for this worker; fill `success_criteria`,
+  `failure_criteria`, `termination_criteria`, and `required_evidence` with
+  worker-specific values before creation. Scope and non-goals must be explicit
+  through `editable_files` and `forbidden_files`.
+- `delegation.role` is assigned by the root/current parent before creation and
+  must be a non-Director role (`investigator`, `implementer`, `reviewer`, or
+  task-scoped `rescue`). `director` is invalid; a missing or ambiguous role is
+  a pre-spawn failure.
 - `editable_files` and `forbidden_files` are disjoint and must contain every expected write boundary.
 - The initial set of `delegation.justification` values must explain why each
   contract's size and the total contract/worker count are the minimum safe
