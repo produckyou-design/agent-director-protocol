@@ -394,7 +394,9 @@ metadata가 노출되면 확인하고, 불일치한 worker는 거부하고 종�
 Codex 어댑터는 ADP에 고정된 동시/누적 numeric worker cap을 추가하지 않습니다.
 worker capacity의 유일한 권한은 네이티브 런타임입니다. capacity metadata가
 노출되면 기록하고, 없으면 `unknown`으로 유지합니다. 네이티브 slot-full 응답은
-대기, 증거 검사, 완료 worker 종료, 범위 재조정 또는 사용자 반환으로 처리하며,
+대기, 증거 검사, terminal report/evidence 캡처, terminal worker를 atomic
+cleanup claim으로 reconcile하고 non-final worker를 보존한 뒤 범위
+재조정 또는 사용자 반환으로 처리하며,
 프로젝트 숫자 제한을 임의로 만들지 않습니다.
 
 work contract에는 `independent_groups`, 각 그룹의 전체
@@ -429,7 +431,8 @@ read-only architecture/design 최종 report는 concrete scope, evidence, finding
 tests 또는 inspection commands, unresolved risks를 포함할 때만
 completed-work artifact로 인정합니다. progress telemetry가 노출되지 않으면
 stalled가 아니라 `unknown`으로 분류합니다. final report 없이 완료된 것처럼
-보이는 작업은 `completed_work_unreported`로 보존합니다.
+보이는 작업은 native status가 non-terminal 또는 unknown일 때만
+`completed_work_unreported`로 보존합니다.
 
 명시적 fatal evidence 또는 네이티브 status가 여전히 `RUNNING`이고 active
 command나 progress signal이 없는, 선언된 bounded no-progress observation
@@ -437,10 +440,48 @@ window가 끝난 경우에만 하나의 bounded interrupt(`interrupt=true`)를 �
 worker에게 다음을 지시해야 합니다: “현재 작업을 중단하고, 이미 확보한
 evidence만 요약하며, 새 work, tests 또는 edits를 시작하지 말고 종료하세요.”
 queued message/request to return progress는 interrupt가 아닙니다. 정상
-`RUNNING` 또는 progressing worker는 close하지 않습니다. `stalled`로 분류된
-뒤 interrupt 한 번과 bounded wait 한 번을 거쳤는데도 non-final이면 그때만
-close할 수 있습니다. `completed_work_unreported`와 `unknown`은 보존하며,
-final report를 받기 위해 그것들을 close하지 않습니다.
+`RUNNING` 또는 progressing worker는 close하지 않습니다. non-final stalled
+recovery path에서는 `stalled`로 분류된 뒤 interrupt 한 번과 bounded wait
+한 번을 거쳤는데도 non-final일 때만 close할 수 있습니다. 이 규칙은
+성공한 terminal-result 정리와는 별개입니다. `completed_work_unreported`와
+`unknown`은 보존하며, final report를 받기 위해 그것들을 close하지 않습니다.
+
+Terminal-result cleanup은 stalled recovery와 분리됩니다. `completed`,
+`errored`, `interrupted` 또는 `shutdown` 같은 authoritative native terminal
+result는 추론된 non-final classification보다 우선합니다. Director는 먼저
+사용 가능한 모든 report/evidence를 캡처하고 저장한 다음 현재 lifecycle
+cycle의 atomic cleanup-claim state machine에 진입합니다. lifecycle cycle마다
+수락되는 `close_agent` 호출은 최대 한 번이며, bounded retry는 이전 시도가
+수락되지 않았음이 입증된 경우에만 허용되는 추가 호출 시도입니다. native edge가 열려 있는
+`task_complete`/final native lifecycle event는 `RUNNING`이 아니라 cleanup을
+기다리는 completed terminal work입니다. authoritative terminal result가
+없을 때만 `completed_work_unreported`와 `unknown`을 non-final로 보존하며,
+report를 강제로 받기 위해 close하지 않습니다.
+
+Director는 worker identity와 lifecycle cycle별 reconciliation record를
+유지하고 cleanup state를 `unclaimed`, `in_flight`, `succeeded`, `failed`,
+`unknown`으로 기록하며 attempt count, retry availability, unique attempt ID와
+outcome도 저장합니다. 초기 호출과 retry 모두 eligible state에서 `in_flight`로
+가는 atomic claim을 먼저 성공해야 하며, claim 승자만 호출합니다. 초기 정리는
+`unclaimed`를 원자적으로 claim합니다. retry는 worker가 여전히 terminal/open이고
+이전 호출이 수락되지 않았음이 입증된 뒤 단 한 번의 retry를 원자적으로 소비하며
+`failed` 또는 `unknown`을 claim합니다. 이미 닫혔으면 `succeeded`로 기록하고
+`succeeded`는 다시 호출하지 않습니다. 그 외에는 blind duplicate call 없이
+미해결 상태를 보존·보고합니다. `resume_agent`는 새 lifecycle cycle과 record를
+시작합니다.
+
+root Director가 final response를 내보내거나 task를 종료하기 전에 자신이
+만든 모든 lifecycle cycle을 reconcile해야 합니다. reconciliation record를
+확인해 빠진 terminal evidence를 캡처하고, `unclaimed`는 원자적으로 claim해
+호출하며, `succeeded`는 건너뜁니다. `in_flight`, `failed`, `unknown`은 atomic
+bounded-retry claim 전에 authoritative native state로 해소합니다. non-final 및
+미해결 cycle은 보존하고 보고해야 합니다.
+Director는 owned children이 unreconciled 상태로 남아 있는데도 조용히
+종료해서는 안 됩니다.
+
+`close_agent` 또는 `resume_agent`를 통한 close/resume은 worker fork를 main
+working tree에 merge하지 않습니다. fork diff 또는 report를 검토한 뒤
+명시적으로 integrate해야 합니다.
 
 반복 resume/re-dispatch를 timeout 복구 루프로 사용하는 것은 금지하며, 반복된
 native stall은 timeout/re-dispatch 루프가 아니라 stop/report native unavailability로
@@ -685,8 +726,10 @@ capacity가 unknown이면 worker 하나로 순차 실행하고 capacity 숫자�
 
 "더 작은 diff", 속도/효율 주장, 모호한 병렬화 주장만으로는 절대 충분하지
 않습니다. Codex 어댑터에는 ADP 배치/누적 숫자 제한이 없고 네이티브 런타임이
-유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기, 증거 검사, 완료
-worker 종료, 범위 재조정 또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를
+유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기, 증거 검사,
+terminal report/evidence 캡처, terminal worker를 atomic cleanup claim으로
+reconcile하고 non-final worker를 보존한 뒤 범위 재조정 또는 사용자 반환을 하며,
+사용자 사유로 네이티브 거부를 덮거나 takeover를
 시작할 수 없습니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)를
 참고하세요.
 

@@ -114,7 +114,9 @@ Missing or formalistic justification blocks the spawn.
 
 The disclosure records the planned worker count and whether native capacity was observed. The
 adapter does not add a concurrent or cumulative numeric cap. A native slot-full response is
-external backpressure: wait for workers to finish, close completed workers, re-scope, or return.
+external backpressure: wait for workers to finish, capture terminal reports/evidence, reconcile
+terminal workers through the atomic cleanup-claim state machine, preserve non-final
+workers, re-scope, or return.
 A rationale or approval cannot override a native refusal, and capacity saturation never authorizes
 direct takeover.
 

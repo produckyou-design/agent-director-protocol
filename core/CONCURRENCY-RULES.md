@@ -97,10 +97,13 @@ and validates this contract, but the native platform-owned `multi_agent_v1__spaw
 remains outside repository interception.
 
 When active slots are full, wait for workers to finish, independently inspect
-the required evidence, close completed workers to release slots, and then
-re-scope or return to the user. Do not claim native unavailability or perform
-the delegated investigation/implementation directly. Capacity saturation alone
-is never a takeover or escalation gate.
+the required evidence, capture terminal reports/evidence, and reconcile
+terminal workers through the serialized cleanup state machine below. At most
+one cleanup invocation may be accepted per lifecycle cycle. Preserve and
+report non-final workers according to the lifecycle rules below, then re-scope
+or return to the user. Do not claim native unavailability or perform the
+delegated investigation/implementation directly. Capacity saturation alone is
+never a takeover or escalation gate.
 
 ## Spawn accounting
 
@@ -176,9 +179,11 @@ evidence by itself. The director must inspect the native state before taking rec
 - **`progressing`** — progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another progress artifact declared in the contract. Preserve the worker and continue a
   task-appropriate bounded wait. A progressing worker or active command is never interrupted or
   closed merely because a wait expired.
-- **`completed_work_unreported`** — acceptance evidence, a checkpoint, a diff, or test output shows
-  that work may be complete but no final report arrived. Inspect the available evidence without
-  claiming completion; do not rerun the work merely to obtain a final message.
+- **`completed_work_unreported`** — only while native status is non-terminal or unknown,
+  acceptance evidence, a checkpoint, a diff, or test output shows that work may be complete but no
+  final report arrived. Inspect the available evidence without claiming completion; do not rerun the
+  work merely to obtain a final message. An authoritative native terminal result always takes
+  precedence over this inferred classification.
 - **`stalled`** — native status remains `RUNNING` and no active command or other progress signal
   exists for the declared no-progress observation window.
 - **`unknown`** — the native surface exposes no progress telemetry. Do not convert lack of telemetry
@@ -199,7 +204,60 @@ declared no-progress observation window has elapsed with native status still `RU
 command or progress signal. The no-progress path does not require an error message; it is a bounded
 recovery path and must not silently loop forever.
 
-After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt. Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. A fresh implementer or scope split requires a new addition disclosure and revised contract; repeated native stalls must stop/report native unavailability rather than becoming a timeout/re-dispatch loop.
+After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt. Do not close a normal `RUNNING` or `progressing` worker. For the non-final stalled recovery path, close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. A fresh implementer or scope split requires a new addition disclosure and revised contract; repeated native stalls must stop/report native unavailability rather than becoming a timeout/re-dispatch loop.
+
+### Successful terminal cleanup and root finalization
+
+Terminal-result cleanup is separate from stalled recovery. An authoritative
+native terminal result such as `completed`, `errored`, `interrupted`, or
+`shutdown` takes precedence over inferred `completed_work_unreported` or
+`unknown` classifications. Once that terminal result arrives, the Director
+first captures and persists all available report and evidence, then enters the
+serialized cleanup state machine for that worker's current lifecycle cycle. A
+successful native cleanup may be accepted at most once per lifecycle cycle; a
+bounded retry is an additional invocation attempt only when the prior attempt
+is proven not accepted. A `task_complete`/final
+native lifecycle event with an open native edge is completed terminal work
+awaiting cleanup, not `RUNNING`. Without an authoritative terminal result,
+`completed_work_unreported` and `unknown` remain non-final and are never closed
+merely to force a report.
+
+The Director maintains one reconciliation record keyed by worker identity and
+lifecycle cycle. It records the terminal result, evidence-capture state,
+cleanup state (`unclaimed`, `in_flight`, `succeeded`, `failed`, or `unknown`),
+attempt count, retry availability, a unique attempt identifier, and outcome.
+Every native cleanup invocation, initial or retry, requires a successful atomic
+claim transition to `in_flight`; only the claimant may invoke cleanup. Competing
+reconcilers re-read the record and never invoke from a stale state.
+
+<!-- worker-cleanup-transition-table:start -->
+| Current state | Required evidence and atomic transition | Next state | Native cleanup action |
+|---|---|---|---|
+| `unclaimed` | terminal evidence captured; atomically claim attempt 1 | `in_flight` | claimant invokes once |
+| `failed` or `unknown` | native state is still terminal/open, prior invocation is proven not accepted, retry remains; atomically consume retry and claim the next attempt | `in_flight` | retry claimant invokes once |
+| `in_flight` | authoritative native state says closed | `succeeded` | do not invoke |
+| `in_flight` | acceptance remains unknown | `unknown` | do not invoke |
+| `succeeded` | any reconciliation | `succeeded` | do not invoke |
+<!-- worker-cleanup-transition-table:end -->
+
+After an invocation, record `succeeded` when authoritative native state says
+closed, `failed` only for an explicit rejected/not-accepted outcome, and
+`unknown` when acceptance cannot be established. `succeeded` is never invoked
+again. A failed or unknown attempt receives at most one bounded retry, and only
+through the atomic retry claim in the table; otherwise preserve and report the
+unresolved state rather than blindly invoking cleanup again. Resuming a closed
+worker starts a new lifecycle cycle with a new record.
+
+Before the root Director emits its final response or ends the task, it must
+reconcile every lifecycle cycle it created. For each terminal cycle, consult
+the reconciliation record and capture missing evidence. Atomically claim and
+invoke an `unclaimed` cycle under the transition table; skip `succeeded`; and
+resolve `in_flight`, `failed`, or `unknown` from authoritative native state
+before any bounded retry claim. Preserve and
+report non-final cycles according to this policy. The Director must not
+silently finish while owned children remain unreconciled. A platform-native
+close or resume operation does not merge a worker fork into the main working
+tree; inspect the fork diff or report and explicitly integrate it after review.
 
 On user interruption, report what completed, what remains active, and where each state is preserved.
 Never abandon an in-flight write or discard its evidence silently.

@@ -22,6 +22,13 @@ if str(SCRIPTS_DIR) not in sys.path:
 
 import validate_skills  # noqa: E402
 
+
+def bounded_block(source: str, start_marker: str, end_marker: str) -> str:
+    """Return a policy block bounded by two explicit markers."""
+    start = source.index(start_marker)
+    end = source.index(end_marker, start + len(start_marker))
+    return source[start:end]
+
 CORE_REQUIRED_FILES = {
     "ROLE-CONTRACT.md",
     "DELEGATION-PROTOCOL.md",
@@ -352,14 +359,242 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
             r"does not require an error message",
             r"Stop the\s+current work.*evidence already secured.*do not start new work,\s+tests,\s+or edits",
             r"queued request to\s+return progress is not an interrupt",
-            r"Close is allowed only after.*stalled.*one interrupt.*one bounded wait",
-            r"Preserve `completed_work_unreported` and `unknown`",
+            r"For the non-final stalled recovery path, close is allowed only after.*stalled.*one interrupt.*one bounded wait",
+            r"Preserve\s+`completed_work_unreported`\s+and\s+`unknown`",
         ]
         for path in policy_files:
             source = path.read_text(encoding="utf-8")
             with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
                 for pattern in required_patterns:
                     self.assertRegex(source, re.compile(pattern, re.I | re.S), pattern)
+
+    def test_terminal_cleanup_and_root_finalization_are_explicit(self):
+        codex_policy_files = [
+            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
+            REPO_ROOT / "plugins" / "agent-director" / "README.md",
+            REPO_ROOT / "README.md",
+        ]
+        for path in codex_policy_files:
+            source = path.read_text(encoding="utf-8")
+            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
+                self.assertNotIn("Close is allowed only after", source)
+                self.assertRegex(source, re.compile(r"An authoritative\s+native terminal result", re.I))
+                self.assertIn("takes precedence over inferred", source)
+                self.assertIn("current lifecycle cycle", source)
+                self.assertIn("reconciliation record", source)
+                self.assertIn("`in_flight`", source)
+                self.assertIn("`succeeded`", source)
+                self.assertIn("`failed`", source)
+                self.assertRegex(source, re.compile(r"atomic(?:ally)?\s+(?:transition|claims?)", re.I))
+                self.assertRegex(source, re.compile(r"only the (?:winning\s+)?claimant\s+invokes", re.I))
+                self.assertRegex(source, re.compile(r"Initial cleanup atomically claims `unclaimed`", re.I))
+                self.assertRegex(source, re.compile(r"retry\s+atomically consumes", re.I))
+                self.assertRegex(source, re.compile(r"At most\s+one `close_agent` call may be accepted", re.I))
+                self.assertRegex(source, re.compile(r"never\s+invoke[s]? `succeeded` again", re.I))
+                self.assertRegex(source, re.compile(r"prior invocation.*?not\s+accepted", re.I | re.S))
+                self.assertRegex(source, re.compile(r"without\s+a blind duplicate", re.I))
+                self.assertRegex(source, re.compile(r"`resume_agent` begins a new lifecycle\s+cycle", re.I))
+                self.assertIn("reconcile every lifecycle cycle it created", source)
+                terminal = re.search(r"An authoritative\s+native terminal result", source, re.I).start()
+                capture_match = re.search(
+                    r"captures? and persists? all available report(?:/evidence| and evidence)",
+                    source[terminal:],
+                    re.I,
+                )
+                self.assertIsNotNone(capture_match)
+                capture = terminal + capture_match.start()
+                cleanup_match = re.search(r"then enters\s+the atomic cleanup-claim state machine", source[capture:], re.I)
+                self.assertIsNotNone(cleanup_match)
+                cleanup = capture + cleanup_match.start()
+                self.assertLess(terminal, capture)
+                self.assertLess(capture, cleanup)
+
+        core_path = REPO_ROOT / "core" / "CONCURRENCY-RULES.md"
+        core_source = core_path.read_text(encoding="utf-8")
+        core_block = bounded_block(
+            core_source,
+            "### Successful terminal cleanup and root finalization",
+            "On user interruption",
+        )
+        self.assertIn("An authoritative\nnative terminal result", core_block)
+        self.assertIn("takes precedence over inferred", core_block)
+        self.assertIn("one reconciliation record keyed by worker identity and\nlifecycle cycle", core_block)
+        self.assertIn("`unclaimed`, `in_flight`, `succeeded`, `failed`, or `unknown`", core_block)
+        self.assertIn("Every native cleanup invocation, initial or retry, requires a successful atomic", core_block)
+        self.assertIn("only the claimant may invoke cleanup", core_block)
+        self.assertIn("prior invocation is proven not accepted", core_block)
+        self.assertRegex(core_block, re.compile(r"rather than\s+blindly invoking cleanup again"))
+        self.assertRegex(core_block, re.compile(r"Resuming a closed\s+worker starts a new lifecycle\s+cycle"))
+        self.assertIn("reconcile every lifecycle cycle it created", core_block)
+        self.assertIn("Atomically claim and\ninvoke an `unclaimed` cycle", core_block)
+        self.assertNotRegex(core_source, re.compile(r"\b(?:close_agent|resume_agent)\b"))
+
+        claude_source = (REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertNotIn("Close is allowed only after", claude_source)
+        self.assertNotRegex(claude_source, re.compile(r"\b(?:close_agent|resume_agent)\b"))
+        self.assertIn("An authoritative native terminal result", claude_source)
+        self.assertIn("one reconciliation record per worker identity and lifecycle cycle", claude_source)
+        self.assertIn("`unclaimed`, `in_flight`, `succeeded`, `failed`, or `unknown`", claude_source)
+        self.assertIn("prior invocation was not accepted", claude_source)
+        self.assertIn("Initial cleanup atomically claims `unclaimed`", claude_source)
+        self.assertIn("atomically claim and invoke `unclaimed`", claude_source)
+        self.assertIn("reconcile every lifecycle cycle it created", claude_source)
+
+        for path in (REPO_ROOT / "core").glob("*.md"):
+            with self.subTest(platform_neutral_file=path.relative_to(REPO_ROOT)):
+                self.assertNotRegex(path.read_text(encoding="utf-8"), re.compile(r"\b(?:close_agent|resume_agent)\b"))
+
+    def test_completion_standard_requires_root_worker_reconciliation(self):
+        source = (REPO_ROOT / "core" / "COMPLETION-STANDARD.md").read_text(encoding="utf-8")
+        block = bounded_block(source, "## Root finalization and worker reconciliation", "## Relationship to the failure loop")
+        self.assertIn("MUST\nreconcile every lifecycle cycle it created", block)
+        self.assertIn("takes\nprecedence over inferred non-final classifications", block)
+        self.assertIn("captures and persists all available report/evidence", block)
+        self.assertIn("atomic cleanup-claim state machine", block)
+        self.assertIn("At most one native cleanup may\nbe accepted per lifecycle cycle", block)
+        self.assertIn("reconciliation record", block)
+        self.assertIn("atomically claims and invokes `unclaimed`", block)
+        self.assertRegex(block, re.compile(r"does not treat a mere\s+claim as success"))
+        self.assertIn("prior invocation is proven not accepted", block)
+        self.assertIn("atomically consumes the retry and claims `in_flight`", block)
+        self.assertRegex(block, re.compile(r"without a blind duplicate\s+invocation"))
+        self.assertRegex(block, re.compile(r"resumed into a new lifecycle receives a new\s+reconciliation\s+cycle"))
+        self.assertIn("Only when no authoritative terminal native result exists", block)
+        self.assertNotRegex(block, re.compile(r"\b(?:close_agent|resume_agent)\b"))
+
+        for path in (REPO_ROOT / "codex" / "INSTALL.md", REPO_ROOT / "codex" / "AGENTS.md.example"):
+            guidance = path.read_text(encoding="utf-8")
+            with self.subTest(codex_guidance=path.relative_to(REPO_ROOT)):
+                self.assertRegex(guidance, re.compile(r"clos(?:e|ing) only authoritative", re.I))
+                self.assertIn("terminal workers with `close_agent`", guidance)
+                self.assertIn("preserv", guidance)
+                self.assertRegex(guidance, re.compile(r"atomically\s+claim", re.I))
+                self.assertIn("`unclaimed`", guidance)
+                self.assertIn("failed/unknown close outcomes", guidance)
+                self.assertIn("before any bounded", guidance)
+
+    def test_cleanup_transition_table_serializes_initial_and_retry_claims(self):
+        source = (REPO_ROOT / "core" / "CONCURRENCY-RULES.md").read_text(encoding="utf-8")
+        table = bounded_block(
+            source,
+            "<!-- worker-cleanup-transition-table:start -->",
+            "<!-- worker-cleanup-transition-table:end -->",
+        )
+        rows = []
+        for line in table.splitlines():
+            if not line.startswith("| `"):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            rows.append(tuple(cells))
+
+        self.assertIn(
+            (
+                "`unclaimed`",
+                "terminal evidence captured; atomically claim attempt 1",
+                "`in_flight`",
+                "claimant invokes once",
+            ),
+            rows,
+        )
+        retry_row = next(row for row in rows if row[0] == "`failed` or `unknown`")
+        self.assertIn("prior invocation is proven not accepted", retry_row[1])
+        self.assertIn("atomically consume retry", retry_row[1])
+        self.assertEqual("`in_flight`", retry_row[2])
+        self.assertEqual("retry claimant invokes once", retry_row[3])
+        self.assertIn(("`succeeded`", "any reconciliation", "`succeeded`", "do not invoke"), rows)
+
+        def atomic_claim(record, snapshot, claimant, eligible_states, *, retry=False):
+            if record["version"] != snapshot["version"]:
+                return None
+            if snapshot["state"] not in eligible_states:
+                return None
+            if retry and (not snapshot["prior_not_accepted"] or not snapshot["retry_available"]):
+                return None
+            next_attempt = snapshot["attempt_count"] + 1
+            attempt_id = f"{record['cycle_id']}:{next_attempt}:{claimant}"
+            record["state"] = "in_flight"
+            record["attempt_count"] = next_attempt
+            record["active_attempt_id"] = attempt_id
+            record["version"] += 1
+            if retry:
+                record["retry_available"] = False
+            record["invocations"].append(attempt_id)
+            return attempt_id
+
+        record = {
+            "cycle_id": "worker-1/cycle-1",
+            "version": 0,
+            "state": "unclaimed",
+            "attempt_count": 0,
+            "retry_available": True,
+            "prior_not_accepted": False,
+            "active_attempt_id": None,
+            "invocations": [],
+        }
+        initial_snapshot_a = dict(record)
+        initial_snapshot_b = dict(record)
+        initial_winner = atomic_claim(record, initial_snapshot_a, "director-a", {"unclaimed"})
+        initial_loser = atomic_claim(record, initial_snapshot_b, "director-b", {"unclaimed"})
+        self.assertIsNotNone(initial_winner)
+        self.assertIsNone(initial_loser)
+        self.assertEqual([initial_winner], record["invocations"])
+        self.assertEqual(1, record["attempt_count"])
+
+        record.update(state="failed", prior_not_accepted=True, active_attempt_id=None)
+        record["version"] += 1
+        retry_snapshot_a = dict(record)
+        retry_snapshot_b = dict(record)
+        retry_winner = atomic_claim(record, retry_snapshot_a, "director-a", {"failed", "unknown"}, retry=True)
+        retry_loser = atomic_claim(record, retry_snapshot_b, "director-b", {"failed", "unknown"}, retry=True)
+        self.assertIsNotNone(retry_winner)
+        self.assertIsNone(retry_loser)
+        self.assertFalse(record["retry_available"])
+        self.assertEqual(2, record["attempt_count"])
+        self.assertEqual(2, len(record["invocations"]))
+        self.assertEqual(2, len(set(record["invocations"])))
+        self.assertNotEqual(initial_winner, retry_winner)
+
+        ambiguous = {
+            "cycle_id": "worker-2/cycle-1",
+            "version": 0,
+            "state": "unknown",
+            "attempt_count": 1,
+            "retry_available": True,
+            "prior_not_accepted": False,
+            "active_attempt_id": None,
+            "invocations": [],
+        }
+        ambiguous_snapshot_a = dict(ambiguous)
+        ambiguous_snapshot_b = dict(ambiguous)
+        self.assertIsNone(atomic_claim(ambiguous, ambiguous_snapshot_a, "director-a", {"failed", "unknown"}, retry=True))
+        self.assertIsNone(atomic_claim(ambiguous, ambiguous_snapshot_b, "director-b", {"failed", "unknown"}, retry=True))
+        self.assertEqual([], ambiguous["invocations"])
+        self.assertEqual(1, ambiguous["attempt_count"])
+
+    def test_korean_public_guidance_requires_terminal_cleanup_and_finalization(self):
+        source = (REPO_ROOT / "README.ko.md").read_text(encoding="utf-8")
+        required_patterns = [
+            r"authoritative native terminal\s+result는.*non-final classification보다 우선",
+            r"report/evidence를 캡처하고 저장한 다음.*atomic cleanup-claim state machine",
+            r"수락되는 `close_agent` 호출은 최대 한 번",
+            r"`task_complete`/final native lifecycle event.*`RUNNING`이 아니라.*completed terminal work",
+            r"authoritative terminal result가\s+없을 때만 `completed_work_unreported`와 `unknown`을 non-final로 보존",
+            r"worker identity와 lifecycle cycle별 reconciliation record",
+            r"초기 호출과 retry 모두.*atomic claim",
+            r"`unclaimed`를 원자적으로 claim",
+            r"retry는.*단 한 번의 retry를 원자적으로 소비",
+            r"`succeeded`는 다시 호출하지 않습니다",
+            r"`resume_agent`는 새\s+lifecycle cycle과 record를\s+시작",
+            r"root Director가 final response를 내보내거나 task를 종료하기 전에.*모든 lifecycle cycle을 reconcile",
+            r"`unclaimed`는 원자적으로 claim해\s+호출하며.*`succeeded`는 건너뜁니다",
+            r"authoritative native state로 해소",
+            r"owned children이 unreconciled 상태로 남아 있는데도 조용히\s+종료해서는 안 됩니다",
+            r"`close_agent` 또는 `resume_agent`.*worker fork.*merge하지 않습니다",
+        ]
+        for pattern in required_patterns:
+            with self.subTest(pattern=pattern):
+                self.assertRegex(source, re.compile(pattern, re.S), pattern)
 
     def test_claude_guidance_has_no_stale_caps_or_direct_coding_exception(self):
         guidance_files = [
@@ -394,7 +629,7 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         self.assertIn("keep it `unknown`", claude_skill)
         self.assertRegex(
             claude_skill,
-            re.compile(r"slot-full.*wait.*inspect.*clos(?:e|ing) completed.*(?:re-scop|return)", re.I | re.S),
+            re.compile(r"slot-full.*wait.*inspect.*reconcil(?:e|ing) terminal.*(?:re-scop|return)", re.I | re.S),
         )
 
         briefing = (REPO_ROOT / "claude" / "skills" / "agent-director" / "references" / "agent-briefing-template.md").read_text(encoding="utf-8")
@@ -463,7 +698,7 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                 r"Stop the current work,\s+summarize only evidence already secured, do not start new work, tests, or edits,\s+then exit",
                 r"A queued message/request to return progress is not an interrupt",
                 r"Normal `RUNNING` or progressing workers are not closed",
-                r"Preserve `completed_work_unreported` and `unknown`",
+                r"Preserve\s+`completed_work_unreported`\s+and\s+`unknown`",
                 r"Repeated resume/re-dispatch is forbidden as a timeout-recovery loop",
                 r"Any fresh implementer or\s+scope split requires a new `addition` disclosure and revised contract",
                 r"A named implementer uses\s+`fork_context=false` or omits it",
@@ -487,7 +722,7 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                 r"현재 작업을 중단하고, 이미 확보한\s+evidence만 요약하며, 새 work, tests 또는 edits를 시작하지 말고 종료하세요",
                 r"queued message/request to return progress는 interrupt가 아닙니다",
                 r"정상\s+`RUNNING` 또는 progressing worker는 close하지 않습니다",
-                r"`completed_work_unreported`와 `unknown`은 보존하며",
+                r"`completed_work_unreported`와\s+`unknown`은 보존하며",
                 r"반복 resume/re-dispatch를 timeout 복구 루프로 사용하는 것은 금지하며",
                 r"새 implementer 또는 scope split에는 새 `addition` disclosure와\s+수정된 contract가 필요합니다",
                 r"이름이 지정된 implementer는\s+`fork_context=false`를 사용하거나 이를 생략합니다",

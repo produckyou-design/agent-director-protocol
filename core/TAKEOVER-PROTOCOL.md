@@ -19,7 +19,9 @@ the separate case of a mid-task request for more power (before the failure thres
 
 A full native runtime slot set is expected backpressure, not native
 unavailability and not a takeover condition. The director must wait for workers
-to finish, independently inspect their evidence, close completed workers,
+to finish, independently inspect their evidence, capture terminal reports/evidence,
+reconcile terminal workers through the atomic cleanup-claim state machine, preserve
+non-final workers,
 re-scope, or return to the user. ADP adds no concurrent or cumulative numeric
 budget.
 

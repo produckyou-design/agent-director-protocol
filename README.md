@@ -392,8 +392,9 @@ automatic Director takeover.
 The Codex adapter does not impose a concurrent or cumulative numeric worker
 limit. It records native runtime capacity when exposed and records `unknown`
 when the surface provides no capacity metadata; a native slot-full response
-requires waiting, inspecting evidence, closing completed workers, re-scoping,
-or returning to the user — never an invented project cap. Before every task, every state-changing operation,
+requires waiting, inspecting evidence, capturing terminal reports/evidence,
+reconciling terminal workers through atomic cleanup claims, preserving non-final
+workers, re-scoping, or returning to the user — never an invented project cap. Before every task, every state-changing operation,
 and every native-spawn attempt, the Director must visibly disclose
 `user_visible: true` plus the `work_contract` objective, scope, planned
 contract/worker totals, minimum-safe rationale, exact tests, and stop
@@ -435,17 +436,55 @@ completed-work artifact only when it includes concrete scope, evidence,
 findings, tests or inspection commands, and unresolved risks. If the native
 surface exposes no progress telemetry, classify the state as `unknown`, not
 `stalled`. Work that appears complete without a final report is
-`completed_work_unreported`.
+`completed_work_unreported` only while native status is non-terminal or unknown.
 
 Only explicit fatal evidence or a declared bounded no-progress window with
 native status still `RUNNING` and no active command or progress signal permits
 one bounded interrupt (`interrupt=true`). The interrupt tells the worker: “Stop the current work,
 summarize only evidence already secured, do not start new work, tests, or edits,
 then exit.” A queued message/request to return progress is not an interrupt.
-Normal `RUNNING` or progressing workers are not closed. Close is allowed only
-after `stalled` classification, one interrupt, and one bounded wait if it
-remains non-final. Preserve `completed_work_unreported` and `unknown`; do not
-close either merely to obtain a final report.
+Normal `RUNNING` or progressing workers are not closed. For the non-final
+stalled recovery path, close is allowed only after `stalled` classification,
+one interrupt, and one bounded wait if it remains non-final. Preserve
+`completed_work_unreported` and `unknown`; do not close either merely to
+obtain a final report.
+
+Terminal-result cleanup is separate from stalled recovery. An authoritative
+native terminal result such as `completed`, `errored`, `interrupted`, or
+`shutdown` takes precedence over inferred non-final classifications. The
+Director first captures and persists all available report/evidence, then enters
+the atomic cleanup-claim state machine for the current lifecycle cycle. At most
+one `close_agent` call may be accepted per lifecycle cycle. A
+`task_complete`/final native lifecycle event with an open native edge is
+completed terminal work awaiting cleanup, not `RUNNING`. Without an
+authoritative terminal result, `completed_work_unreported` and `unknown` remain
+non-final and are never closed merely to force a report.
+
+The Director maintains one reconciliation record per worker identity and
+lifecycle cycle with cleanup state `unclaimed`, `in_flight`, `succeeded`,
+`failed`, or `unknown`, attempt count, retry availability, unique attempt
+identifier, and outcome. Every initial or retry `close_agent` call requires an
+atomic transition from an eligible state to `in_flight`; only the winning
+claimant invokes. Initial cleanup atomically claims `unclaimed`. A retry
+atomically consumes the one retry and claims `failed` or `unknown` only after
+authoritative native state proves the worker is still terminal/open and the
+prior invocation was not accepted. Already closed becomes `succeeded`; never
+invoke `succeeded` again. Otherwise preserve/report unresolved acceptance
+without a blind duplicate call.
+`resume_agent` begins a new lifecycle cycle and record.
+
+Before the root Director emits its final response or ends the task, it must
+reconcile every lifecycle cycle it created. It consults the reconciliation
+record, captures missing terminal evidence, atomically claims and invokes
+`unclaimed`, skips `succeeded`, and resolves `in_flight`, `failed`, or `unknown`
+from authoritative native state before an atomic bounded-retry claim. It
+preserves/reports non-final and unresolved cycles. The
+Director must not silently finish while owned children
+remain unreconciled.
+
+Closing or resuming (`close_agent` or `resume_agent`) does not merge a worker
+fork into the main working tree. Inspect the fork diff or report and explicitly
+integrate it after review.
 
 Repeated resume/re-dispatch is forbidden as a timeout-recovery loop; repeated
 native stalls must stop/report native unavailability. Any fresh implementer or
@@ -715,8 +754,9 @@ The structural reasons for separate workers, stated in each subagent's
 is never sufficient. There is no numeric worker cap in the Codex adapter: the
 native runtime is the only capacity authority, not an ADP batch or cumulative
 project limit. If the runtime
-reports full capacity, wait, inspect, close completed workers, re-scope, or
-return; user rationale cannot override the native refusal and capacity
+reports full capacity, wait, inspect, capture terminal reports/evidence,
+reconcile terminal workers through atomic cleanup claims, preserve non-final workers,
+re-scope, or return; user rationale cannot override the native refusal and capacity
 saturation never authorizes takeover. See
 [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md).
 

@@ -36,6 +36,38 @@ director:
 A task missing any one of these is not done, regardless of how much work went into it or how
 confident the implementer's report sounds.
 
+## Root finalization and worker reconciliation
+
+Before the root Director emits its final response or ends the task, it MUST
+reconcile every lifecycle cycle it created. An authoritative terminal native
+result such as `completed`, `errored`, `interrupted`, or `shutdown` takes
+precedence over inferred non-final classifications. For each terminal cycle, the
+Director first captures and persists all available report/evidence and then
+enters the atomic cleanup-claim state machine in
+[`CONCURRENCY-RULES.md`](CONCURRENCY-RULES.md). At most one native cleanup may
+be accepted per lifecycle cycle. A `task_complete`/final native lifecycle event with an open
+native edge is completed terminal work awaiting cleanup, not `RUNNING`.
+
+The per-worker reconciliation record required by
+[`CONCURRENCY-RULES.md`](CONCURRENCY-RULES.md) is authoritative for cleanup
+accounting. Root finalization atomically claims and invokes `unclaimed`, skips
+`succeeded`, and does not treat a mere claim as success. For `in_flight`,
+`failed`, or `unknown`, it inspects authoritative native state: already closed
+becomes `succeeded`; a recorded bounded retry is allowed only when the cycle
+remains terminal/open, the prior invocation is proven not accepted, and one
+reconciler atomically consumes the retry and claims `in_flight`; otherwise the
+unresolved state is preserved and reported without a blind duplicate
+invocation. A worker resumed into a new lifecycle receives a new reconciliation
+cycle and record; accepted-cleanup accounting is evaluated separately for that
+new cycle.
+
+Only when no authoritative terminal native result exists,
+`completed_work_unreported` and `unknown` remain non-final classifications;
+they are preserved and reported under
+[`CONCURRENCY-RULES.md`](CONCURRENCY-RULES.md), not closed merely to force a
+report. The Director MUST NOT silently finish while owned children remain
+unreconciled.
+
 ## Relationship to the failure loop
 
 If evidence review surfaces one or more of the ten objective failures defined in [FAILURE-LOOP.md](FAILURE-LOOP.md)
