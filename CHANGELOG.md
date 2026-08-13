@@ -49,6 +49,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   outcome/optional latency priority only and never overrides conflicts,
   dependencies, capacity, or the no-automatic-takeover rule.
 
+## [0.8.7] - 2026-08-13
+
+Worker-boundary and contract-gate rules are now explicit for every spawned
+worker.
+
+### Changed
+
+- Every spawned subagent must receive an explicit non-Director role and a
+  complete per-worker contract with `goal`, scope and non-goals,
+  `success_criteria`, `failure_criteria`, `termination_criteria`, and
+  `required_evidence`/deliverables; missing or ambiguous fields fail closed
+  before spawn.
+- The root/current parent session is the only Director. Spawned workers and
+  reviewers cannot reactivate Director mode, publish root-level disclosures,
+  re-decompose or integrate the parent task, spawn/manage workers, or declare
+  the overall task complete.
+
 ## [0.8.6] - 2026-08-12
 
 Parallel worker selection is now deterministic instead of treating parallelism
