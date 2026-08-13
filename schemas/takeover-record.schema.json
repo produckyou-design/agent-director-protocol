@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/takeover-record.schema.json",
   "title": "Takeover Record",
-  "description": "Mandatory record the director must write BEFORE writing product code directly. Takeover is allowed only after the active profile's failure threshold and required rescue/revision path, or when the implementer demonstrably cannot perform the task. 'The task is small or simple' is never a valid justification.",
+  "description": "Mandatory record the director must write BEFORE writing product code directly. Takeover is allowed only after the active profile's failure threshold and required rescue/revision path, when the implementer demonstrably cannot perform the task, and after explicit current-session user authorization. 'The task is small or simple' is never a valid justification.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -14,6 +14,7 @@
     "second_revision_instruction",
     "repeated_failure_cause",
     "takeover_justification",
+    "user_authorization_evidence",
     "files_to_modify",
     "modification_scope"
   ],
@@ -56,6 +57,11 @@
       "type": "string",
       "minLength": 10,
       "description": "Why direct intervention is required now. Must not be 'the task is small/simple'."
+    },
+    "user_authorization_evidence": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Evidence of explicit user authorization for direct product-code implementation in the current session after the takeover disclosure."
     },
     "files_to_modify": {
       "type": "array",

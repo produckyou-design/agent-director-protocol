@@ -1,7 +1,7 @@
 {
   "name": "agent-director",
-  "version": "0.8.0",
-  "description": "Activate a contract-first Director workflow with explicit gpt-5.6-luna/max native worker dispatch, fail-closed metadata verification, conflict-safe execution, and evidence-based review.",
+  "version": "0.8.7",
+  "description": "Apply a contract-first Director workflow by default for repository and code tasks, with explicit gpt-5.6-luna/max native worker dispatch, fail-closed metadata verification, conflict-safe execution, and evidence-based review. The root/current parent is the only Director, and every spawned subagent is never a Director. Before every worker spawn, the root/current parent Director assigns an explicit role name and a per-worker contract containing goal, scope/non-goals, success criteria, failure criteria, termination/stop criteria, and required evidence/deliverables; missing any required field is a pre-spawn failure and the worker is not created.",
   "author": {
     "name": "produckyou-design",
     "url": "https://github.com/produckyou-design"
@@ -13,12 +13,12 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Agent Director",
-    "shortDescription": "Activate contract-first Director mode in Codex.",
+    "shortDescription": "Apply contract-first Director mode by default to Codex repository work.",
     "longDescription": "Coordinate native Codex subagents with complete task contracts, conflict checks, Luna worker ceilings, and evidence-based review.",
     "developerName": "produckyou-design",
     "category": "Developer Tools",
     "capabilities": ["Read"],
-    "defaultPrompt": "Activate Agent Director mode for this task and show the contract and composition before spawning workers.",
+    "defaultPrompt": "Apply Agent Director by default to this task and show the contract and composition before spawning workers. The root/current parent is the only Director, and every spawned subagent is never a Director. Before every worker spawn, the root/current parent Director must assign an explicit role name and a per-worker contract containing goal, scope/non-goals, success criteria, failure criteria, termination/stop criteria, and required evidence/deliverables. Missing any required field is a pre-spawn failure; do not create the worker.",
     "brandColor": "#6366F1"
   }
 }

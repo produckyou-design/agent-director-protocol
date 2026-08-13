@@ -161,14 +161,24 @@ director today:
 
 - `implementer.preferred_models` / `effort_by_task_kind` — which model and
   reasoning tier a spawned subagent gets, per kind of task.
-- `director.max_batch_agents` — how large a disclosed subagent batch can get
-  before it needs your approval (see [DELEGATION-PROTOCOL.md](../core/DELEGATION-PROTOCOL.md) step 7).
 - `implementer.failure_threshold` — how many failed loops on one task trigger
   Rescue Protocol classification (see [RESCUE-PROTOCOL.md](../core/RESCUE-PROTOCOL.md)).
+- Native runtime capacity — the active runtime is the only worker-capacity
+  authority. If capacity telemetry is unavailable, keep it `unknown`; do not
+  invent a numeric project cap. A slot-full response requires waiting,
+  inspecting evidence, closing completed workers, then re-scoping or returning.
+- Parallel dispatch is deterministic: it requires at least two independently
+  verifiable work groups, pairwise-disjoint conflict domains, no cross-group
+  dependency edges, isolated write state, and observed native capacity. With
+  known capacity of at least two, set `planned_workers = min(group count,
+  observed_capacity)`; with unknown capacity, use one sequential worker and
+  record `capacity_source: "unknown"` without inventing a cap. A shared,
+  conflicting, or sequential write domain always has one worker. Speed and
+  efficiency may be outcomes or an explicit latency priority, but neither is a
+  standalone reason or an override.
 
 **Only override it if a project wants different policy** — e.g. a stricter
-project lowers `max_batch_agents` to 2, or a project running cheap/fast
-implementer runs raises `failure_threshold`. To override:
+project changes `failure_threshold`. To override:
 
 - copy `default.yaml` to `<install-location>/skills/agent-director/profile.yaml`
   next to `SKILL.md` and edit your copy, or

@@ -37,6 +37,22 @@
                                 "tests/reports/test_aggregator.py::test_week_boundary_inclusive and ::test_timezone_independent_of_server_local both pass.",
                                 "The full existing aggregator test suite continues to pass with no regressions."
                             ],
+    "goal":  "Make weekly_totals() UTC-stable and inclusive at the week boundary within the listed files, then return reproducible test evidence.",
+    "success_criteria":  [
+                                "All UTC week-boundary and server-timezone cases in completion_criteria pass.",
+                                "The named test command passes and its output is reported verbatim."
+                            ],
+    "failure_criteria":  [
+                                "The worker needs to edit a forbidden file or the scoped aggregator tests still fail after bounded fixes."
+                            ],
+    "termination_criteria":  [
+                                "Stop after the scoped tests pass and all required evidence is captured.",
+                                "Stop and report if an unrelated reporting or billing dependency is required."
+                            ],
+    "required_evidence":  [
+                                "Changed-file list, exact test command, and verbatim test output.",
+                                "Evidence mapping each success criterion to the UTC boundary and timezone tests."
+                            ],
     "test_commands":  [
                           "pytest tests/reports/test_aggregator.py -v"
                       ],

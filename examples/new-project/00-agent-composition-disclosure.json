@@ -1,0 +1,96 @@
+{
+  "director_model": "configured-director-model",
+  "director_effort": "high",
+  "director_model_source": "user_selected_session",
+  "phase": "spawn",
+  "user_visible": true,
+  "work_contract": {
+    "objective": "Dispatch two independent Go packages with separately verifiable evidence.",
+    "scope": ["internal/health", "internal/config"],
+    "planned_contracts": 2,
+    "planned_workers": 2,
+    "worker_model": "configured-worker-model",
+    "worker_reasoning_effort": "medium",
+    "minimum_safe_rationale": "Two independent package boundaries have separate conflict domains, dependency-free evidence paths, and isolated working copies; one worker cannot absorb both without removing that review boundary, and native capacity is observed.",
+    "independent_groups": [
+      {
+        "group_id": "G-401",
+        "scope": ["internal/health"],
+        "independently_verifiable": true,
+        "conflict_domains": {
+          "files": ["internal/health/handler.go", "internal/health/handler_test.go"],
+          "code_regions": [],
+          "data_structures": [],
+          "interfaces": ["internal/health.RegisterRoutes"],
+          "schemas": [],
+          "db_entities": [],
+          "shared_configs": [],
+          "state_stores": [],
+          "generated_artifacts": [],
+          "build_targets": ["go test ./internal/health/..."],
+          "user_flows": ["GET /health request flow"]
+        }
+      },
+      {
+        "group_id": "G-402",
+        "scope": ["internal/config"],
+        "independently_verifiable": true,
+        "conflict_domains": {
+          "files": ["internal/config/config.go", "internal/config/config_test.go", "internal/config/testdata/*"],
+          "code_regions": [],
+          "data_structures": ["Config"],
+          "interfaces": ["internal/config.Load"],
+          "schemas": [],
+          "db_entities": [],
+          "shared_configs": [],
+          "state_stores": [],
+          "generated_artifacts": [],
+          "build_targets": ["go test ./internal/config/..."],
+          "user_flows": ["server startup config loading"]
+        }
+      }
+    ],
+    "dependency_edges": [],
+    "capacity_source": "observed_native_runtime",
+    "observed_capacity": 2,
+    "write_isolation": "isolated",
+    "why_fewer_workers_cannot_absorb": "Each package has its own completion criteria and review evidence; one worker would remove the independent group boundary.",
+    "tests": ["go test ./internal/health/... -v", "go test ./internal/config/... -v"],
+    "stop_conditions": ["Stop if native capacity is unavailable or any conflict-domain overlap is found."]
+  },
+  "subagent_count": 2,
+  "subagents": [
+    {
+      "role": "implementer",
+      "task": "T-401",
+      "model": "configured-worker-model",
+      "model_ceiling": "configured-worker-model-ceiling",
+      "effort": "medium",
+      "justification": "T-401 is independently verifiable with a disjoint file, interface, build-target, and user-flow domain; the dependency list is empty and native capacity supports the batch.",
+      "model_source": "explicit_native_spawn",
+      "conflict_domains": {"files": ["internal/health/handler.go", "internal/health/handler_test.go"]}
+    },
+    {
+      "role": "implementer",
+      "task": "T-402",
+      "model": "configured-worker-model",
+      "model_ceiling": "configured-worker-model-ceiling",
+      "effort": "medium",
+      "justification": "T-402 is independently verifiable with a disjoint file, interface, build-target, and user-flow domain; the dependency list is empty and native capacity supports the batch.",
+      "model_source": "explicit_native_spawn",
+      "conflict_domains": {"files": ["internal/config/config.go", "internal/config/config_test.go", "internal/config/testdata/*"]}
+    }
+  ],
+  "execution_mode": "parallel",
+  "rescue_agent_available": true,
+  "within_preapproved_range": true,
+  "approval_status": "not_required",
+  "spawn_budget": {
+    "already_spawned_count": 0,
+    "this_batch_count": 2,
+    "total_after_spawn": 2,
+    "capacity_source": "observed_native_runtime",
+    "capacity_known": true,
+    "observed_capacity": 2
+  }
+}

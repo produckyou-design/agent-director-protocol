@@ -15,10 +15,30 @@ or running a state-changing operation, read and follow:
 - the relevant documents in `core/`
 - the relevant schemas in `schemas/`
 
-The current Codex session is the director. The user chooses the director model
-and reasoning effort. The protocol records those actual session values; it does
-not select a director model or treat `codex/profiles/default.yaml` as a native
-Codex profile.
+The root/current parent Codex session is the Director. The user chooses the
+Director model and reasoning effort. The protocol records those actual session
+values; it does not select a Director model or treat
+`codex/profiles/default.yaml` as a native Codex profile.
+
+There is exactly one Director in a task tree. Every spawned subagent is a worker
+or reviewer according to its assigned role, and the parent Director's Task
+Contract is authoritative. A worker must not announce `director_mode: on`,
+publish a root-level `task_start` or composition disclosure, rewrite or
+re-decompose the parent contract, spawn or manage workers, integrate or merge,
+or declare the overall task complete. If the parent role or contract is
+unavailable or contradictory, stop and report role ambiguity to the parent;
+never self-promote. This is an instruction/contract boundary, and native
+runtime role metadata remains authoritative where exposed. A worker may carry
+out a deployment or other state-changing operation when the parent contract
+explicitly includes it.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role; a spawned subagent is never a Director under any
+circumstance, and `director` is invalid. Every worker Task Contract must also
+state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`. Missing or ambiguous role assignment or any missing field
+is a pre-spawn failure: do not create the worker.
 
 Rules for this session:
 
@@ -31,8 +51,8 @@ Rules for this session:
 2. Use native Codex subagent threads as the default. The custom roles are the
    `.codex/agents/*.toml` surface; `codex exec` is only a fallback for
    non-interactive, CI, process-isolated, or native-unavailable work.
-3. After explicit `$agent-director` or "Director mode on" activation, every
-   native ADP spawn must explicitly set `model="gpt-5.6-luna"` and
+3. ADP is active by default for repository and code tasks. Every native ADP
+   spawn must explicitly set `model="gpt-5.6-luna"` and
    `reasoning_effort="max"`. Do not inherit the Director or select
    effort by task kind. Prefer no named custom agent/type; if one is used,
    verify its loaded profile is pinned to the same pair before dispatch.
@@ -47,31 +67,49 @@ Rules for this session:
    generated artifacts, build/config files, and user flows before parallel
    execution. Overlapping writes or read/write consistency dependencies run
    sequentially.
-6. Disclose the entire composition before spawning: director, worker roles,
+  6. Disclose the entire composition before spawning: director, worker roles,
    task contracts, model/effort, justifications, conflict domains, execution
    mode, spawn accounting (existing, batch, and cumulative counts), and the
-   observed runtime-capacity result. Do not silently add agents later. Any
+    observed runtime-capacity result. Do not silently add agents later. Any
    mid-task contract or agent
    addition needs a new disclosure, a newly discovered evidence/conflict/
    dependency, mandatory independent-review boundary, or classified failure,
    and an explanation of why an existing contract/worker cannot absorb it.
-   Speed, parallelism, efficiency, task size/complexity, file count, context
-   reduction, empty slots, and tidy/smaller task IDs are not justifications.
-7. Native runtime capacity is the only concurrency authority. Record observed
-   capacity when exposed; if it is unknown, do not invent a numeric project
-   limit. A native slot-full response requires wait/close, re-scope, or return;
-   it never authorizes Director fallback or takeover. Before the first spawn or
-   state change, visibly disclose objective/scope, planned total workers,
-   model/effort, tests, stop conditions, and an evidence-based minimum-safe
-   rationale tied to conflict boundaries, dependencies, independent review, or
-   blast-radius isolation.
-8. Workers must not spawn children. Reviewers are read-only by default and
+    Parallel dispatch additionally requires at least two independently
+    verifiable groups, pairwise-disjoint conflict domains, empty cross-group
+    dependency edges, isolated write state, and observed capacity. Speed and
+    efficiency may be outcomes, and an explicit latency priority may be
+    recorded, but neither is a standalone justification.
+7. Before every task, every state-changing operation, and every native-spawn
+   attempt, visibly publish a work-contract notice with `phase` and
+   `user_visible: true`. `task_start` begins every task; a zero-worker start is
+   valid only when `work_contract.read_only: true`. `spawn` and `addition`
+   require positive worker totals. An addition notice must include
+   `changed_scope`, `change_summary`, `added_worker_task`, one classified
+   `addition_basis`, `why_existing_workers_cannot_absorb`, and
+   `new_disclosure: true`. The repository cannot hard-intercept the
+   platform-owned `multi_agent_v1__spawn_agent` tool, so do not claim a hidden
+   runtime gate.
+  8. Native runtime capacity is the only concurrency authority. For N eligible
+    groups with known capacity of at least two, set `planned_workers = min(N,
+    observed_capacity)`. If it is unknown, use the conservative one-worker
+    sequential fallback and record `capacity_source: "unknown"`; do not invent
+    a numeric project limit. A native slot-full response requires wait/close,
+    re-scope, or return; it never authorizes Director fallback or takeover. The
+    every-task notice above must include objective/scope, independent_groups,
+    conflict_domains, dependency_edges, planned_workers, capacity_source,
+    write_isolation, why_fewer_workers_cannot_absorb, planned total workers, model/effort, tests,
+    stop conditions, and an evidence-based minimum-safe rationale tied to
+    conflict boundaries, dependencies, independent review, or blast-radius
+    isolation.
+9. Workers must not spawn children. Reviewers are read-only by default and
    return evidence-based revision requests to the director.
-9. Rescue keeps the same Luna model and raises effort only when a supported
+10. Rescue keeps the same Luna model and raises effort only when a supported
    higher step exists. The normal baseline is already Luna `max`, so Rescue
-   is unavailable for ordinary Codex ADP runs; preserve evidence and use the
-   Core escalation/takeover gates. Do not silently change models.
-10. Preserve user changes and failed-worker evidence. Establish a real Git
+   is unavailable for ordinary Codex ADP runs; preserve evidence and
+   stop/report or ask the user. Do not turn Rescue failure into automatic
+   Director takeover or silently change models.
+11. Preserve user changes and failed-worker evidence. Establish a real Git
     checkpoint before the first spawn and do not use destructive cleanup to
     hide ambiguity.
 

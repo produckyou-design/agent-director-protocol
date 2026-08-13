@@ -8,21 +8,60 @@ somewhere other than the conventions in INSTALL.md.
 ## Director mode
 
 For any multi-task or multi-file feature build, load the `agent-director`
-skill and operate as director: plan, decompose into task contracts,
-delegate each task to a subagent (implementer), and independently review
-before accepting. Do not write product code directly before delegation has
-been attempted — direct coding is allowed only after a recorded takeover
-(two failed revision loops, or a demonstrated implementer inability), per
-the skill's takeover template.
+skill. Only the root/current parent session operates as Director: it plans,
+decomposes into task contracts, delegates each task to a subagent
+(implementer), and independently reviews before accepting. Spawned workers
+and reviewers do not activate Director mode; they remain in their assigned
+roles and follow the parent contract. Every state-changing or code task,
+including a small or unambiguous fix, uses a complete task contract and an
+implementer. A
+zero-worker contract is allowed only for a purely read-only task marked
+`read_only: true`; any takeover remains governed by the skill's recorded
+takeover template.
+
+Director mode is root-only: a task tree has exactly one Director, the
+root/current parent session. Every spawned subagent is a worker or reviewer
+according to its assigned role, and the parent Director's Task Contract is
+authoritative. A worker must not announce `director_mode: on`, publish a
+root-level `task_start` or composition disclosure, rewrite or re-decompose the
+parent contract, spawn or manage workers, integrate or merge, or declare the
+overall task complete. If the parent role or contract is unavailable or
+contradictory, stop and report role ambiguity to the parent; never self-promote
+to Director. This is an instruction/contract boundary; native runtime role
+metadata remains authoritative where exposed. A worker may perform a
+deployment or another state-changing operation when the parent contract
+explicitly includes it.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role; a spawned subagent is never a Director under any
+circumstance, and `director` is invalid. Every worker Task Contract must also
+state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`. Missing or ambiguous role assignment or any missing field
+is a pre-spawn failure: do not create the worker.
 
 - Skill location: `.claude/skills/agent-director/` (project) or
   `~/.claude/skills/agent-director/` (user-global).
 - The default profile (`profiles/default.yaml` next to the skill) applies
   automatically — no selection needed. It does not pick which model is
   director (that's always whichever model is running this session); it sets
-  policy: `max_batch_agents`, `failure_threshold`, `effort_by_task_kind`. Only
+  non-cap policy such as `failure_threshold` and `effort_by_task_kind`. Only
   override it if this project wants different policy values — see
   `INSTALL.md` → "The default profile."
-- For a single small fix with no ambiguity, plain direct coding is fine;
-  director mode is for work that benefits from an explicit contract, an
-  independent review, and possibly parallel implementers.
+- Native runtime capacity is the only worker-capacity authority. If capacity
+  telemetry is unavailable, keep it `unknown`; do not invent a numeric project
+  cap. A slot-full response requires waiting, inspecting evidence, closing
+  completed workers, then re-scoping or returning to the user.
+- A batch may run in parallel only when it contains at least two independently
+  verifiable work groups, their conflict domains are disjoint across files,
+  code regions, interfaces, schemas, generated output, build targets, shared
+  state, data, and user flows, and there are no cross-group dependency edges.
+  Parallel writes require isolated working copies. A shared/conflicting or
+  sequential write domain uses one worker.
+  Disclose `independent_groups`, `conflict_domains`, `dependency_edges`,
+  `planned_workers`, `capacity_source`, `write_isolation`, and
+  `why_fewer_workers_cannot_absorb` in the work contract. With known capacity
+  of at least two, `planned_workers = min(group count, observed_capacity)`; with
+  unknown capacity, use one sequential worker and do not invent a cap. Speed
+  and efficiency are outcomes, and an explicit latency priority is optional;
+  neither is a standalone justification or an override.

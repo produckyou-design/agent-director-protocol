@@ -15,15 +15,71 @@ start until it has been stated.
   "director_model": "<actual user-selected model>",
   "director_effort": "<low|medium|high|xhigh|max>",
   "director_model_source": "user_selected_session",
+  "phase": "spawn",
+  "user_visible": true,
+  "work_contract": {
+    "objective": "<checkable objective>",
+    "scope": ["<files, interfaces, or state boundaries>"],
+    "planned_contracts": 2,
+    "planned_workers": 2,
+    "worker_model": "<adapter-selected-worker-model>",
+    "worker_reasoning_effort": "high",
+    "minimum_safe_rationale": "Two independently verifiable work groups have disjoint domains and require separate evidence; one worker cannot preserve those independent review boundaries.",
+    "independent_groups": [
+      {
+        "group_id": "G-001",
+        "scope": ["src/auth/*"],
+        "independently_verifiable": true,
+        "conflict_domains": {
+          "files": ["src/auth/*"],
+          "code_regions": [],
+          "interfaces": ["POST /api/login"],
+          "schemas": [],
+          "generated_artifacts": [],
+          "shared_configs": [],
+          "state_stores": [],
+          "data_structures": [],
+          "db_entities": [],
+          "build_targets": [],
+          "user_flows": ["login"]
+        }
+      },
+      {
+        "group_id": "G-002",
+        "scope": ["src/session/*"],
+        "independently_verifiable": true,
+        "conflict_domains": {
+          "files": ["src/session/*"],
+          "code_regions": [],
+          "interfaces": ["SessionService"],
+          "schemas": [],
+          "generated_artifacts": [],
+          "shared_configs": [],
+          "state_stores": [],
+          "data_structures": [],
+          "db_entities": [],
+          "build_targets": [],
+          "user_flows": ["session-validation"]
+        }
+      }
+    ],
+    "dependency_edges": [],
+    "capacity_source": "observed_native_runtime",
+    "observed_capacity": 2,
+    "write_isolation": "isolated",
+    "why_fewer_workers_cannot_absorb": "Each group has its own verification path and disjoint write domain; folding them into one worker would remove the required independent evidence boundary.",
+    "tests": ["<exact test command>"],
+    "stop_conditions": ["<failure, capacity, or verification stop condition>"]
+  },
   "subagent_count": 2,
   "subagents": [
     {
-      "role": "investigator",
-      "task": "T-001 root-cause investigation",
+      "role": "implementer",
+      "task": "T-001 authentication correction",
       "model": "<adapter-selected-worker-model>",
       "model_ceiling": "<adapter-worker-model-ceiling>",
       "effort": "max",
-      "justification": "An independent read-only root-cause result is required before implementation can be safely contracted.",
+      "justification": "This group has an independently verifiable result and a disjoint authentication domain; it cannot be folded into the session group without losing isolation.",
       "model_source": "native_subagent",
       "conflict_domains": {
         "files": ["src/auth/*"],
@@ -36,7 +92,7 @@ start until it has been stated.
       "model": "<adapter-selected-worker-model>",
       "model_ceiling": "<adapter-worker-model-ceiling>",
       "effort": "high",
-      "justification": "The correction is an independently verifiable bounded implementation after the investigation result.",
+      "justification": "This group has an independently verifiable result and a disjoint session domain with no dependency edge to T-001.",
       "model_source": "native_subagent",
       "conflict_domains": {
         "files": ["src/session/*"],
@@ -44,24 +100,34 @@ start until it has been stated.
       }
     }
   ],
-  "execution_mode": "sequential",
-  "rescue_agent_available": true,
+  "execution_mode": "parallel",
+  "rescue_agent_available": false,
   "within_preapproved_range": true,
   "approval_status": "not_required",
   "spawn_budget": {
     "already_spawned_count": 0,
     "this_batch_count": 2,
     "total_after_spawn": 2,
-    "max_total_spawned_agents_per_request": 12,
-    "within_limit": true
+    "capacity_source": "observed_native_runtime",
+    "capacity_known": true,
+    "observed_capacity": 2
   }
 }
 ```
 
-`execution_mode` is `parallel` only after the conflict check proves the
-workers independent. `within_preapproved_range` concerns the batch limit;
-`spawn_budget.within_limit` concerns the cumulative request limit. These are
-separate controls.
+`execution_mode` is `parallel` only when there are at least two independently
+verifiable groups, their complete conflict domains are pairwise disjoint, and
+`dependency_edges` is empty. A shared/conflicting or sequential write domain
+uses one worker. With known native capacity of at least two,
+`planned_workers = min(independent-group count, observed_capacity)`; with
+unknown capacity, use one sequential worker and record `capacity_source` as
+`unknown` without inventing a cap. The work contract must disclose
+`independent_groups`, `conflict_domains`, `dependency_edges`,
+`planned_workers`, `capacity_source`, `write_isolation`, and
+`why_fewer_workers_cannot_absorb`. `spawn_budget` records request accounting
+and the capacity observation supplied by the native runtime.
+`within_preapproved_range` and `approval_status` describe any separately
+authorized policy exception and do not create worker-capacity authority.
 
 ## Part 2 — Promotion notice
 

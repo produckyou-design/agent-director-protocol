@@ -41,6 +41,22 @@
                                 "Existing orders dashboard and API tests continue to pass unchanged.",
                                 "New tests cover the export endpoint\u0027s filtering and the button\u0027s presence and click behavior inside OrdersPage."
                             ],
+    "goal":  "Implement the bounded orders CSV export across the declared server/client files, preserving existing behavior, and return reproducible evidence.",
+    "success_criteria":  [
+                                "The export endpoint and OrdersPage button use active filters and satisfy the listed completion criteria.",
+                                "Both named server and client test commands pass and their output is reported verbatim."
+                            ],
+    "failure_criteria":  [
+                                "The worker needs to edit auth or inventory files or either scoped test command remains failing after bounded fixes."
+                            ],
+    "termination_criteria":  [
+                                "Stop after server/client tests pass and the browser verification evidence is captured.",
+                                "Stop and report if the existing orders response contract must change or a cross-domain dependency is required."
+                            ],
+    "required_evidence":  [
+                                "Changed-file list, exact server/client commands, and verbatim test output.",
+                                "Evidence that filtered export output and the OrdersPage click flow are wired and preserve existing behavior."
+                            ],
     "test_commands":  [
                           "npm test --prefix server -- orders.test.js",
                           "npm test --prefix client -- OrdersPage.test.jsx"

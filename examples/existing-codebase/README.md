@@ -17,7 +17,7 @@ a single, narrowly-scoped direct fix.
   showing how a fix can pass its own tests while still being a
   `placeholder_implementation` (loop 1) or a `repeated_same_error` /
   `instruction_not_applied` (loop 2).
-- A **takeover record** with all ten required fields, where
+- A **takeover record** with all eleven required fields, where
   `takeover_justification` explicitly cites the two failed loops' evidence
   — never "the task is simple."
 - The director's own bounded direct fix in `10-completion.md`, scoped

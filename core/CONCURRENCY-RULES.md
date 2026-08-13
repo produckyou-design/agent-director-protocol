@@ -4,22 +4,31 @@ This document defines when delegated tasks may run in parallel and when they mus
 The adapter observes native runtime capacity; the protocol supplies correctness
 and disclosure checks without inventing a concurrent or cumulative numeric cap.
 
-## Default: sequential unless proven independent
+## Deterministic parallel-dispatch rule
 
-Only genuinely independent tasks run in parallel. Independence is not inferred from different
-filenames. If any of these domains overlap, the director MUST default to sequential execution:
+The director must describe the batch as `independent_groups`, `conflict_domains`, and
+`dependency_edges` before choosing an execution mode. A batch is eligible for `parallel` execution
+only when all of these conditions hold:
 
-- files or glob patterns;
-- code regions or data structures;
-- public interfaces, API contracts, or event names;
-- schemas or database entities/migrations;
-- shared configuration or state stores;
-- generated artifacts or build/package targets;
-- user flows or data dependencies.
+1. It contains **two or more independently verifiable work groups**. Each group has its own bounded
+   scope, completion criteria, and evidence path; a list of filenames is not enough.
+2. Every pair of groups has disjoint conflict domains. Compare files, code regions, interfaces,
+   schemas, generated output (`generated_artifacts` / build targets), shared state
+   (`shared_configs` / `state_stores`), data (`data_structures` / database entities), and user
+   flows. A shared file or shared interface forces sequencing even when the intended lines differ.
+3. There are no cross-group dependency edges, including `depends_on`, read/write consistency, a
+   required generated artifact, or an integration result that one group must receive from another.
 
-Read/read work may run in parallel when it has no dependency. Write/write overlap is forbidden.
-Read/write work is sequential whenever the read must see the writer's result or the writer could
-invalidate the reader's evidence.
+If any condition fails, the batch is sequential. A shared, conflicting, or sequential write domain
+has **one worker owner** (`planned_workers: 1` for that domain); do not use parallel workers to hide
+the conflict. Read/read work can be parallel only after the same group, domain, and dependency
+checks pass. Parallel writes also require isolated working copies; without isolation, they are
+sequential even when the intended domains appear disjoint.
+
+Parallelism is a consequence of this proof, not a justification by itself. Speed or efficiency may
+be recorded as an outcome, and an explicit latency priority may be recorded as an optional user
+priority, but neither can create independent groups or override a conflict, dependency, missing
+isolation, or native capacity.
 
 ## The conflict check
 
@@ -28,28 +37,64 @@ domain key, normalize exact names and declared glob patterns, then check for int
 file is sufficient to force sequencing even when the intended code regions differ. A shared
 interface or schema is sufficient even when the files differ.
 
-If a conflict is found, add a real dependency where one task needs the other's output or otherwise
-choose a deterministic sequential order. Do not create a false dependency merely to hide a conflict;
-the disclosure should state that the order is a conflict-safety decision.
+If a conflict is found, record the actual conflict or dependency edge and choose a deterministic
+sequential order. Do not create a false dependency merely to hide a conflict; the disclosure should
+state that the order is a conflict-safety decision. A vague claim such as "parallel for speed" or
+"parallel for efficiency" is not a valid eligibility or scale decision.
 
 ## Native capacity and disclosed batches
 
-The active adapter may expose `agents.max_concurrent_threads_per_session` or
-another runtime capacity value. That observed value is runtime capacity only;
-ADP does not add a concurrent or cumulative numeric cap. If capacity metadata
-is absent, record it as unknown and do not invent a project default.
+The active adapter may expose `agents.max_concurrent_threads_per_session` or another runtime
+capacity value. That observed value is runtime capacity only; ADP does not add a concurrent or
+cumulative numeric cap. For `N = len(independent_groups)`:
 
-Before the first spawn or any state-changing work, the director must visibly
-disclose a checkable work contract to the user. It must state objective/scope,
+- when `N >= 2`, the domains are disjoint, dependency edges are empty, and observed capacity is a
+  known integer of at least two, set `planned_workers = min(N, observed_capacity)`;
+- when the batch is a single group or fails the parallel eligibility proof, set
+  `planned_workers: 1` for the sequential/shared write domain;
+- when capacity is unknown or less than two, do not claim a parallel slot count. Use the
+  conservative one-worker sequential fallback (`planned_workers: 1`) and retain
+  `capacity_source: "unknown"`; when the runtime reports zero available capacity, stop or wait
+  rather than issuing a zero-worker write dispatch.
+
+The work-contract disclosure must include `independent_groups`, each group's complete
+`conflict_domains`, `dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`, and
+`why_fewer_workers_cannot_absorb`. The capacity source must identify the native runtime observation
+or explicitly say `unknown`; it is never replaced by a project default.
+
+Draft-07 schema validation checks the field shapes and the basic parallel
+requirements. The repository's semantic validator
+(`scripts/validate_dispatch_plan.py`, invoked by `scripts/validate_schemas.py`)
+also checks pairwise domain/glob overlap, dependency endpoints, write isolation,
+and the `planned_workers = min(N, observed_capacity)` formula. A schema-valid
+disclosure is not dispatch-ready until both checks pass.
+
+Before every task, every state-changing operation, and every native-spawn attempt, the director
+must visibly disclose a checkable work contract to the user. It must state objective/scope,
 planned total contracts/workers, the minimum-safe rationale based only on
 conflict boundaries, dependencies, independent evidence/review, or blast-radius
 isolation (and why fewer existing contracts/workers cannot absorb it), the model
 and effort, the complete batch plan, exact test commands, and stop conditions.
 
+Every task starts with `phase: task_start`. A zero-worker task start is valid only for a
+work contract marked `read_only: true`; `phase: spawn` and `phase: addition` require positive
+worker totals. The native-spawn attempt gets its own visible spawn disclosure even when the
+task-start notice already described the intended work.
+
 Before each later batch, send a continuation disclosure stating the previous
 batch's result and closure state, why the next batch remains necessary, the next
 batch size, and the updated plan. A preplanned later batch is not an
 unapproved addition, but it still requires this disclosure.
+
+Any later addition or material scope change requires a new `phase: addition` disclosure before
+dispatch. It must state `changed_scope`, `change_summary`, `added_worker_task`, one classified
+`addition_basis` (`newly_discovered_evidence`, `new_conflict_domain`, `new_dependency`,
+`mandatory_independent_review`, or `classified_failure`),
+`why_existing_workers_cannot_absorb`, and `new_disclosure: true`. The new worker must still satisfy
+the deterministic group/domain/dependency rule and the observed-capacity formula; a stated speed,
+parallelism, or efficiency benefit cannot substitute for that evidence. The repository documents
+and validates this contract, but the native platform-owned `multi_agent_v1__spawn_agent` call
+remains outside repository interception.
 
 When active slots are full, wait for workers to finish, independently inspect
 the required evidence, close completed workers to release slots, and then
@@ -107,9 +152,13 @@ does not depend on each other.
 }
 ```
 
-These tasks have no intersection and may be disclosed as `parallel` if they have no dependency and
-the observed native runtime capacity permits it. If a third task changes `POST /orders`, the
-interface intersection forces it to run sequentially with T-041 regardless of its filename.
+These are two independently verifiable groups with disjoint domains and no dependency edge, so they
+may be disclosed as `parallel` only when the native runtime reports usable capacity. With
+`observed_capacity: 2`, the work contract records `planned_workers: 2` (`min(2, 2)`). If capacity is
+unknown, it records `capacity_source: "unknown"` and uses one sequential worker without inventing a
+cap. If a third task changes `POST /orders`, the interface intersection forces it to run
+sequentially with T-041 regardless of its filename; a speed or efficiency claim cannot change that
+decision.
 
 ## Failure and interruption
 
@@ -117,6 +166,40 @@ Tasks in one batch do not share failure counts. Review and integrate each passin
 but hold a task whose dependency failed. Each failed task follows its own failure/rescue protocol.
 If a failure invalidates the batch's design, stop integration and return to design rather than
 integrating half of a plan known to be wrong.
+
+## Progress-aware worker waiting
+
+A native `RUNNING` worker is preserved by default. A wait timeout records an observation event only:
+no final result arrived during that wait. It is not completion evidence, an interrupt signal, or stall
+evidence by itself. The director must inspect the native state before taking recovery action:
+
+- **`progressing`** — progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another progress artifact declared in the contract. Preserve the worker and continue a
+  task-appropriate bounded wait. A progressing worker or active command is never interrupted or
+  closed merely because a wait expired.
+- **`completed_work_unreported`** — acceptance evidence, a checkpoint, a diff, or test output shows
+  that work may be complete but no final report arrived. Inspect the available evidence without
+  claiming completion; do not rerun the work merely to obtain a final message.
+- **`stalled`** — native status remains `RUNNING` and no active command or other progress signal
+  exists for the declared no-progress observation window.
+- **`unknown`** — the native surface exposes no progress telemetry. Do not convert lack of telemetry
+  into a stall; report the monitoring limitation and preserve the worker state.
+
+File state is never a standalone lifecycle signal. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report may be treated as a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+
+On the first timeout, record the observation and perform another task-appropriate bounded wait by
+default. Skip that additional wait only when explicit fatal runtime evidence already exists: a crash,
+repeated tool error, explicit failure, runtime disconnect, or a demonstrably repeated identical
+command. During the longer wait, inspect native status, recent tool output, active-command signals,
+or other declared progress when exposed. If the surface exposes no progress telemetry, classify the
+state as `unknown`, not `stalled`.
+
+An interrupt is permitted only after either explicit fatal runtime evidence (crash, repeated tool
+error, explicit failure, runtime disconnect, or demonstrably repeated identical command), or the
+declared no-progress observation window has elapsed with native status still `RUNNING` and no active
+command or progress signal. The no-progress path does not require an error message; it is a bounded
+recovery path and must not silently loop forever.
+
+After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt. Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. A fresh implementer or scope split requires a new addition disclosure and revised contract; repeated native stalls must stop/report native unavailability rather than becoming a timeout/re-dispatch loop.
 
 On user interruption, report what completed, what remains active, and where each state is preserved.
 Never abandon an in-flight write or discard its evidence silently.

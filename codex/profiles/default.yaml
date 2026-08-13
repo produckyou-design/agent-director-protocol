@@ -9,6 +9,12 @@ director:
   inherit_active_session: true
   model_source: current_user_selected_session
   contract_disclosure: required_user_visible
+  disclosure_phases:
+    - task_start
+    - spawn
+    - addition
+  read_only_zero_worker_start: explicit_true_only
+  addition_basis: classified_evidence_or_independent_review_only
   scale_rationale: evidence_based_only
   batch_plan: disclosed_by_director
 

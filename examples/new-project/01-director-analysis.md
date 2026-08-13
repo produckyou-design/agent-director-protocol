@@ -18,9 +18,11 @@ health.RegisterRoutes(mux)
 cfg, err := config.Load(configPath)
 ```
 
-The binary will not build until both tasks land — that is expected and does
-not block either task's own tests, which run against each package in
-isolation (`go test ./internal/health/...` and `go test ./internal/config/...`).
+The binary will not build until both tasks land — that is a separate post-batch
+integration check and does not block either task's own tests, which run against
+each package in isolation (`go test ./internal/health/...` and
+`go test ./internal/config/...`). It is not a cross-group dependency for the
+two implementation groups because neither group consumes the other's output.
 
 ## Conflict domain check (parallel-eligibility)
 
@@ -32,13 +34,67 @@ isolation (`go test ./internal/health/...` and `go test ./internal/config/...`).
 | db_entities | — | — | none |
 | shared_configs | — | — | none |
 | state_stores | — | — | none |
-| build_targets | `cmd/server` (read-only: neither task edits main.go) | `cmd/server` (read-only) | none — both only *read* main.go, listed in `must_read_files`, not `editable_files` |
+| build_targets | `internal/health` package tests | `internal/config` package tests | none |
 | user_flows | GET /health request flow | server startup config loading | none |
 
-No column has any overlap, and `cmd/server/main.go` is in `forbidden_files`
-for both tasks rather than `editable_files` for either. **Parallel execution
-approved**: T-401 and T-402 are delegated concurrently as independent task
-contracts, each reviewed independently.
+No column has any overlap, and the two contracts do not share a required
+context file. **Parallel execution approved**: T-401 and T-402 are two independently verifiable groups with
+disjoint domains, an empty `dependency_edges` list, and isolated write state.
+The batch work contract records:
+
+```json
+{
+  "independent_groups": [
+    {
+      "group_id": "G-401",
+      "scope": ["internal/health"],
+      "independently_verifiable": true,
+      "conflict_domains": {
+        "files": ["internal/health/handler.go", "internal/health/handler_test.go"],
+        "code_regions": [],
+        "interfaces": ["health.RegisterRoutes(mux *http.ServeMux)"],
+        "schemas": [],
+        "generated_artifacts": [],
+        "shared_configs": [],
+        "state_stores": [],
+        "data_structures": [],
+        "db_entities": [],
+        "build_targets": ["go test ./internal/health/..."],
+        "user_flows": ["GET /health request flow"]
+      }
+    },
+    {
+      "group_id": "G-402",
+      "scope": ["internal/config"],
+      "independently_verifiable": true,
+      "conflict_domains": {
+        "files": ["internal/config/config.go", "internal/config/config_test.go"],
+        "code_regions": [],
+        "data_structures": ["Config"],
+        "interfaces": ["config.Load(path string) (*Config, error)"],
+        "schemas": [],
+        "generated_artifacts": [],
+        "shared_configs": [],
+        "state_stores": [],
+        "db_entities": [],
+        "build_targets": ["go test ./internal/config/..."],
+        "user_flows": ["server startup config loading"]
+      }
+    }
+  ],
+  "dependency_edges": [],
+  "planned_workers": 2,
+  "capacity_source": "observed_native_runtime",
+  "observed_capacity": 2,
+  "write_isolation": "isolated",
+  "why_fewer_workers_cannot_absorb": "Each package has its own tests and review evidence; one worker would remove the independent group boundary."
+}
+```
+
+`planned_workers` is `min(2, 2)`. If native capacity were unknown, the
+deterministic fallback would be one sequential worker with
+`capacity_source: "unknown"`; no project capacity would be invented. Each
+contract is reviewed independently.
 
 ## Counter-example: a pair that would NOT be parallel-eligible
 

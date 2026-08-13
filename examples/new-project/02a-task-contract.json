@@ -4,9 +4,7 @@
     "objective":  "Provide a health-check endpoint so load balancers and operators can verify the service process is up and responding.",
     "current_state":  "internal/health/ package does not exist yet. cmd/server/main.go already calls health.RegisterRoutes(mux) in anticipation of this package, so the binary will not build until this task lands.",
     "target_behavior":  "internal/health exports RegisterRoutes(mux *http.ServeMux), which registers a GET /health route. A GET request responds 200 with JSON body {\"status\":\"ok\"} and Content-Type: application/json. Any other HTTP method on /health responds 405.",
-    "must_read_files":  [
-                            "cmd/server/main.go"
-                        ],
+    "must_read_files":  [],
     "editable_files":  [
                            "internal/health/handler.go",
                            "internal/health/handler_test.go"
@@ -31,6 +29,22 @@
                                 "GET /health returns HTTP 200 with body {\"status\":\"ok\"} and Content-Type: application/json.",
                                 "POST /health returns HTTP 405.",
                                 "go test ./internal/health/... passes with zero failures."
+                            ],
+    "goal":  "Implement the bounded GET /health route and its tests without changing the server entrypoint, then return reproducible evidence.",
+    "success_criteria":  [
+                                "GET /health returns the required JSON 200 response and non-GET requests return 405.",
+                                "The named Go test command passes and its output is reported verbatim."
+                            ],
+    "failure_criteria":  [
+                                "The worker needs to edit a forbidden file or the health package tests fail after scoped fixes."
+                            ],
+    "termination_criteria":  [
+                                "Stop after the route behavior and tests pass with the required evidence captured.",
+                                "Stop and report if the parent contract requires changes outside the health package."
+                            ],
+    "required_evidence":  [
+                                "Changed-file list, exact Go test command, and verbatim test output.",
+                                "Direct evidence for GET /health and a non-GET 405 response."
                             ],
     "test_commands":  [
                           "go test ./internal/health/... -v"
@@ -60,7 +74,7 @@
 
                                               ],
                              "build_targets":  [
-
+                                                    "go test ./internal/health/..."
                                                ],
                              "user_flows":  [
                                                 "GET /health request flow"
@@ -72,7 +86,7 @@
                        "model_ceiling":  "configured-worker-model-ceiling",
                        "reasoning_effort":  "medium",
                        "execution":  "parallel",
-                       "justification":  "This task is an independently verifiable bounded outcome with its own contract scope.",
+                       "justification":  "T-401 is one of two independently verifiable work groups; its files, interfaces, data, generated output, shared state, and user flow are disjoint from T-402, the batch has no cross-group dependency edge, and planned_workers is bounded by observed native capacity.",
                        "spawn_authority":  "director"
                    }
 }

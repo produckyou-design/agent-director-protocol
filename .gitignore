@@ -6,3 +6,4 @@ venv/
 *.egg-info/
 .pytest_cache/
 scripts/residue-denylist.local.txt
+.codex/agent-director/runs/

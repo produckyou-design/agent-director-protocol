@@ -28,6 +28,41 @@ on any section below.
   `reviewer.inherit` to something else. Full rule:
   [`ROLE-CONTRACT.md`](../../../core/ROLE-CONTRACT.md).
 
+## Worker-mode boundary (mandatory)
+
+A task tree has exactly one Director: the root/current parent session. Every
+spawned subagent is a worker or reviewer according to its assigned role. The
+spawned subagent is never a Director under any circumstance; only the
+root/current parent session is Director. The role name must be assigned before
+creation, and `director` is not a valid worker role.
+parent Director's Task Contract is authoritative. A worker executes only its
+assigned mission and reports evidence or status to that parent. It MUST NOT
+announce `director_mode: on`, publish a root-level `task_start` or composition
+disclosure, rewrite or re-decompose the parent contract, spawn or manage
+workers, integrate or merge work, or declare the overall task complete.
+
+A reviewer has the same root-level boundary and returns review evidence or
+advice; it does not make the overall completion judgment. If the parent role or
+contract is unavailable or contradictory, the worker stops and reports role
+ambiguity to the parent; it never self-promotes to Director. This is an
+instruction/contract boundary, not a runtime enforcement claim; native runtime
+role metadata remains authoritative where exposed. A worker may perform a
+deployment or another external/state-changing operation only when the parent
+contract explicitly includes that operation; worker status alone does not
+prohibit a contracted operation.
+
+## Pre-spawn worker-contract gate (mandatory)
+
+Before every worker spawn, the root/current parent Director must assign the
+worker's non-Director role and provide a complete per-worker Task Contract.
+The contract must explicitly include scope and non-goals plus the exact
+worker-specific fields `goal`, `success_criteria`, `failure_criteria`,
+`termination_criteria`, and `required_evidence`. The overall `objective`,
+`completion_criteria`, or generic `error_handling` fields are not substitutes.
+Missing, ambiguous, or `director` role assignment, or any missing field, is a
+pre-spawn failure: do not create the worker. Repair the contract or stop and
+report the failure first.
+
 ## Delegating a task
 
 1. Write a complete task contract before spawning any implementer. Fill in
@@ -67,11 +102,11 @@ on any section below.
    a hypothesis the director expected, **raise effort one step on
    re-delegation** instead of merely restating the same instruction — see
    [`FAILURE-LOOP.md`](../../../core/FAILURE-LOOP.md).
-5. **Decompose to the fewest tasks that qualify, not the most.** Before disclosing anything, check
-   whether this really needs N subagents or whether some pieces belong in one broader task contract.
-   Splitting further than the minimum needs a concrete reason — genuine parallelism benefit, a
-   distinct effort/model tier for one part, blast-radius isolation, or genuinely independent
-   verifiable outcomes — not "smaller diffs." See
+5. **Decompose to the fewest tasks that qualify, not the most.** Before disclosing anything, describe
+   the independently verifiable work groups and check whether this really needs N subagents or
+   whether some pieces belong in one broader task contract. Parallel dispatch requires at least two
+   groups with disjoint conflict domains, no cross-group dependency edges, isolated write state, and
+   observed native capacity. A shared/conflicting or sequential write domain has one worker. See
    [`DELEGATION-PROTOCOL.md`](../../../core/DELEGATION-PROTOCOL.md) step 4.
 6. **Disclose the agent composition before spawning anything.** Once per batch — not per individual
    spawn — tell the user what is about to run, filling in
@@ -79,17 +114,17 @@ on any section below.
    [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json)):
    director model/effort and source, subagent count, each subagent's role/task/model/model ceiling,
    effort, model source, conflict domains, and **`justification`** (why this piece needs its own
-   subagent, not folded into another task in the batch), execution mode, spawn budget, and whether a
-   Rescue Agent promotion is even reachable this session. Work does not start until this has been
-   stated. **If `subagent_count` exceeds the active
-   profile's `director.max_batch_agents`, this disclosure is also an approval request** —
-   `within_preapproved_range: false`, `approval_status: pending` — and dispatch waits for
-   `approval_status: granted`, the same pattern a Rescue Agent promotion outside the pre-approved
-   range uses. A conflict-free batch is still subject to this cap; passing the conflict-domain check
-   means the batch is *safe* to run in parallel, not that its size needs no sign-off — see
-   [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md). Mid-task promotions (Rescue Agent, or a granted
+   subagent, not folded into another task in the batch), execution mode, spawn budget,
+   `independent_groups`, `dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`,
+   `why_fewer_workers_cannot_absorb`, and whether a Rescue Agent promotion is even reachable this
+   session. Work does not start until this has been stated. Native runtime capacity is the only authority for worker capacity. For N eligible groups and known capacity of at least two,
+   `planned_workers = min(N, observed_capacity)`; when capacity is unknown, use one sequential
+   worker and keep it `unknown` without inventing a cap. A native slot-full response requires
+   waiting, inspecting the required evidence, closing completed workers to release slots, then
+   re-scoping or returning to the user; never invent or apply a fixed project worker cap. Mid-task
+   promotions (Rescue Agent, or a granted
    escalation) get their own separate notice later — see Escalation and Failure loop below — not
-   folded into this upfront disclosure, and do not count against `max_batch_agents`.
+   folded into this upfront disclosure.
 7. **A subagent must never spawn its own subagents.** If one reports mid-task that it thinks the work
    needs splitting further, that comes back to you as an out-of-scope/blocked finding — you decide
    whether to re-decompose, per step 5. This is the containment boundary that keeps a disclosed,
@@ -160,15 +195,21 @@ Full rule: [`ESCALATION-PROTOCOL.md`](../../../core/ESCALATION-PROTOCOL.md).
 
 ## Concurrency
 
-Spawn parallel subagents only when their `conflict_domains` (files,
-data_structures, interfaces, db_entities, shared_configs, state_stores,
-build_targets, user_flows) do not overlap. Any overlap forces sequential
-execution. Never let two subagents edit the same file concurrently. When the
-environment supports isolated working copies (e.g. the Agent tool's
-`worktree` isolation), use it for anything running in parallel — the
-conflict-domain check covers *intended* changes, not a stray write or
+The visible work contract must disclose `independent_groups`, each group's
+complete `conflict_domains`, `dependency_edges`, `planned_workers`,
+`capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`. Spawn parallel
+  subagents only when there are two or more independently verifiable groups,
+their domains are disjoint across files, code regions, generated output,
+shared state, data, interfaces/schemas, build targets, and user flows, and
+there are no cross-group dependency edges. Any overlap or dependency forces
+sequential execution with one worker for the shared/conflicting or sequential
+write domain. When the environment supports isolated working copies (e.g. the
+Agent tool's `worktree` isolation), use it for anything running in parallel —
+the conflict-domain check covers *intended* changes, not a stray write or
 regenerated artifact from one subagent landing in another's diff. Where no
-isolation is available, run sequentially. Full rule:
+isolation is available, run sequentially. Speed and efficiency may be outcomes,
+and an explicit latency priority may be recorded, but neither is a standalone
+reason or an override. Full rule:
 [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
 
 **When part of a batch fails**, resolve each task on its own evidence: integrate
@@ -178,6 +219,42 @@ count. Failures do not pool across tasks. If the failure shows the *design* was
 wrong rather than one implementer struggling, stop integrating and return to
 design. On user interruption, report what completed, what was in flight, and
 where each state is preserved — never abandon in-flight work silently.
+
+## Native worker lifecycle and recovery
+
+Apply the Core progress-aware recovery rules to the Claude Task/Agent surface.
+A native `RUNNING` worker is preserved by default. A wait timeout records an
+observation event only: no final result arrived during that wait. It is not
+completion evidence, an interrupt signal, or stall evidence by itself.
+
+- Track `progressing`, `completed_work_unreported`, `stalled`, and `unknown`
+  separately. Progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another declared progress artifact; those signals mean `progressing`. A
+  non-final result alone is not `stalled`.
+- While `progressing` or an explicitly declared long-running command is active,
+  preserve the worker and continue a task-appropriate bounded wait. A
+  progressing worker or active command is never interrupted or closed merely
+  because a wait expired.
+- File state is not lifecycle evidence. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report is a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+- On the first timeout, record the observation and perform another
+  task-appropriate bounded wait by default. Skip that additional wait only when
+  explicit fatal runtime evidence already exists: a crash, repeated tool error,
+  explicit failure, runtime disconnect, or a demonstrably repeated identical
+  command. During the longer wait, inspect native status, recent tool output,
+  active-command signals, or other declared progress when exposed. If the
+  surface exposes no progress telemetry, classify `unknown`, not `stalled`.
+- An interrupt is permitted only after explicit fatal runtime evidence (crash,
+  repeated tool error, explicit failure, runtime disconnect, or demonstrably
+  repeated identical command), or after the declared no-progress observation
+  window with native status still `RUNNING` and no active command or progress
+  signal. The no-progress path does not require an error message; it is bounded
+  and must not silently loop forever.
+- After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
+- Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report.
+- Do not repeatedly resume or re-dispatch the same unresponsive worker. A fresh
+  implementer requires a new addition disclosure and revised contract; repeated
+  native stalls end in stop/report of native unavailability.
+
+Full rule: [`CONCURRENCY-RULES.md`](../../../core/CONCURRENCY-RULES.md).
 
 ## State safety (git discipline)
 

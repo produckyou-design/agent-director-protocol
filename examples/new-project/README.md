@@ -9,27 +9,30 @@ two implementers at the same time instead of running them one after another.
 
 ## What this example demonstrates
 
-- The **`conflict_domains` check** the director runs before approving
-  parallel execution: a table across all eight domains (`files`,
-  `data_structures`, `interfaces`, `db_entities`, `shared_configs`,
-  `state_stores`, `build_targets`, `user_flows`) showing zero overlap.
+- The deterministic **`independent_groups` / `conflict_domains` /
+  `dependency_edges` check** the director runs before approving parallel
+  execution: a table across files, code regions, interfaces, schemas,
+  generated output, shared state, data, build targets, and user flows showing
+  zero overlap and an empty dependency edge list.
 - A **counter-example** in `01-director-analysis.md`: a hypothetical third
   task that *would* force sequential execution, because it would share the
   `interfaces` and `data_structures` domains with T-402.
 - Two independent **task contracts** (`02a`/`02b`) with `conflict_domains`
-  filled in and genuinely disjoint.
+  filled in and genuinely disjoint; the batch plan also records
+  `planned_workers = min(independent-group count, observed native capacity)`
+  and why one worker cannot absorb both groups.
 - Two independent **implementation reports** and **review results**
   (`03a`/`03b`, `04a`/`04b`), each approved without referencing the other
   task's status.
-- How a shared integration point (`cmd/server/main.go`) can exist without
-  creating a conflict: both tasks list it in `must_read_files` (they must
-  honor the function signatures it already expects) but neither lists it
-  in `editable_files` — it stays untouched by both.
+- Why a shared integration point is not included in either parallel task's
+  read set: a resource read by both groups is still a shared conflict domain,
+  so integration context is supplied after the independent package work lands.
 
 ## File-by-file walkthrough
 
 | File | Purpose |
 |---|---|
+| `00-agent-composition-disclosure.json` | The schema-valid batch disclosure consumed by the semantic dispatch validator. |
 | `01-director-analysis.md` | The conflict-domain table proving no overlap, plus the sequential counter-example. |
 | `02a-task-contract.json` | T-401: the health endpoint task contract, with `conflict_domains` filled in. |
 | `02b-task-contract.json` | T-402: the config loader task contract, with `conflict_domains` filled in. |
@@ -49,3 +52,6 @@ two implementers at the same time instead of running them one after another.
   file paths, interface names, and data structures each task touches, so
   the "no overlap" conclusion can be checked column by column rather than
   taken on trust.
+- A speed or efficiency claim would not be enough to authorize this batch. The
+  two groups are parallel only because their verification paths and domains
+  are independent, their dependency edges are empty, and capacity is observed.

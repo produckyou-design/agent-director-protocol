@@ -51,9 +51,13 @@ Official references: [Codex subagents](https://learn.chatgpt.com/docs/agent-conf
 
 ## Activation and Director model
 
-When the user explicitly invokes `$agent-director` or says `Director mode on`,
-announce `director_mode: on` and apply this policy for the current task. This
-is an instruction switch, not a hidden product or system setting.
+Apply this policy by default to every repository and code task. Only the
+root/current parent session is the Director, and that session announces
+`director_mode: on` at the start of the task. Spawned workers and reviewers
+skip that announcement and remain in their assigned roles. Explicit
+`$agent-director` or `Director mode on` remains a supported way to request the
+same policy, but it is not required for normal activation. This is an
+instruction policy, not a hidden product or system setting.
 
 The Director is the main Codex session the user is speaking to. **The user
 chooses the Director model and effort.** The protocol never selects Sol, Terra,
@@ -75,10 +79,45 @@ only exception is a recorded takeover under
 authored a diff under takeover, it must use an independent reviewer context and
 must not self-review.
 
+## Worker-mode boundary (mandatory)
+
+A task tree has exactly one Director: the root/current parent session. Every
+spawned subagent is a worker or reviewer according to its assigned role. The
+spawned subagent is never a Director under any circumstance; only the
+root/current parent session is Director. The role name must be assigned before
+creation, and `director` is not a valid worker role.
+parent Director's Task Contract is authoritative. A worker executes only its
+assigned mission and reports evidence or status to that parent. It MUST NOT
+announce `director_mode: on`, publish a root-level `task_start` or composition
+disclosure, rewrite or re-decompose the parent contract, spawn or manage
+workers, integrate or merge work, or declare the overall task complete.
+
+A reviewer has the same root-level boundary and returns review evidence or
+advice; it does not make the overall completion judgment. If the parent role or
+contract is unavailable or contradictory, the worker stops and reports role
+ambiguity to the parent; it never self-promotes to Director. This is an
+instruction/contract boundary, not a runtime enforcement claim; native runtime
+role metadata remains authoritative where exposed. A worker may perform a
+deployment or another external/state-changing operation only when the parent
+contract explicitly includes that operation; worker status alone does not
+prohibit a contracted operation.
+
+## Pre-spawn worker-contract gate (mandatory)
+
+Before every worker spawn, the root/current parent Director must assign the
+worker's non-Director role and provide a complete per-worker Task Contract.
+The contract must explicitly include scope and non-goals plus the exact
+worker-specific fields `goal`, `success_criteria`, `failure_criteria`,
+`termination_criteria`, and `required_evidence`. The overall `objective`,
+`completion_criteria`, or generic `error_handling` fields are not substitutes.
+Missing, ambiguous, or `director` role assignment, or any missing field, is a
+pre-spawn failure: do not create the worker. Repair the contract or stop and
+report the failure first.
+
 ## Worker dispatch policy: explicit Luna/max baseline
 
-When the explicit activation is on, every ADP-created native Codex subagent
-must be dispatched with both fields present in the spawn request:
+When ADP is active, every ADP-created native Codex subagent must be dispatched
+with both fields present in the spawn request:
 
 ```text
 model = "gpt-5.6-luna"
@@ -121,29 +160,118 @@ Before every native spawn, the Director must:
    requirement. Do not claim that execution was forced or accept unverified
    output.
 
+## Native worker lifecycle recovery
+
+Treat native lifecycle states as separate from implementation evidence:
+
+A native `RUNNING` worker is preserved by default. `wait_agent` only collects a
+final result; a timeout records an observation event only: no final result
+arrived during that wait. It is never completion evidence, an interrupt signal,
+or stall evidence by itself.
+- Track a lifecycle state separately from completion: `progressing` (progress evidence includes recent worker/tool output, a status transition, an active-command signal, or another declared progress artifact), `completed_work_unreported` (acceptance evidence
+  exists but no final report), `stalled` (native status remains `RUNNING` with
+  no active command or progress signal for the declared no-progress observation
+  window), or `unknown` (the native surface exposes no progress telemetry).
+  A non-final result alone is not `stalled`.
+- While `progressing` or while an explicitly declared long-running command is
+  active, preserve the worker and continue a task-appropriate bounded wait. A
+  progressing worker or active command is never interrupted or closed merely
+  because a wait expired.
+- File state is not lifecycle evidence. In read-only tasks, file changes or their absence are never stall evidence. A read-only architecture/design final report is a completed-work artifact only when it contains concrete scope, evidence, findings, tests or inspection commands, and unresolved risks. In write tasks, absence of file changes alone never proves a stall.
+- On the first timeout, record the observation and perform another
+  task-appropriate bounded wait by default. Skip that additional wait only when
+  explicit fatal runtime evidence already exists: a crash, repeated tool error,
+  explicit failure, runtime disconnect, or a demonstrably repeated identical
+  command. During the longer wait, inspect native status, recent tool output,
+  active-command signals, or other declared progress when exposed. If the
+  surface exposes no progress telemetry, classify `unknown`, not `stalled`.
+- An interrupt is permitted only after explicit fatal runtime evidence (crash,
+  repeated tool error, explicit failure, runtime disconnect, or demonstrably
+  repeated identical command), or after the declared no-progress observation
+  window with native status still `RUNNING` and no active command or progress
+  signal. The no-progress path does not require an error message; it is bounded
+  and must not silently loop forever.
+- After the one permitted `interrupt=true`, direct the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
+- Do not close a normal `RUNNING` or `progressing` worker. Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report.
+- For `completed_work_unreported`, inspect the fork, diff, checkpoint, and
+  available test output without claiming completion. If those surfaces are
+  unavailable, report the result as unknown; do not rerun the work merely to
+  obtain a final message.
+- Do not repeatedly resume or re-dispatch the same unresponsive worker. A
+  fresh implementer requires a new addition disclosure and revised contract,
+  and repeated native stalls end in a stop/report of native unavailability.
+- Closing or resuming does not merge a fork into the main working tree. Inspect
+  the fork diff or report and explicitly integrate it after review.
+- A named implementer uses `fork_context=false` or omission. Use
+  `fork_context=true` only when `agent_type` is omitted.
+- Keep spawn messages plain. Serialization failure before worker creation is a
+  dispatch failure; sanitize and retry the same contract, not a worker failure.
+- At the active Luna/max baseline, Rescue is unavailable. Do not spawn a
+  rescue role at Luna/max; revise, narrow, return, or use approved escalation.
+
+Failure, escalation, and Rescue gates are evidence gates, not permission for
+Director implementation. Never choose takeover automatically after a worker
+or Rescue failure. Without explicit current-session user authorization after a
+takeover disclosure, stop and report or ask the user. “Fix it” and “Director
+mode” do not authorize direct product-code changes.
+
 Any non-Luna or non-`max` exception requires explicit user authorization and a
 disclosure naming the exception. There is no silent inheritance, downgrade, or
 promotion. A user-authorized exception is a disclosed policy change for that
 spawn, not the adapter default.
 
+## Mandatory work-contract notice boundary
+
+Before every task, every state-changing operation, and every native-spawn
+attempt, visibly publish `user_visible: true` with a checkable work contract.
+The notice must state the objective, scope, planned contract/worker totals,
+minimum-safe rationale, model/effort, complete batch plan, exact tests, and
+stop conditions. This applies even to a read-only task that will spawn no
+worker.
+
+Use these phases:
+
+- `task_start` starts every task and every state-changing operation. A zero-
+  worker task start is valid only when `work_contract.read_only: true`.
+- `spawn` is the disclosure immediately before a worker batch or native-spawn
+  attempt and requires positive worker totals.
+- `addition` is a new disclosure before any later contract, worker,
+  investigator, reviewer, revision, rescue, or material scope change. It must
+  state `changed_scope`, `change_summary`, `added_worker_task`, one of
+  `addition_basis` must be one of `newly_discovered_evidence`, `new_conflict_domain`, `new_dependency`,
+  `mandatory_independent_review`, or `classified_failure`,
+  `why_existing_workers_cannot_absorb`, and `new_disclosure: true`.
+
+Speed and efficiency may be recorded as outcomes, and an explicit latency
+priority may be recorded, but neither is a standalone reason to add a worker or
+mark a batch parallel. The deterministic group, conflict, dependency,
+isolation, and capacity proof controls; parallelism is its result.
+
+The Codex repository can validate and document this boundary, but it cannot
+hard-intercept or add parameters to the platform-owned native
+`multi_agent_v1__spawn_agent` tool. Do not claim a runtime gate that the
+platform does not expose.
+
 ## Contract-first delegation
 
-For every non-trivial change, follow this exact order:
+For every task, every state-changing operation, and every native-spawn attempt,
+follow this exact order:
 
 1. Repository analysis.
 2. Requirement interpretation.
 3. Design.
-4. Fewest-first task decomposition.
-   Before any spawn, record a concrete contract-scale justification for why
-   this contract size and the total contract/worker count are the minimum safe
-   structure and why the work cannot be folded into fewer existing contracts.
+4. Fewest-first task decomposition. Describe the independently verifiable
+   work groups first. Before any spawn, record a concrete contract-scale
+   justification for why this contract size and the total contract/worker count
+   are the minimum safe structure and why the work cannot be folded into fewer
+   existing contracts.
 5. Complete [`task-contract.schema.json`](../../../schemas/task-contract.schema.json),
    including `delegation.role`, `delegation.model`, `delegation.model_ceiling`,
    `delegation.reasoning_effort`, `delegation.execution`, and a concrete
    `delegation.justification`.
 6. Conflict-domain check across files, code regions, interfaces, schemas,
    migrations, shared state, generated artifacts, build/config files, and user
-   flows.
+   flows; record the cross-group dependency edges.
 7. Agent composition disclosure, including the explicit worker pair and spawn
    budget.
 8. Native subagent spawn by the Director only.
@@ -158,9 +286,11 @@ decomposition reports it to the Director and stops; it never spawns a child.
 
 The initial `delegation.justification` set must explain conflict boundaries,
 dependencies, independent evidence/review needs, or blast-radius isolation and
-why fewer existing contracts/workers cannot safely absorb the work. Speed,
-parallelism, efficiency, task size/complexity, many files, context reduction,
-empty slots, and tidy/smaller task IDs are rejected.
+why fewer existing contracts/workers cannot safely absorb the work. For a
+parallel batch it must identify at least two independently verifiable groups,
+their disjoint domains, empty dependency edges, and the capacity observation
+used for `planned_workers`. A speed, parallelism, efficiency, task-size, or
+vague "large task" statement alone is not sufficient.
 
 Every mid-task addition of a contract, worker, investigator, reviewer,
 revision, or rescue requires a new disclosure first. Its concrete addition
@@ -170,11 +300,14 @@ failure and explain why an existing contract/worker cannot absorb it.
 
 ## Conflict-safe execution
 
-Use the Task Contract `conflict_domains` object and compare every pair before
-dispatch. Read/read work may run in parallel when there is no dependency. Any
-write/write overlap, shared interface/schema/config/state, or read/write
-consistency dependency is sequential. Different filenames do not prove that
-two API or schema changes are independent.
+The visible `work_contract` must disclose `independent_groups`, each group's
+complete `conflict_domains`, `dependency_edges`, `planned_workers`,
+`capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`. Parallel dispatch is
+valid only when there are two or more independently verifiable groups, every
+pair is disjoint across files, code regions, generated output, shared state,
+data, interfaces/schemas, build targets, and user flows, and the dependency
+edge list is empty. A shared/conflicting or sequential write domain uses one
+worker and runs sequentially.
 
 Native subagents inherit the parent session's sandbox and approval context. In
 the normal local workflow they should be treated as sharing the working tree;
@@ -183,8 +316,12 @@ isolated worktree, otherwise they run sequentially.
 
 Native capacity comes from the active Codex runtime through
 `agents.max_concurrent_threads_per_session` or returned metadata, when exposed.
-The adapter does not add a concurrent or cumulative numeric cap. If capacity is
-unknown, record it as unknown and do not invent a project limit.
+For `N` eligible groups and known capacity of at least two, set
+`planned_workers = min(N, observed_capacity)`. If capacity is unknown, record
+`capacity_source: "unknown"` (or a capacity below two) and use a conservative one-worker sequential
+fallback; never invent a project capacity. A full/zero-capacity result requires
+wait, inspection, re-scope, or return and never authorizes a zero-worker write
+or Director takeover.
 
 ## Agent composition disclosure
 
@@ -192,8 +329,12 @@ Before the first spawn in every batch, send one disclosure matching
 [`agent-composition-disclosure.schema.json`](../../../schemas/agent-composition-disclosure.schema.json):
 
 - `user_visible: true` and a `work_contract` containing the objective, scope,
-  planned contract/worker totals, worker model/effort, minimum-safe rationale,
-  exact tests, and stop conditions;
+   planned contract/worker totals, worker model/effort, minimum-safe rationale,
+   exact tests, stop conditions, `independent_groups`, `dependency_edges`,
+   `planned_workers`, `capacity_source`, `write_isolation`, and
+   `why_fewer_workers_cannot_absorb`;
+- the disclosure `phase` (`task_start`, `spawn`, or `addition`), with the
+  addition fields present whenever `phase: addition`;
 - current Director model and effort, with source `user_selected_session`;
 - each worker's role, Task Contract, explicit model `gpt-5.6-luna`, explicit
   effort `max`, model ceiling, and concrete justification;
@@ -219,7 +360,7 @@ Rescue is a bounded implementer assignment, not a stronger model tier:
 same GPT-5.6 Luna at max
   -> inspect failure evidence
   -> no higher same-model effort exists
-  -> preserve evidence and use Core escalation/takeover gates
+  -> preserve evidence and stop/report or ask the user; no automatic takeover
 ```
 
 The Director must classify the failure before promotion. Do not create a new

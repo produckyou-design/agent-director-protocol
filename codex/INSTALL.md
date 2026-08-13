@@ -23,22 +23,58 @@ The custom-agent files must contain `name`, `description`, and
 are role settings. The adapter does not invent depth, runtime, or model-list
 configuration keys.
 
-The user-selected current Codex session is the director. The protocol does not
-choose the director model. After explicit `$agent-director` or "Director mode
-on" activation, every ADP-created native worker is dispatched with explicit
+The root/current parent Codex session is the Director. The protocol does not
+choose the Director model. ADP is active by default for repository and code
+tasks; explicit `$agent-director` or "Director mode on" is optional. Every
+ADP-created native worker is dispatched with explicit
 `model="gpt-5.6-luna"` and `reasoning_effort="max"`; the Director's
 model is never inherited and effort is not selected by task kind. Configuration
 defaults and role files are defense in depth, not the enforcement claim.
 
-Before initial dispatch, record why the chosen contract size and total
-contract/worker count are the minimum safe structure. Cite conflict boundaries,
-dependencies, independent evidence/review, or blast-radius isolation and
-explain why fewer existing contracts cannot absorb the work. Speed,
-parallelism, efficiency, task size/complexity, many files, context reduction,
-empty slots, and tidy/smaller task IDs are rejected. Any mid-task contract or
-agent addition requires a new disclosure based on newly discovered evidence, a
-new conflict domain/dependency, a mandatory independent-review boundary, or a
-classified failure, plus why an existing contract/worker cannot absorb it.
+A task tree has exactly one Director. Every spawned subagent is a worker or
+reviewer according to its assigned role, and the parent Director's Task
+Contract is authoritative. A worker must not announce `director_mode: on`,
+publish a root-level `task_start` or composition disclosure, rewrite or
+re-decompose the parent contract, spawn or manage workers, integrate or merge,
+or declare the overall task complete. If the parent role or contract is
+unavailable or contradictory, stop and report role ambiguity to the parent;
+never self-promote. This is an instruction/contract boundary; native runtime
+role metadata remains authoritative where exposed. A worker may perform a
+deployment or another state-changing operation only when the parent contract
+explicitly includes it.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role; a spawned subagent is never a Director under any
+circumstance, and `director` is invalid. Every worker Task Contract must also
+state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`. Missing or ambiguous role assignment or any missing field
+is a pre-spawn failure: do not create the worker.
+
+Before every task, every state-changing operation, and every native-spawn
+attempt, publish a visible disclosure with `phase` and `user_visible: true`.
+`task_start` begins every task; a zero-worker task start is valid only when
+`work_contract.read_only: true`. `spawn` and `addition` require positive
+worker totals. An addition must include `changed_scope`, `change_summary`,
+`added_worker_task`, a classified `addition_basis`,
+`why_existing_workers_cannot_absorb`, and `new_disclosure: true`.
+
+The repository documents and validates this contract, but cannot hard-intercept
+the platform-owned `multi_agent_v1__spawn_agent` tool or add parameters to it.
+
+Before initial dispatch, describe the independently verifiable work groups and
+record why the chosen contract size and total contract/worker count are the
+minimum safe structure. Cite conflict boundaries, dependencies, independent
+evidence/review, or blast-radius isolation and explain why fewer existing
+contracts cannot absorb the work. Parallel dispatch additionally requires
+pairwise-disjoint conflict domains, empty cross-group dependency edges,
+isolated write state, and observed capacity. Speed and efficiency may be
+recorded as outcomes, and an explicit latency priority may be recorded, but
+neither is a standalone reason for a worker or parallel mode. Any mid-task
+contract or agent addition requires a new disclosure based on newly discovered
+evidence, a new conflict domain/dependency, a mandatory independent-review
+boundary, or a classified failure, plus why an existing contract/worker cannot
+absorb it.
 
 ## Files supplied by this repository
 
@@ -154,23 +190,29 @@ policy violation/fallback requirement rather than accepting its output. A
 non-Luna/non-max exception requires explicit user authorization and disclosure.
 
 Native runtime capacity is the only worker limit; the adapter does not invent a
-concurrent or cumulative numeric cap. If capacity metadata is unknown, record
-unknown and observe the native spawn result. Overlapping write or read/write
-conflict domains still run sequentially. A native slot-full response requires
-wait/close, re-scope, or return and never authorizes Director takeover.
+concurrent or cumulative numeric cap. For N eligible groups with known capacity
+of at least two, set `planned_workers = min(N, observed_capacity)`. If capacity is
+unknown, use the conservative one-worker sequential fallback and record
+`capacity_source: "unknown"`; never invent a cap. Overlapping write or
+read/write conflict domains still run sequentially with one worker. A native
+slot-full response requires wait/close, re-scope, or return and never
+authorizes Director takeover.
 
 ## How to use it
 
 Start Codex in the trusted target repository after installation. The current
-session is the director. Before the first spawn it must:
+session is the director. Before every task and before its first spawn it must:
 
 1. read the skill and relevant Core/schema documents;
 2. analyze the repository, write the fewest complete Task Contracts, and
    record the concrete initial contract-scale justification;
 3. check all conflict domains and dependencies;
-4. disclose the complete composition and spawn budget;
-5. spawn native subagent threads only after that disclosure;
-6. review actual diffs and actual test output before declaring completion.
+4. publish the `task_start` work-contract notice;
+5. publish a `spawn` notice immediately before any native worker batch;
+6. publish a new `addition` notice before any later contract, worker, revision,
+   rescue, reviewer, or material scope addition;
+7. spawn native subagent threads only after the applicable notice;
+8. review actual diffs and actual test output before declaring completion.
 
 There is no hidden platform-level "director mode" switch in Codex. The
 effective persistent setup is the project instruction plus the discovered skill

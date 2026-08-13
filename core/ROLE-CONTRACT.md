@@ -11,14 +11,65 @@ names, not model names. An adapter may map `worker` to bounded labels such as `i
 `implementer`, or a task-scoped `rescue` assignment. The protocol never prescribes which underlying
 model fills a role, and no file in `core/` names one.
 
-A single session may host multiple implementers working on different tasks. A project has exactly
-one director acting at a time for a given task tree.
+A single session may host multiple implementers working on different tasks. A task tree has exactly
+one Director: the root/current parent session. Every spawned subagent is a worker or reviewer
+according to an explicitly assigned non-Director role recorded before creation. A spawned subagent
+is never a Director under any circumstance. The word `director` is not a valid worker role; only the
+root/current parent session is Director.
 
 A "Rescue Agent" ([RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)) is not a fourth authority role. It is a
 task-scoped worker assignment at a higher reasoning effort — never an automatic model change — for
 one already-failed task, under stricter scope and attempt limits than ordinary work. It answers to
 the same director, is reviewed under the same [REVIEW-GATES.md](REVIEW-GATES.md), and does not get a
 lighter check for being better-resourced.
+
+## Single-Director and worker-mode boundary
+
+A task tree has exactly one Director: the root/current parent session. Every spawned subagent is a
+worker or reviewer according to an explicitly assigned non-Director role recorded before creation.
+A spawned subagent is never a Director under any circumstance, including when it can read this
+protocol or an adapter skill. The word `director` is not a valid worker role. Only the root/current
+parent session is Director.
+
+The parent Director's Task Contract is authoritative. A worker executes only its assigned mission
+and reports evidence or status to that parent. It MUST NOT:
+
+- announce `director_mode: on`;
+- publish a root-level `task_start` or composition disclosure;
+- create, rewrite, or re-decompose the parent contract;
+- spawn or manage workers;
+- integrate or merge work; or
+- declare the overall task complete.
+
+A reviewer has the same root-level boundary and returns review evidence or advice; it does not make
+the overall completion judgment. If the parent role or contract is unavailable or contradictory,
+the worker stops and reports role ambiguity to the parent; it never self-promotes to Director.
+
+This is an instruction/contract boundary, not a runtime enforcement claim. Native runtime role
+metadata remains authoritative where exposed. A worker may perform a deployment or another
+external/state-changing operation only when the parent contract explicitly includes that operation;
+worker status alone does not prohibit a contracted operation.
+
+## Pre-spawn worker contract gate (mandatory)
+
+Before creating any worker or reviewer, the root/current parent Director must assign a specific,
+non-Director role and provide a complete worker-specific Task Contract. A missing role, an ambiguous
+role, or the role name `director` is a pre-spawn failure: do not create the subagent; repair the
+contract or stop and report the failure.
+
+Each per-worker contract must explicitly carry all of these fields:
+
+- **role name** — a non-Director worker or reviewer role assigned before creation;
+- **goal** — the worker's concrete mission;
+- **scope and non-goals** — the allowed write/read boundary and explicit exclusions;
+- **success criteria** — objective conditions the worker must satisfy;
+- **failure criteria** — conditions that make the worker report failure or stop;
+- **termination/stop criteria** — conditions for ending work without further edits or tests; and
+- **required evidence/deliverables** — the artifacts and command output the worker must return.
+
+The overall `objective`, `completion_criteria`, and `error_handling` fields do not substitute for
+these worker-specific fields. The parent Director's contract is authoritative after this gate has
+passed.
 
 ## Director
 
@@ -61,12 +112,15 @@ evidence trail is whatever the director chooses to report about itself. Read-onl
 (reading logs, querying status, running tests to verify someone else's work) is not covered by this
 rule; it is part of the director's review duty.
 
-The single exception is takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md), which is permitted only when the implementer
-demonstrably cannot perform the task, or when a [Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion
-assigned after the active failure threshold — has also failed or was inapplicable. **Reaching the
-failure threshold alone does not authorize takeover;** it triggers failure-cause classification and, for
-a reasoning or model capability gap, a Rescue Agent attempt first. Takeover requires a written
-takeover record before any code is touched.
+The single exception is a user-authorized takeover, defined in [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md),
+which is permitted only when the implementer demonstrably cannot perform the task, or when a
+[Rescue Agent](RESCUE-PROTOCOL.md) — the bounded, one-shot promotion assigned after the active
+failure threshold — has also failed or was inapplicable. **Reaching the failure threshold or a
+Rescue failure never authorizes takeover automatically.** It triggers failure-cause classification,
+then a stop/report or user-escalation path. A direct takeover requires explicit authorization from
+the user in the current session, a new takeover disclosure, and a written takeover record before
+any product code is touched. A generic request to fix the task, Director mode, or prior delegation
+does not count as direct-takeover authorization.
 
 **"The task is small or simple" is NEVER a valid exception to this rule.** Task size and difficulty
 do not authorize the director to bypass delegation. A one-line fix still goes through a task

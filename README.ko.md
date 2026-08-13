@@ -53,7 +53,7 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | 같은 잘못된 수정을 반복하며 턴을 태움 | 동일 근본 원인에 대한 세 번째 추측성 수정은 금지. 대신 [증거 기반 에스컬레이션](core/ESCALATION-PROTOCOL.md)을 해야 함 |
 | 에스컬레이션 = "그냥 제일 큰 모델 박기" | [구조 에이전트](core/RESCUE-PROTOCOL.md)는 **추론 수준만 올리고 모델은 절대 안 바꿉니다** — 작업 하나, 최대 2회, 진짜 추론/능력 격차일 때만. 모델 변경은 사용자 승인 사항이고, 노력 수준이 바닥나면 구현자가 아니라 *디렉터*를 상향합니다(계획이 유력한 용의자니까) |
 | 모델이 조용히 자기를 승격시키거나, 승인한 적 없는 서브에이전트를 우르르 생성 | 모든 승격과 배치는 실행 *전에* 고지되고 서브에이전트마다 `justification` 필수. 네이티브 런타임 capacity만 사용하며, implementer는 아예 서브에이전트를 못 만듦 |
-| 병렬 에이전트 둘이 같은 파일을 덮어씀 | 배정 전 8개 도메인 [충돌 검사](core/CONCURRENCY-RULES.md). 파일 하나만 공유해도 무조건 순차 실행 |
+| 병렬 에이전트 둘이 같은 파일을 덮어씀 | 배정 전 전체 [충돌 도메인 검사](core/CONCURRENCY-RULES.md). 파일 하나만 공유해도 무조건 순차 실행 |
 | 실패한 시도가 `git checkout .`으로 날아가면서 증거까지 같이 사라짐 | [상태 안전성](core/STATE-SAFETY.md): 실패한 작업은 검토 전까지 보존되고, 체크포인트는 실제 커밋 SHA |
 | 모호한 지시("UI 고쳐줘")를 넘겼더니 엉뚱한 게 돌아옴 | 위임 전에 `current_state`, `target_behavior`, 객관적 `completion_criteria`를 갖춘 [작업 계약](core/TASK-CONTRACT.md)이 필수 |
 
@@ -98,6 +98,33 @@ ADP는 코딩 에이전트 하나를 **디렉터(director)**로 만들어, 계�
 | director | 기록된 인수인계(takeover) 하에서만 | 아니오 | 예 |
 | implementer | 예, 계약 범위 내에서 | 예 | 아니오 (상태만 자가 보고) |
 | reviewer | 아니오 | 아니오 | 아니오 (director에게 조언) |
+
+## 하나의 Director와 worker-mode 경계
+
+하나의 task tree에는 Director가 정확히 하나뿐이며, 그 역할은
+`root/current parent session`입니다. 모든 spawned subagent는 배정된 역할에
+따라 worker 또는 reviewer입니다. 부모 Director의 Task Contract가 권위 있는
+계약(parent Director's Task Contract is authoritative)입니다. worker는 배정된
+임무만 실행하고 부모에게 evidence 또는 status를 보고해야 하며,
+`director_mode: on`을 announce하거나 root-level `task_start` 또는 composition
+disclosure를 게시하거나, 부모 contract를 다시 쓰거나 재분해하거나, worker를
+spawn하거나 관리하거나, 작업을 integrate하거나 merge하거나,
+`overall task complete`를 선언해서는 안 됩니다.
+
+부모 역할이나 contract를 사용할 수 없거나 서로 모순되면 worker는 스스로
+Director가 되지 말고 부모에게 `role ambiguity`(역할 모호성)를 보고한 뒤
+멈춰야 합니다. 이것은 instruction/contract 경계이며 런타임 강제 기능이라는
+주장이 아닙니다. 노출되는 경우 native runtime role metadata가 우선합니다.
+부모 contract에 명시적으로 포함된 경우에 한해 worker가 배포나 다른
+state-changing operation을 수행할 수 있습니다.
+
+생성 전에 root/current parent Director는 각 subagent에 유효한
+비-Director 역할을 반드시 부여해야 합니다. spawned subagent는 어떤
+경우에도 Director가 아니며 `director`는 유효한 역할이 아닙니다. 각 worker
+Task Contract에는 scope와 non-goals, 그리고 정확한 worker 전용 필드인
+`goal`, `success_criteria`, `failure_criteria`, `termination_criteria`,
+`required_evidence`가 반드시 있어야 합니다. 역할이 없거나 모호하거나
+필드가 하나라도 빠지면 pre-spawn failure이므로 생성하지 않습니다.
 
 **구조 에이전트(Rescue Agent)**는 네 번째 역할이 아닙니다 — 이미 실패한 하나의
 작업을 **더 높은 추론 수준으로(모델은 절대 바꾸지 않고)** 다시 돌리는 implementer
@@ -349,7 +376,7 @@ codex plugin add agent-director@agent-director-protocol-plugins
 ```
 
 Codex 명시적 디스패치 정책: $agent-director를 호출하거나 "Director mode on"이라고
-말하면 현재 사용자 선택 세션은 Director로 유지됩니다. ADP가 만드는 모든
+말하면 `root/current parent session`이 Director로 유지됩니다. ADP가 만드는 모든
 네이티브 worker spawn에는 model="gpt-5.6-luna"와
 reasoning_effort="max"를 반드시 명시해야 하며, worker가 Director를
 상속하거나 작업 종류에 따라 effort를 선택해서는 안 됩니다. 기본 설정과
@@ -364,13 +391,71 @@ metadata가 노출되면 확인하고, 불일치한 worker는 거부하고 종�
 필요합니다. 기본값이 이미 max이므로 Codex Rescue는 일반 ADP 실행에서
 사용할 수 없으며, 증거를 보존하고 Core escalation/takeover 절차를 따릅니다.
 
-Codex 어댑터는 동시 또는 누적 worker 숫자 제한을 ADP에 추가하지 않습니다.
-노출되면 네이티브 런타임 capacity를 기록하고, capacity metadata가 없으면
-`unknown`으로 기록합니다. 네이티브 slot-full 응답은 대기, 증거 검사, 완료
-worker 종료, 범위 재조정 또는 사용자 반환으로 처리합니다. 첫 spawn이나 상태
-변경 전에 Director는 `user_visible: true`와 함께 objective, scope, 전체
-contract/worker 수, 최소 안전 근거, 정확한 테스트, stop conditions가 담긴
-`work_contract`를 사용자에게 고지해야 합니다.
+Codex 어댑터는 ADP에 고정된 동시/누적 numeric worker cap을 추가하지 않습니다.
+worker capacity의 유일한 권한은 네이티브 런타임입니다. capacity metadata가
+노출되면 기록하고, 없으면 `unknown`으로 유지합니다. 네이티브 slot-full 응답은
+대기, 증거 검사, 완료 worker 종료, 범위 재조정 또는 사용자 반환으로 처리하며,
+프로젝트 숫자 제한을 임의로 만들지 않습니다.
+
+work contract에는 `independent_groups`, 각 그룹의 전체
+`conflict_domains`, `dependency_edges`, `planned_workers`, `capacity_source`,
+`why_fewer_workers_cannot_absorb`와 `write_isolation`도 포함해야 합니다. 병렬 배치는 독립적으로
+검증 가능한 그룹이 두 개 이상이고, files, code regions, generated output,
+shared state, data, interfaces/schemas, build targets, user flows의 모든
+충돌 도메인이 쌍별로 분리되어 있으며, 그룹 간 dependency edge가 없을 때만
+허용됩니다. 공유/충돌 또는 순차 write domain은 worker 하나가 맡습니다.
+write를 병렬로 실행하려면 격리된 worktree도 필요합니다. 2 이상으로 관찰된
+네이티브 capacity가 2 이상일 때는 `planned_workers = min(독립 그룹 수,
+observed_capacity)`로 정합니다. capacity를 알 수 없으면 보수적으로 worker
+하나를 순차 실행하고 `capacity_source: "unknown"`을 기록하며 숫자를
+발명하지 않습니다. 속도와 효율은 결과로 기록할 수 있고 명시적인 latency
+priority도 선택적으로 기록할 수 있지만, 충돌/의존성/격리/capacity를
+무시하는 단독 근거나 override가 될 수 없습니다.
+
+Worker recovery도 progress-aware입니다. 네이티브 `RUNNING` worker는 기본적으로
+보존합니다. wait timeout은 해당 대기 동안 final result가 도착하지 않았다는
+관찰일 뿐이며, timeout만으로 completion, interrupt, close, splitting 또는
+re-dispatch를 판단하지 않습니다. 첫 timeout이 발생하면 관찰을 기록하고,
+명시적인 fatal runtime evidence(충돌, 반복된 tool error, 명시적 failure,
+runtime disconnect 또는 동일 command의 반복 실행이 입증된 경우)가 이미 있는
+때를 제외하고는 기본적으로 작업에 맞는 두 번째 bounded wait를 수행합니다.
+더 긴 대기 동안 노출된 네이티브 status, 최근 tool output, active-command 신호
+또는 선언된 progress를 확인합니다. 이 progress evidence를 함께 기록합니다.
+
+파일 상태는 lifecycle evidence가 아닙니다. read-only 작업에서 파일이
+변경되거나 변경되지 않은 것은 어떤 경우에도 stall evidence가 아니며, write
+작업에서 파일 변경이 없다는 사실만으로는 stall을 입증할 수 없습니다.
+read-only architecture/design 최종 report는 concrete scope, evidence, findings,
+tests 또는 inspection commands, unresolved risks를 포함할 때만
+completed-work artifact로 인정합니다. progress telemetry가 노출되지 않으면
+stalled가 아니라 `unknown`으로 분류합니다. final report 없이 완료된 것처럼
+보이는 작업은 `completed_work_unreported`로 보존합니다.
+
+명시적 fatal evidence 또는 네이티브 status가 여전히 `RUNNING`이고 active
+command나 progress signal이 없는, 선언된 bounded no-progress observation
+window가 끝난 경우에만 하나의 bounded interrupt(`interrupt=true`)를 허용합니다. interrupt는
+worker에게 다음을 지시해야 합니다: “현재 작업을 중단하고, 이미 확보한
+evidence만 요약하며, 새 work, tests 또는 edits를 시작하지 말고 종료하세요.”
+queued message/request to return progress는 interrupt가 아닙니다. 정상
+`RUNNING` 또는 progressing worker는 close하지 않습니다. `stalled`로 분류된
+뒤 interrupt 한 번과 bounded wait 한 번을 거쳤는데도 non-final이면 그때만
+close할 수 있습니다. `completed_work_unreported`와 `unknown`은 보존하며,
+final report를 받기 위해 그것들을 close하지 않습니다.
+
+반복 resume/re-dispatch를 timeout 복구 루프로 사용하는 것은 금지하며, 반복된
+native stall은 timeout/re-dispatch 루프가 아니라 stop/report native unavailability로
+처리해야 합니다. 새 implementer 또는 scope split에는 새 `addition` disclosure와
+수정된 contract가 필요합니다.
+이름이 지정된 implementer는 `fork_context=false`를 사용하거나 이를 생략합니다.
+`fork_context=true`는 `agent_type`을 생략한 경우에만 호환됩니다. serialization
+failure는 구현 실패가 아니라 pre-spawn dispatch failure입니다.
+Rescue 실패는 automatic Director takeover를 허용하지 않습니다. takeover는
+takeover disclosure 이후 현재 세션에서 사용자의 명시적 승인이 있어야 합니다.
+
+모든 task, 모든 state-changing operation, 모든 native-spawn attempt 전에 Director는
+`user_visible: true`인 work-contract disclosure를 먼저 사용자에게 고지해야 합니다.
+그 disclosure에는 objective, scope, 전체 contract/worker 수, 최소 안전 근거, 정확한
+테스트, stop conditions가 담겨야 합니다.
 
 초기 분해 시 contract 크기와 전체 contract/worker 수가 최소의 안전한
 구조인 이유를 conflict boundary, dependency, 독립 evidence/review 또는
@@ -378,11 +463,12 @@ blast-radius 격리와 연결해 설명하고, 기존의 더 적은 contract가 
 흡수할 수 없는 이유를 명시해야 합니다. 중간에 contract나 agent를 추가할
 때는 새로 발견된 증거, 새 conflict/dependency, 필수 독립 review 경계 또는
 분류된 failure에 근거한 새 disclosure와 기존 contract/worker가 흡수할 수
-없는 이유가 먼저 필요합니다. 속도, 병렬화, 효율, 단순한 규모/복잡성,
-파일 수, context 축소, 빈 slot, 깔끔하거나 작은 task ID는 근거가 아닙니다.
+없는 이유가 먼저 필요합니다. 병렬화는 위의 독립 그룹/도메인/의존성/
+capacity 증명에서 나오는 결과이며, 속도나 효율만으로 worker를 추가하거나
+병렬 모드를 선택할 수 없습니다.
 
 새 task/thread에서 `$agent-director`를 호출하거나 “Director mode on”이라고
-말하면 됩니다. 이 플러그인은 현재 세션을 director로 선언하고 네이티브
+말하면 됩니다. 이 플러그인은 `root/current parent session`을 director로 선언하고 네이티브
 서브에이전트를 사용하게 하는 지침 스위치입니다. 현재 세션의 선택 모델을
 바꾸거나 프로젝트 파일을 설치하거나, 이미 실행 중인 task를 소급해 다시
 로드하지는 않습니다. 정확한 경계는
@@ -566,17 +652,24 @@ reviewer:
 
 ## 병렬 작업 규칙
 
-두 작업을 동시에 구현자에게 배정할 수 있는 것은 여덟 개의 충돌 도메인
-(`files`, `data_structures`, `interfaces`, `db_entities`, `shared_configs`,
-`state_stores`, `build_targets`, `user_flows`) 중 어느 것도 겹치지 않을 때뿐입니다.
-단 하나의 도메인이라도 교집합이 있으면, 설령 두 작업이 의도상 무관해 보여도
-순차 실행으로 강제됩니다 — 파일 하나만 공유해도 항상 순차화를 강제하기에
-충분합니다. 전체 규칙과 실제 예시는
+두 개 이상의 독립적으로 검증 가능한 work group을 동시에 구현자에게
+배정할 수 있는 것은 각 그룹의 충돌 도메인이 쌍별로 분리되고 그룹 간
+dependency edge가 없을 때뿐입니다. files, code regions, interfaces,
+schemas, generated output, shared state, data, build targets, user_flows를
+비교하며, 단 하나의 교집합이라도 있으면 순차 실행으로 강제됩니다 — 파일
+하나나 interface 하나만 공유해도 충분합니다. 공유/충돌 또는 순차 write
+domain은 worker 하나가 맡습니다. 전체 규칙과 실제 예시는
 [`core/CONCURRENCY-RULES.md`](core/CONCURRENCY-RULES.md)를 참고하세요.
 
-이 검사를 통과하는 것은 분리가 *안전하다*는 뜻이지 *필요하다*는 뜻이 아닙니다.
-기본값은 검증 가능한 단위 규칙을 만족하는 최소 개수의 작업 계약이며, 구현자
-하나가 여러 단계를 순차적으로 처리하는 게 예외가 아니라 흔한 경우입니다.
+work contract에는 `independent_groups`, `conflict_domains`,
+`dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`,
+`why_fewer_workers_cannot_absorb`를 명시해야 합니다. 2 이상으로 관찰된 네이티브
+capacity가 있고 병렬 eligibility를 통과한 경우에만
+`planned_workers = min(독립 그룹 수, observed_capacity)`를 사용합니다.
+capacity가 unknown이면 worker 하나로 순차 실행하고 capacity 숫자를 만들지
+않습니다. 기본값은 검증 가능한 단위 규칙을 만족하는 최소 개수의 작업
+계약이며, 구현자 하나가 여러 단계를 순차적으로 처리하는 게 예외가 아니라
+흔한 경우입니다.
 서브에이전트를 하나 이상으로 나누려면 다음 사유 중 하나가 그 서브에이전트의
 `justification`으로 명시돼야 합니다
 ([`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json) 참고):
@@ -590,10 +683,10 @@ reviewer:
 4. **독립 reviewer context**가 필요하고 implementer의 자기 검토로
    대체할 수 없을 때.
 
-"더 작은 diff"나 "더 깔끔한 작업 ID" 같은 이유만으로는 절대 충분하지
+"더 작은 diff", 속도/효율 주장, 모호한 병렬화 주장만으로는 절대 충분하지
 않습니다. Codex 어댑터에는 ADP 배치/누적 숫자 제한이 없고 네이티브 런타임이
-유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기/종료, 범위 재조정
-또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를
+유일한 capacity 권한입니다. 런타임이 가득 찼다고 하면 대기, 증거 검사, 완료
+worker 종료, 범위 재조정 또는 사용자 반환을 하며, 사용자 사유로 네이티브 거부를 덮거나 takeover를
 시작할 수 없습니다. [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md)를
 참고하세요.
 

@@ -9,11 +9,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Worker contracts now require explicit execution criteria.** Before a
+  subagent is created, the root/current parent Director must assign a valid
+  non-Director role and provide worker-specific `goal`, `success_criteria`,
+  `failure_criteria`, `termination_criteria`, and `required_evidence` fields,
+  in addition to scope and non-goals. A spawned subagent is never a Director
+  under any circumstance; missing or ambiguous role/criteria is a pre-spawn
+  failure.
+- **Worker role boundaries are now explicit.** Each task tree has exactly one
+  Director (the root/current parent session); spawned workers and reviewers
+  treat the parent Director's Task Contract as authoritative and cannot
+  reactivate Director mode, publish root-level disclosures, re-decompose or
+  integrate the parent task, spawn/manage workers, or declare the overall task
+  complete. Contracted deployments and other state-changing operations remain
+  allowed when explicitly included in the parent contract.
+- **ADP is now the default for Codex repository and code tasks.** The skill can
+  still be invoked explicitly, but model/effort exceptions remain user-
+  authorized and fail-closed.
 - **Codex worker capacity is runtime-defined.** The adapter no longer invents a
   concurrent or cumulative numeric cap. Directors disclose the planned worker
   structure and evidence-based rationale before spawning; native slot-full
   responses require wait/close, re-scope, or return and never authorize
   Director takeover.
+- **Every task now has an explicit disclosure phase.** `task_start` begins
+  every task, `spawn` precedes a worker batch, and `addition` is required for
+  later workers, contracts, revisions, rescues, reviewers, or material scope
+  changes. Addition notices must explain the changed scope, assigned work,
+  classified reason, and why an existing worker cannot absorb it.
+- **Parallel dispatch is now deterministic.** A parallel batch requires at
+  least two independently verifiable work groups, pairwise-disjoint conflict
+  domains, no cross-group dependency edges, isolated write state, and observed
+  native capacity. The work contract records `independent_groups`,
+  `conflict_domains`, `dependency_edges`, `planned_workers`,
+  `capacity_source`, `write_isolation`, and `why_fewer_workers_cannot_absorb`;
+  known capacity of at least two uses `min(group count, observed capacity)`,
+  while unknown or lower capacity falls back to one sequential worker without
+  inventing a cap. The semantic dispatch validator checks domain/glob overlap
+  and the capacity formula after schema validation. Speed or efficiency is an
+  outcome/optional latency priority only and never overrides conflicts,
+  dependencies, capacity, or the no-automatic-takeover rule.
+
+## [0.8.7] - 2026-08-13
+
+Worker-boundary and contract-gate rules are now explicit for every spawned
+worker.
+
+### Changed
+
+- Every spawned subagent must receive an explicit non-Director role and a
+  complete per-worker contract with `goal`, scope and non-goals,
+  `success_criteria`, `failure_criteria`, `termination_criteria`, and
+  `required_evidence`/deliverables; missing or ambiguous fields fail closed
+  before spawn.
+- The root/current parent session is the only Director. Spawned workers and
+  reviewers cannot reactivate Director mode, publish root-level disclosures,
+  re-decompose or integrate the parent task, spawn/manage workers, or declare
+  the overall task complete.
+
+## [0.8.6] - 2026-08-12
+
+Parallel worker selection is now deterministic instead of treating parallelism
+as categorically invalid or relying on vague speed justifications.
+
+### Changed
+
+- Parallel execution requires at least two independently verifiable groups,
+  pairwise-disjoint conflict domains, empty dependency edges, isolated writes,
+  and observed native capacity of at least two.
+- `planned_workers` is the smaller of the eligible independent-group count and
+  observed capacity; shared or sequential domains use one worker, and unknown
+  capacity falls back conservatively to one sequential worker.
+- Speed and efficiency are recorded as outcomes or explicit user latency
+  priorities only; they never override conflict, dependency, isolation, or
+  capacity checks.
+
+## [0.8.5] - 2026-08-11
+
+Worker recovery now treats wait timeouts as observations and requires explicit
+progress or fatal-runtime evidence before interrupting or closing a native
+worker.
+
+### Fixed
+
+- Native `RUNNING`, progressing, active-command, completed-but-unreported, and
+  unknown states are preserved and distinguished instead of being inferred from
+  file changes or a wait timeout.
+- The first timeout records an observation and defaults to another bounded wait;
+  interrupt is limited to explicit fatal evidence or a declared no-progress
+  window, with one bounded post-interrupt close path.
+- The one permitted interrupt now tells the worker to stop current work,
+  summarize only secured evidence, start no new work/tests/edits, and exit.
+
+## [0.8.4] - 2026-08-11
+
+Worker recovery now distinguishes non-final work from a genuine native stall.
+
+### Fixed
+
+- A wait timeout no longer authorizes interrupt, close, splitting, or re-dispatch.
+- Progress, active long-running commands, completed-but-unreported work, stalled
+  workers, and unknown native telemetry now have separate states.
+- Recovery acts only on a no-progress stall within the declared observation window.
+
+## [0.8.3] - 2026-08-11
+
+The Codex adapter now fails closed after worker and Rescue failures.
+
+### Fixed
+
+- Director takeover is no longer automatic after implementer or Rescue failure.
+- Direct product-code takeover requires explicit current-session user authorization,
+  a takeover disclosure and record, and independent review.
+- Takeover records now carry explicit user-authorization evidence.
+
+## [0.8.2] - 2026-08-11
+
+The Codex adapter now handles native worker lifecycle failures explicitly.
+
+### Fixed
+
+- Worker timeout, interrupt, close/resume, and fork integration states are now fail-closed.
+- Pre-spawn serialization failures are separated from implementation failures.
+- Rescue is blocked when the active Luna/max baseline has no effort headroom.
+
+## [0.8.1] - 2026-08-11
+
+The Codex adapter now enforces the Director/implementer boundary for state-changing work.
+
+### Fixed
+
+- The Director cannot directly implement ordinary product-code or state-changing tasks.
+- Shared-file conflicts now require a sequential implementer instead of silently using zero workers.
 
 ## [0.8.0] - 2026-08-09
 

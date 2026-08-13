@@ -100,9 +100,11 @@ Then the director chooses exactly one of:
   unilaterally (see director self-escalation, below, if the director itself is the one stuck).
 - **Suspend the task or roll back.** Continuing is riskier than stopping.
 
-Director direct intervention is never chosen at this point. It is reachable only after a Rescue Agent
-has also failed (or was never applicable), through [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md) Step 3 — it is the last resort,
-not a peer option here, and still requires a takeover record per [TAKEOVER-PROTOCOL.md](TAKEOVER-PROTOCOL.md) even then.
+Director direct intervention is never chosen automatically at this point. It is discussable only
+after a Rescue Agent has also failed (or was never applicable), through [RESCUE-PROTOCOL.md](RESCUE-PROTOCOL.md)
+Step 3, and only if the user explicitly authorizes it in the current session after a takeover
+disclosure. Without that authorization, stop and report or ask the user; a takeover record alone is
+not permission.
 
 ## Relationship to takeover
 
@@ -115,7 +117,8 @@ Agent (≤2 attempts) — never the director writing product code directly. Take
 for TAKEOVER-PROTOCOL.md's two narrow conditions: the implementer demonstrably cannot perform the
 task at all (unrelated to reasoning power), or a Rescue Agent was tried and also failed, or Rescue
 Agent promotion was inapplicable per Rescue Protocol's classification (`requirement_conflict`,
-`environment_issue`) and the loop still fails.
+`environment_issue`) and the loop still fails. Those are evidence gates only; they never authorize
+the director to implement without current-session user approval.
 
 ## Director self-escalation
 

@@ -2,13 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://example.com/agent-director-protocol/schemas/task-contract.schema.json",
   "title": "Task Contract",
-  "description": "The complete specification a director must provide before delegating any implementation task. It includes the worker assignment, model ceiling, reasoning effort, execution mode, justification, and conflict domains.",
+  "description": "The complete worker-specific specification the root/current parent Director must provide before delegating any task. It includes an explicitly assigned non-Director role, worker goal, scope/non-goals, success/failure/termination criteria, required evidence, model policy, and conflict domains.",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "task_id",
     "title",
     "objective",
+    "goal",
     "current_state",
     "target_behavior",
     "must_read_files",
@@ -20,6 +21,10 @@
     "error_handling",
     "preservation_conditions",
     "completion_criteria",
+    "success_criteria",
+    "failure_criteria",
+    "termination_criteria",
+    "required_evidence",
     "test_commands",
     "manual_verification",
     "report_format",
@@ -41,6 +46,11 @@
       "type": "string",
       "minLength": 10,
       "description": "Why this task exists — the purpose of the work."
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 10,
+      "description": "The concrete goal assigned to this specific worker; it is not inferred from the overall objective."
     },
     "current_state": {
       "type": "string",
@@ -96,6 +106,30 @@
       "minItems": 1,
       "description": "Objective, checkable conditions that define done."
     },
+    "success_criteria": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Objective conditions this worker must satisfy; worker-specific and not a substitute for completion_criteria."
+    },
+    "failure_criteria": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Worker-specific conditions that require reporting failure or stopping."
+    },
+    "termination_criteria": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Worker-specific conditions for stopping the assignment without further edits or tests."
+    },
+    "required_evidence": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "minItems": 1,
+      "description": "Evidence and deliverables the worker must return to the parent Director."
+    },
     "test_commands": {
       "type": "array",
       "items": { "type": "string" },
@@ -127,7 +161,7 @@
         "role": {
           "type": "string",
           "enum": ["investigator", "implementer", "reviewer", "rescue"],
-          "description": "The bounded worker assignment. Rescue is a task-scoped implementer promotion."
+          "description": "The explicitly assigned non-Director worker role, recorded before spawn. The role name director is invalid; only the root/current parent session is Director. Rescue is a task-scoped implementer promotion."
         },
         "model": {
           "type": "string",

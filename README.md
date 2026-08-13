@@ -54,7 +54,7 @@ probably do not need this repository.
 | The agent burns turns retrying the same broken fix on a loop | A third guess-based fix at the same root cause is forbidden; it must [escalate with evidence](core/ESCALATION-PROTOCOL.md) instead |
 | Escalation means "throw the biggest model at everything" | A [Rescue Agent](core/RESCUE-PROTOCOL.md) raises **reasoning effort only, never the model** — one task, ≤2 attempts, and only for a genuine reasoning/capability gap. A model change needs the user's say-so; when effort runs out the protocol escalates the *director* (the plan is the likely suspect), not the implementer |
 | A model quietly upgrades itself, or spawns workers you never approved | Every promotion and worker plan is disclosed *before* it runs, with a per-subagent `justification`; native capacity is observed at runtime, and implementers cannot spawn subagents at all |
-| Two parallel agents clobber the same file | An eight-domain [conflict check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
+| Two parallel agents clobber the same file | A complete [conflict-domain check](core/CONCURRENCY-RULES.md) before dispatch; a shared file always forces sequencing |
 | A failed attempt gets `git checkout .`-ed away, taking the evidence with it | [State safety](core/STATE-SAFETY.md): failed work is preserved until reviewed, and the checkpoint is a real commit SHA |
 | Vague work ("fix the UI") gets handed off and comes back as something else | A [task contract](core/TASK-CONTRACT.md) with `current_state`, `target_behavior`, and objective `completion_criteria` is required before delegation |
 
@@ -101,6 +101,31 @@ mechanism fits your project, and judge the outcome yourself.
 | director | only under a recorded takeover | no | yes |
 | implementer | yes, within contract scope | yes | no (self-reports status only) |
 | reviewer | no | no | no (advises the director) |
+
+## Single-Director and worker-mode boundary
+
+A task tree has exactly one Director: the root/current parent session. Every
+spawned subagent is a worker or reviewer according to its assigned role. The
+parent Director's Task Contract is authoritative. A worker executes only its
+assigned mission and reports evidence or status to that parent; it must not
+announce `director_mode: on`, publish a root-level `task_start` or composition
+disclosure, rewrite or re-decompose the parent contract, spawn or manage
+workers, integrate or merge work, or declare the overall task complete.
+
+If the parent role or contract is unavailable or contradictory, the worker
+stops and reports role ambiguity to the parent rather than self-promoting to
+Director. This is an instruction/contract boundary, not a runtime enforcement
+claim; native runtime role metadata remains authoritative where exposed. A
+worker may perform a deployment or another state-changing operation only when
+the parent contract explicitly includes that operation.
+
+Before creation, the root/current parent Director must assign each subagent a
+valid non-Director role. A spawned subagent is never a Director under any
+circumstance, and `director` is not a valid role. Each worker Task Contract
+must state scope and non-goals plus the exact worker-specific fields `goal`,
+`success_criteria`, `failure_criteria`, `termination_criteria`, and
+`required_evidence`; missing or ambiguous role assignment or any missing field
+is a pre-spawn failure.
 
 A **Rescue Agent** is not a fourth role — it's the implementer role run at a
 higher reasoning effort (never a different model) for one already-failed task,
@@ -213,9 +238,10 @@ forbidden.**
    [`core/RESCUE-PROTOCOL.md`](core/RESCUE-PROTOCOL.md).
 4. **Only once the effort ladder is exhausted** (or the cause was never a
    reasoning/capability gap) does the director choose: escalate to the user,
-   direct intervention (takeover — still gated by a written record, still the
-   last resort, never the automatic next step), roll back, reduce scope, or
-   convert the task into a read-only investigation. See
+   roll back, reduce scope, or convert the task into a read-only investigation.
+   Direct intervention (takeover) is not automatic and is unavailable unless
+   the user explicitly authorizes direct product-code implementation in the
+   current session after a takeover disclosure. See
    [`core/TAKEOVER-PROTOCOL.md`](core/TAKEOVER-PROTOCOL.md).
 
    **Escalating after an exhausted effort ladder means raising the *director*,
@@ -342,12 +368,13 @@ Get-ChildItem agent-director-protocol\codex\agents\*.toml.example | ForEach-Obje
 }
 ```
 
-Codex's main session is the Director and native subagent threads are the normal
+Codex's root/current parent session is the Director and native subagent threads are the normal
 delegation path. `.codex/config.toml` and `.codex/agents/*.toml` are the actual
 project-scoped settings; `codex exec` is only the documented fallback for
 non-interactive or process-isolated work. `codex/profiles/default.yaml` is
-policy metadata, not a profile Codex loads. After explicit `$agent-director`
-or "Director mode on" activation, every ADP-created native worker spawn must
+policy metadata, not a profile Codex loads. ADP is active by default for
+repository and code tasks; explicit `$agent-director` or "Director mode on"
+activation remains optional. Every ADP-created native worker spawn must
 explicitly include `model="gpt-5.6-luna"` and
 `reasoning_effort="max"`. The Director's selected model is never
 inherited, and task kind never selects effort.
@@ -359,16 +386,83 @@ a mismatch rejects and closes the worker and discards its output; a surface
 that cannot accept or verify the pair stops with a policy-violation/fallback
 report. Non-Luna/non-max exceptions require explicit user authorization and
 disclosure. The normal baseline is already max, so Codex Rescue is unavailable;
-preserve evidence and use the Core escalation/takeover gates.
+preserve evidence and stop/report or ask the user; Rescue failure never grants
+automatic Director takeover.
 
 The Codex adapter does not impose a concurrent or cumulative numeric worker
 limit. It records native runtime capacity when exposed and records `unknown`
 when the surface provides no capacity metadata; a native slot-full response
 requires waiting, inspecting evidence, closing completed workers, re-scoping,
-or returning to the user. Before the first spawn or any state-changing work,
-the Director must visibly disclose `user_visible: true` plus the `work_contract`
-objective, scope, planned contract/worker totals, minimum-safe rationale,
-exact tests, and stop conditions.
+or returning to the user — never an invented project cap. Before every task, every state-changing operation,
+and every native-spawn attempt, the Director must visibly disclose
+`user_visible: true` plus the `work_contract` objective, scope, planned
+contract/worker totals, minimum-safe rationale, exact tests, and stop
+conditions. `task_start` begins every task; zero workers are valid only for an
+explicit `read_only: true` task. `spawn` and `addition` require positive worker
+totals.
+
+The work contract also discloses `independent_groups`, each group's complete
+`conflict_domains`, `dependency_edges`, `planned_workers`, `capacity_source`,
+`write_isolation`,
+and `why_fewer_workers_cannot_absorb`. A batch is parallel-eligible only when
+there are at least two independently verifiable groups, all pairwise conflict
+domains are disjoint across files, code regions, generated output, shared
+state, data, interfaces/schemas, build targets, and user flows, and there are
+no cross-group dependency edges. A shared/conflicting or sequential write
+domain uses one worker; parallel writes additionally require isolated working
+copies. With known native capacity of at least two,
+`planned_workers = min(independent-group count, observed_capacity)`. If capacity
+is unknown, use a conservative one-worker sequential fallback and record
+`capacity_source: "unknown"`; never invent a capacity or project cap. Speed and
+efficiency may be outcomes, and an explicit latency priority may be recorded,
+but neither is a standalone reason or an override of conflicts, dependencies,
+isolation, or capacity.
+
+Worker recovery is progress-aware. A native `RUNNING` worker is preserved by
+default. A wait timeout is an observation only: no final result arrived during
+that wait; timeout alone is never completion, interrupt, close, splitting, or
+re-dispatch evidence. On the first timeout, record the observation and perform
+another task-appropriate bounded wait by default, unless explicit fatal runtime
+evidence already exists: a crash, repeated tool error, explicit failure,
+runtime disconnect, or a demonstrably repeated identical command. During the
+longer wait, inspect exposed native status, recent tool output, active-command
+signals, or other declared progress evidence.
+
+File state is not lifecycle evidence: in read-only tasks, file changes or their
+absence are never stall evidence; in write tasks, absence of file changes alone
+never proves a stall. A read-only architecture/design final report counts as a
+completed-work artifact only when it includes concrete scope, evidence,
+findings, tests or inspection commands, and unresolved risks. If the native
+surface exposes no progress telemetry, classify the state as `unknown`, not
+`stalled`. Work that appears complete without a final report is
+`completed_work_unreported`.
+
+Only explicit fatal evidence or a declared bounded no-progress window with
+native status still `RUNNING` and no active command or progress signal permits
+one bounded interrupt (`interrupt=true`). The interrupt tells the worker: “Stop the current work,
+summarize only evidence already secured, do not start new work, tests, or edits,
+then exit.” A queued message/request to return progress is not an interrupt.
+Normal `RUNNING` or progressing workers are not closed. Close is allowed only
+after `stalled` classification, one interrupt, and one bounded wait if it
+remains non-final. Preserve `completed_work_unreported` and `unknown`; do not
+close either merely to obtain a final report.
+
+Repeated resume/re-dispatch is forbidden as a timeout-recovery loop; repeated
+native stalls must stop/report native unavailability. Any fresh implementer or
+scope split requires a new `addition` disclosure and revised contract.
+A named implementer uses `fork_context=false` or omits it; `fork_context=true`
+is compatible only when `agent_type` is omitted. Serialization failure is a
+pre-spawn dispatch failure, not an implementation failure.
+Rescue failure does not grant automatic Director takeover; takeover still
+requires explicit current-session user authorization after a takeover
+disclosure.
+
+Every later worker, contract, revision, rescue, reviewer, or material scope
+change requires a new `addition` disclosure with `changed_scope`,
+`change_summary`, `added_worker_task`, a classified basis, and
+`why_existing_workers_cannot_absorb`. The repository documents and validates
+the boundary but cannot hard-intercept the platform-owned native
+`multi_agent_v1__spawn_agent` tool.
 
 Initial decomposition must justify why its contract size and total
 contract/worker count are the minimum safe structure, based on conflict
@@ -387,8 +481,8 @@ codex plugin add agent-director@agent-director-protocol-plugins
 ```
 
 In a new task/thread, invoke `$agent-director` or say “Director mode on”. The
-plugin is an instruction switch: it announces the current session as Director
-and uses native subagents, but it cannot change the current session's selected
+plugin is an instruction switch: it announces the root/current parent session
+as Director and uses native subagents, but it cannot change the current session's selected
 model, install project files, or retroactively reload an already-running task.
 Use [`plugins/agent-director/README.md`](plugins/agent-director/README.md) for
 the exact boundary and [`codex/INSTALL.md`](codex/INSTALL.md) for persistent
@@ -474,7 +568,7 @@ edit your copy, or follow the platform-specific `INSTALL.md` instructions.
 ### Codex explicit dispatch and verification
 
 The Codex-specific adapter is stricter than the platform-neutral profile
-example above: explicit Director-mode activation fixes every ADP native worker
+example above: the default Director policy fixes every ADP native worker
 spawn to `model="gpt-5.6-luna"` and
 `reasoning_effort="max"`. The Director remains user-selected.
 Defaults and named profiles are only defense in depth. Omit a named custom
@@ -583,19 +677,28 @@ bounded direct edit, scoped to one function body, per
 
 ## Parallel work rules
 
-Two tasks may be dispatched to implementers at the same time only if none of
-eight conflict domains overlap: `files`, `data_structures`, `interfaces`,
-`db_entities`, `shared_configs`, `state_stores`, `build_targets`, `user_flows`.
-Any nonempty intersection on any single domain forces sequential execution,
-even if the tasks seem unrelated in intent — a shared file alone is always
-enough to force sequencing. Full rule and worked examples:
+Two or more work groups may be dispatched to implementers at the same time
+only when each group is independently verifiable, their conflict domains are
+pairwise disjoint, and the batch has no cross-group dependency edges. Compare
+`files`, `code_regions`, `interfaces`, `schemas`, generated output, shared
+state, data, build targets, and `user_flows`; a shared file or interface alone
+forces sequencing even if the tasks seem unrelated in intent. A shared,
+conflicting, or sequential write domain uses one worker. Full rule and worked
+examples:
 [`core/CONCURRENCY-RULES.md`](core/CONCURRENCY-RULES.md).
 
-Passing that check makes a split *safe*, not *warranted*. The default is the
-fewest task contracts that satisfy the verifiable-unit rule — one implementer
-working through several steps in sequence is the common case, not the
-exception. Splitting into more than one subagent needs one of these reasons, stated as
-that subagent's `justification` in the agent-composition disclosure (see
+Passing that check makes a split eligible. The default is the fewest task
+contracts that satisfy the verifiable-unit rule — one implementer working
+through several steps in sequence is the common case, not the exception. The
+work contract must disclose `independent_groups`, their `conflict_domains`,
+`dependency_edges`, `planned_workers`, `capacity_source`, `write_isolation`, and
+`why_fewer_workers_cannot_absorb`. For a parallel batch, set
+`planned_workers = min(independent-group count, observed native runtime
+capacity)` when capacity is known and at least two. If capacity is unknown or
+below two, use one sequential worker and record `unknown`; do not invent a
+capacity.
+The structural reasons for separate workers, stated in each subagent's
+`justification`, are (see
 [`schemas/agent-composition-disclosure.schema.json`](schemas/agent-composition-disclosure.schema.json)):
 
 1. **A distinct conflict boundary or dependency** that an existing
@@ -608,11 +711,13 @@ that subagent's `justification` in the agent-composition disclosure (see
 4. **An independent reviewer context** that cannot be supplied by the
    implementer without self-review.
 
-"Smaller diffs" or "tidier task IDs" alone is never sufficient. The Codex
-adapter has no ADP batch or cumulative numeric cap: the native runtime is the
-only capacity authority. If the runtime reports full capacity, wait/close,
-re-scope, or return; user rationale cannot override the native refusal and
-capacity saturation never authorizes takeover. See
+"Smaller diffs", a speed/efficiency claim, or a vague parallelism claim alone
+is never sufficient. There is no numeric worker cap in the Codex adapter: the
+native runtime is the only capacity authority, not an ADP batch or cumulative
+project limit. If the runtime
+reports full capacity, wait, inspect, close completed workers, re-scope, or
+return; user rationale cannot override the native refusal and capacity
+saturation never authorizes takeover. See
 [`core/DELEGATION-PROTOCOL.md`](core/DELEGATION-PROTOCOL.md).
 
 When part of a batch fails, each task is resolved on its own evidence:
@@ -681,12 +786,15 @@ explicitly:
   must fit the observed native runtime capacity — passing the conflict-domain
   check makes a batch *safe* to execute, not *sized appropriately*. See
   `core/DELEGATION-PROTOCOL.md` and `core/CONCURRENCY-RULES.md`.
-- **Using generic contract-scale or addition reasons.** Speed, parallelism,
-  efficiency, task size/complexity, many files, context reduction, empty slots,
-  and tidy/smaller task IDs do not justify another contract or worker. Initial
-  decomposition must explain the minimum structure and why fewer contracts
-  cannot absorb it; every mid-task addition needs a new evidence-based
-  disclosure and the same absorption explanation.
+- **Using a speed-only or vague parallelism claim.** Parallel dispatch requires
+  at least two independently verifiable groups, pairwise-disjoint conflict
+  domains, no cross-group dependency edges, isolated write state, and observed
+  native capacity. The work contract must disclose
+  `independent_groups`, `conflict_domains`, `dependency_edges`,
+  `planned_workers`, `capacity_source`, `write_isolation`, and
+  `why_fewer_workers_cannot_absorb`. Speed and efficiency may be outcomes, and
+  an explicit latency priority may be recorded, but neither overrides a
+  conflict, dependency, isolation requirement, or capacity refusal.
 - **An implementer spawning its own subagents.** Only the director delegates.
   An implementer that decides mid-task it needs more help reports that as a
   blocked/out-of-scope finding — it does not act on it. See

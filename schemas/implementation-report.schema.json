@@ -39,6 +39,10 @@
       "enum": ["low", "medium", "high", "xhigh", "max"],
       "description": "The actual reasoning effort used for this task."
     },
+    "metadata_verified": {
+      "type": "boolean",
+      "description": "Whether native runtime metadata exposed and verified the assigned model and effort."
+    },
     "spawn_authority": {
       "type": "string",
       "const": "director",
