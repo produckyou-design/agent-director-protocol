@@ -91,7 +91,7 @@ completed-work artifact only when it includes concrete scope, evidence,
 findings, tests or inspection commands, and unresolved risks. If the native
 surface exposes no progress telemetry, classify the state as `unknown`, not
 `stalled`. Work that appears complete without a final report is recorded as
-`completed_work_unreported`.
+`completed_work_unreported` only while native status is non-terminal or unknown.
 
 Only explicit fatal evidence or a declared bounded no-progress window with
 native status still `RUNNING` and no active command or progress signal permits
@@ -100,12 +100,44 @@ that same explicit fatal evidence or declared bounded no-progress window. The
 no-progress path does not require an error message and must not silently loop
 forever. The interrupt tells the worker: "Stop the current work, summarize only evidence already secured, do not start new work, tests, or edits, then exit." A queued request to return progress is not an interrupt.
 Normal `RUNNING` or progressing workers are not closed.
-Close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. Do not
+For the non-final stalled recovery path, close is allowed only after `stalled` classification, one interrupt, and one bounded wait if it remains non-final. Preserve `completed_work_unreported` and `unknown`; do not close either merely to obtain a final report. Do not
 repeatedly resume or re-dispatch the same unresponsive worker. A fresh
 implementer or scope split requires both a new `addition` disclosure and a
 revised contract.
 
-Closing or resuming does not merge fork changes into the main tree, so inspect
+Terminal-result cleanup is separate from stalled recovery. An authoritative
+native terminal result such as `completed`, `errored`, `interrupted`, or
+`shutdown` takes precedence over inferred non-final classifications. The
+Director first captures and persists all available report/evidence, then enters
+the atomic cleanup-claim state machine for the current lifecycle cycle. At most
+one `close_agent` call may be accepted per lifecycle cycle. A
+`task_complete`/final native lifecycle event with an open native edge is
+completed terminal work awaiting cleanup, not `RUNNING`. Without an
+authoritative terminal result, `completed_work_unreported` and `unknown` remain
+non-final and are never closed merely to force a report.
+
+Maintain one reconciliation record per worker identity and lifecycle cycle with
+cleanup state `unclaimed`, `in_flight`, `succeeded`, `failed`, or `unknown`,
+attempt count, retry availability, unique attempt identifier, and outcome.
+Every initial or retry `close_agent` invocation requires an atomic transition
+from an eligible state to `in_flight`; only the winning claimant invokes.
+Initial cleanup atomically claims `unclaimed`. A retry atomically consumes the
+one retry and claims `failed` or `unknown` only when authoritative native state
+proves the worker is still terminal/open and the prior invocation was not
+accepted. Already closed becomes `succeeded`; never invoke `succeeded` again.
+Otherwise preserve/report unresolved acceptance without a blind duplicate
+call. `resume_agent` begins a new lifecycle cycle and record.
+
+Before the root Director emits its final response or ends the task, it must
+reconcile every lifecycle cycle it created. It consults the reconciliation
+record, captures missing terminal evidence, atomically claims and invokes
+`unclaimed`, skips `succeeded`, and resolves `in_flight`, `failed`, or `unknown`
+from authoritative native state before an atomic bounded-retry claim. It
+preserves/reports non-final and unresolved cycles. The
+Director must not silently finish while owned children
+remain unreconciled.
+
+Closing or resuming (`close_agent` or `resume_agent`) does not merge fork changes into the main tree, so inspect
 and review the fork diff or implementation report before integration. A named
 implementer uses `fork_context=false` or omission; `fork_context=true` is
 compatible only when `agent_type` is omitted. Serialization failure is a

@@ -94,8 +94,14 @@ Rules for this session:
     groups with known capacity of at least two, set `planned_workers = min(N,
     observed_capacity)`. If it is unknown, use the conservative one-worker
     sequential fallback and record `capacity_source: "unknown"`; do not invent
-    a numeric project limit. A native slot-full response requires wait/close,
-    re-scope, or return; it never authorizes Director fallback or takeover. The
+    a numeric project limit. A native slot-full response requires waiting and
+    inspecting evidence, capturing terminal reports, closing only authoritative
+    terminal workers with `close_agent`, preserving non-final workers, then
+    re-scoping or returning. Track cleanup per worker lifecycle cycle, atomically
+    claim both initial and retry invocations, explicitly claim `unclaimed`
+    during root finalization, and resolve failed/unknown close outcomes from
+    native state before any bounded retry claim. It never authorizes Director
+    fallback or takeover. The
     every-task notice above must include objective/scope, independent_groups,
     conflict_domains, dependency_edges, planned_workers, capacity_source,
     write_isolation, why_fewer_workers_cannot_absorb, planned total workers, model/effort, tests,
