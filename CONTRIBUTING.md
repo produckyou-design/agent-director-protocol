@@ -1,8 +1,8 @@
 # Contributing
 
 Thanks for considering a contribution to agent-director-protocol. This is a
-documentation-and-tooling repository — a protocol specification, two platform
-adapters, and the schemas/scripts that keep them consistent — so most
+documentation-and-tooling repository — a protocol specification, a Claude Code
+adapter, and the schemas/scripts that keep them consistent — so most
 contributions are edits to Markdown, YAML, or JSON, checked by the validation
 scripts described below.
 
@@ -67,13 +67,9 @@ and pull request; a merge should not be expected before it passes locally.
   and generic paths (`<project>`, `target-repo`) instead.
 - **Every relative Markdown link must resolve.** `scripts/check_repository.py`
   verifies this; broken links fail validation.
-- **Adapters must stay honest about platform capabilities.** `claude/` and
-  `codex/` must describe what each platform's real mechanisms do and do not
-  provide (see the "Differences" sections in each `INSTALL.md` and
-  `SKILL.md`) rather than implying feature parity that does not exist. If a
-  platform lacks something the other has (a native subagent registry, a
-  built-in "active profile" concept, etc.), say so explicitly instead of
-  glossing over it.
+- **The Claude adapter must stay honest about platform capabilities.** Describe
+  what Claude Code's real mechanisms do and do not provide rather than implying
+  that this protocol is a runtime or hard enforcement layer.
 
 ## Schema-first changes
 
@@ -86,10 +82,9 @@ propagates outward in this order:
 2. **Update every example** under `examples/**/` that uses the changed
    document type, so every example JSON file still validates against the new
    schema.
-3. **Update the reference templates** in `claude/skills/agent-director/references/`
-   and `codex/skills/agent-director/references/` (both adapters carry the
-   same four templates — task, review, revision, takeover — and must stay in
-   sync with each other and with the schema).
+3. **Update the reference templates** in
+   `claude/skills/agent-director/references/` so they stay in sync with the
+   schema and the core protocol.
 4. **Update the narrating core doc** (`core/TASK-CONTRACT.md`,
    `core/REVIEW-GATES.md`, `core/FAILURE-LOOP.md`, or
    `core/TAKEOVER-PROTOCOL.md`) so the prose description matches the schema
@@ -126,12 +121,11 @@ supported line moves.
 
 ## Adding a new platform adapter
 
-If you propose a third adapter (beyond Claude Code and Codex), follow the
-existing two as the pattern: a directory with `skills/agent-director/SKILL.md`
-plus `references/`, an example project-instructions file (like
-`CLAUDE.md.example` / `AGENTS.md.example`), at least one model profile under
-`profiles/`, and an `INSTALL.md`. The adapter must link to `core/` for every
-rule instead of restating it, and must be explicit about where the new
+If you propose another platform adapter beyond Claude Code, follow the Claude
+adapter as the pattern: a directory with `skills/agent-director/SKILL.md` plus
+`references/`, an example project-instructions file, at least one model profile
+under `profiles/`, and an `INSTALL.md`. The adapter must link to `core/` for
+every rule instead of restating it, and must be explicit about where the
 platform's native mechanisms end and this protocol's conventions begin.
 
 ## Code of conduct

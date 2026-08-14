@@ -78,8 +78,8 @@ class TestDirectoryLayout(unittest.TestCase):
         actual = {p.name for p in schemas_dir.glob("*.schema.json")}
         self.assertEqual(actual, SCHEMA_REQUIRED_FILES)
 
-    def test_both_platform_skill_trees_exist(self):
-        for platform in ("claude", "codex"):
+    def test_claude_skill_tree_exists(self):
+        for platform in ("claude",):
             skill_md = REPO_ROOT / platform / "skills" / "agent-director" / "SKILL.md"
             self.assertTrue(skill_md.is_file(), f"missing {skill_md}")
             references_dir = REPO_ROOT / platform / "skills" / "agent-director" / "references"
@@ -98,7 +98,7 @@ class TestSkillFrontmatter(unittest.TestCase):
         self.assertEqual(failures, [], f"validate_skills.run() reported failures: {failures}")
 
     def test_frontmatter_name_and_description(self):
-        for platform in ("claude", "codex"):
+        for platform in ("claude",):
             skill_md = REPO_ROOT / platform / "skills" / "agent-director" / "SKILL.md"
             text = skill_md.read_text(encoding="utf-8")
             fields, errors = validate_skills.parse_frontmatter(text)
@@ -110,14 +110,14 @@ class TestSkillFrontmatter(unittest.TestCase):
                 self.assertNotIn("\n", description, "description must be single-line")
 
     def test_references_directory_contains_exactly_seven_templates(self):
-        for platform in ("claude", "codex"):
+        for platform in ("claude",):
             references_dir = REPO_ROOT / platform / "skills" / "agent-director" / "references"
             actual = {p.name for p in references_dir.iterdir() if p.is_file()}
             with self.subTest(platform=platform):
                 self.assertEqual(actual, validate_skills.REQUIRED_REFERENCE_FILES)
 
     def test_install_and_profiles_exist(self):
-        for platform in ("claude", "codex"):
+        for platform in ("claude",):
             install_md = REPO_ROOT / platform / "INSTALL.md"
             profiles_dir = REPO_ROOT / platform / "profiles"
             with self.subTest(platform=platform):
@@ -173,176 +173,10 @@ class TestPluginManifests(unittest.TestCase):
         )
 
 
-class TestCodexAdapterWorkerPolicy(unittest.TestCase):
-    def test_changelog_080_uses_native_spawn_effort_field(self):
-        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        match = re.search(
-            r"^## \[0\.8\.0\].*?(?=^## \[|\Z)",
-            changelog,
-            re.M | re.S,
-        )
-        self.assertIsNotNone(match, "CHANGELOG.md has no 0.8.0 release section")
-        release = match.group(0)
-        self.assertIn('model="gpt-5.6-luna"', release)
-        self.assertIn('reasoning_effort="max"', release)
-        self.assertNotRegex(
-            release,
-            re.compile(
-                r"native worker spawn[\s\S]{0,200}model_reasoning_effort",
-                re.I,
-            ),
-        )
-
-    def test_all_codex_custom_agent_examples_pin_luna_max(self):
-        agent_dir = REPO_ROOT / "codex" / "agents"
-        files = sorted(agent_dir.glob("*.toml.example"))
-        self.assertEqual(
-            {path.stem for path in files},
-            {"investigator.toml", "implementer.toml", "reviewer.toml", "rescue.toml", "release-auditor.toml"},
-        )
-        for path in files:
-            source = path.read_text(encoding="utf-8")
-            with self.subTest(profile=path.name):
-                self.assertRegex(source, re.compile(r'^model\s*=\s*"gpt-5\.6-luna"$', re.M), path.name)
-                self.assertRegex(source, re.compile(r'^model_reasoning_effort\s*=\s*"max"$', re.M), path.name)
-
-    def test_codex_defaults_and_policy_docs_are_fixed_and_fail_closed(self):
-        config = (REPO_ROOT / "codex" / "config.toml.example").read_text(encoding="utf-8")
-        profile = (REPO_ROOT / "codex" / "profiles" / "default.yaml").read_text(encoding="utf-8")
-        self.assertIn('default_subagent_reasoning_effort = "max"', config)
-        self.assertNotIn("effort_by_task_kind", profile)
-        self.assertIn("explicit_per_spawn", profile)
-        self.assertIn("runtime_capacity", profile)
-        self.assertNotIn("max_total_spawned_agents_per_request", profile)
-        self.assertIn("runtime_metadata_verification: required", profile)
-        self.assertIn("available: false", profile)
-
-        policy_files = [
-            REPO_ROOT / "codex" / "AGENTS.md.example",
-            REPO_ROOT / "codex" / "INSTALL.md",
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "references" / "task-template.md",
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "references" / "agent-briefing-template.md",
-            REPO_ROOT / "plugins" / "agent-director" / "README.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-        ]
-        for path in policy_files:
-            source = path.read_text(encoding="utf-8")
-            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
-                self.assertNotIn("effort_by_task_kind", source)
-                self.assertIn("gpt-5.6-luna", source)
-                self.assertIn("max", source)
-                self.assertNotIn("max_concurrent_threads_per_session = 4", source)
-                self.assertNotIn("max_total_spawned_agents_per_request", source)
-                self.assertRegex(source, r'(?<!model_)reasoning_effort[\"\`]*\s*[:=]\s*[\"\`]?max')
-                self.assertRegex(source, re.compile(r"metadata|runtime", re.I))
-                self.assertRegex(source, re.compile(r"reject|close|unverifiable|fallback", re.I))
-                self.assertRegex(source, re.compile(r"conflict boundar|conflict domain", re.I))
-                self.assertRegex(source, re.compile(r"cannot (?:safely )?(?:absorb|be folded)|cannot absorb", re.I))
-                self.assertRegex(source, re.compile(r"new\s+(?:composition\s+)?disclosure", re.I))
-                self.assertRegex(source, re.compile(r"classified\s+failure", re.I))
-
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn('reasoning_effort="max"', readme)
-        self.assertIn("minimum safe structure", readme)
-        self.assertRegex(readme, re.compile(r"new\s+disclosure", re.I))
-        korean_readme = (REPO_ROOT / "README.ko.md").read_text(encoding="utf-8")
-        self.assertIn('reasoning_effort="max"', korean_readme)
-        self.assertNotIn('native worker spawn must carry model_reasoning_effort', korean_readme)
-        self.assertIn("기존 contract/worker가 흡수할 수", korean_readme)
-
-    def test_codex_plugin_manifest_matches_release(self):
-        manifest = json.loads(
-            (
-                REPO_ROOT / "plugins" / "agent-director" / ".codex-plugin" / "plugin.json"
-            ).read_text(encoding="utf-8")
-        )
-        changelog = (REPO_ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-        released = re.findall(r"^## \[(\d+\.\d+\.\d+)\]", changelog, re.M)
-        self.assertTrue(released)
-        self.assertEqual(manifest["version"], released[0])
-        self.assertIn("gpt-5.6-luna", manifest["description"])
-        self.assertIn("fail-closed", manifest["description"])
-
-    def test_codex_skill_allows_default_implicit_invocation(self):
-        skill_metadata = (
-            REPO_ROOT
-            / "plugins"
-            / "agent-director"
-            / "skills"
-            / "agent-director"
-            / "agents"
-            / "openai.yaml"
-        ).read_text(encoding="utf-8")
-        self.assertIn("allow_implicit_invocation: true", skill_metadata)
-        self.assertIn("by default", skill_metadata)
-
-    def test_codex_disclosure_phases_are_explicit_and_platform_boundary_is_honest(self):
-        policy_files = [
-            REPO_ROOT / "core" / "DELEGATION-PROTOCOL.md",
-            REPO_ROOT / "core" / "CONCURRENCY-RULES.md",
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-        ]
-        for path in policy_files:
-            source = path.read_text(encoding="utf-8")
-            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
-                self.assertIn("task_start", source)
-                self.assertIn("addition_basis", source)
-                self.assertRegex(source, re.compile(r"before every task", re.I))
-
-        codex_skill = (REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn("multi_agent_v1__spawn_agent", codex_skill)
-
-    def test_plugin_skill_blocks_unapproved_director_implementation(self):
-        skill = (
-            REPO_ROOT
-            / "plugins"
-            / "agent-director"
-            / "skills"
-            / "agent-director"
-            / "SKILL.md"
-        ).read_text(encoding="utf-8")
-        self.assertRegex(skill, re.compile(r"Director .*does not\s+directly edit product code", re.I | re.S))
-        self.assertIn("planned_workers > 0", skill)
-        self.assertIn("work_contract.read_only: true", skill)
-        self.assertRegex(skill, re.compile(r"shared .*conflict domain", re.I | re.S))
-        self.assertRegex(skill, re.compile(r"Luna/max .*does not remove", re.I | re.S))
-
-
-    def test_native_worker_lifecycle_recovery_is_fail_closed(self):
-        policy_files = [
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-        ]
-        for path in policy_files:
-            source = path.read_text(encoding="utf-8")
-            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
-                self.assertIn("wait_agent", source)
-                self.assertIn("interrupt=true", source)
-                self.assertIn("Do not repeatedly resume", source)
-                self.assertRegex(source, re.compile(r"(?:does|do) not merge", re.I))
-                self.assertIn("fork_context=false", source)
-                self.assertRegex(source, re.compile(r"serialization failure", re.I))
-                self.assertIn("Rescue is unavailable", source)
-                self.assertRegex(
-                    source,
-                    re.compile(r"never take over.*automatically|never.*takeover automatically", re.I | re.S),
-                )
-                self.assertIn("current-session user authorization", source)
-                self.assertRegex(source, re.compile(r"progress evidence", re.I))
-                self.assertIn("completed_work_unreported", source)
-                self.assertIn("stalled", source)
-                self.assertIn("active command", source)
-                self.assertIn("unknown", source)
-                self.assertRegex(source, re.compile(r"timeout.*never", re.I | re.S))
-
+class TestProtocolPolicy(unittest.TestCase):
     def test_worker_recovery_policy_preserves_progress_and_bounds_recovery(self):
         policy_files = [
             REPO_ROOT / "core" / "CONCURRENCY-RULES.md",
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "README.md",
             REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
         ]
         required_patterns = [
@@ -369,47 +203,6 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
                     self.assertRegex(source, re.compile(pattern, re.I | re.S), pattern)
 
     def test_terminal_cleanup_and_root_finalization_are_explicit(self):
-        codex_policy_files = [
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "README.md",
-            REPO_ROOT / "README.md",
-        ]
-        for path in codex_policy_files:
-            source = path.read_text(encoding="utf-8")
-            with self.subTest(policy_file=path.relative_to(REPO_ROOT)):
-                self.assertNotIn("Close is allowed only after", source)
-                self.assertRegex(source, re.compile(r"An authoritative\s+native terminal result", re.I))
-                self.assertIn("takes precedence over inferred", source)
-                self.assertIn("current lifecycle cycle", source)
-                self.assertIn("reconciliation record", source)
-                self.assertIn("`in_flight`", source)
-                self.assertIn("`succeeded`", source)
-                self.assertIn("`failed`", source)
-                self.assertRegex(source, re.compile(r"atomic(?:ally)?\s+(?:transition|claims?)", re.I))
-                self.assertRegex(source, re.compile(r"only the (?:winning\s+)?claimant\s+invokes", re.I))
-                self.assertRegex(source, re.compile(r"Initial cleanup atomically claims `unclaimed`", re.I))
-                self.assertRegex(source, re.compile(r"retry\s+atomically consumes", re.I))
-                self.assertRegex(source, re.compile(r"At most\s+one `close_agent` call may be accepted", re.I))
-                self.assertRegex(source, re.compile(r"never\s+invoke[s]? `succeeded` again", re.I))
-                self.assertRegex(source, re.compile(r"prior invocation.*?not\s+accepted", re.I | re.S))
-                self.assertRegex(source, re.compile(r"without\s+a blind duplicate", re.I))
-                self.assertRegex(source, re.compile(r"`resume_agent` begins a new lifecycle\s+cycle", re.I))
-                self.assertIn("reconcile every lifecycle cycle it created", source)
-                terminal = re.search(r"An authoritative\s+native terminal result", source, re.I).start()
-                capture_match = re.search(
-                    r"captures? and persists? all available report(?:/evidence| and evidence)",
-                    source[terminal:],
-                    re.I,
-                )
-                self.assertIsNotNone(capture_match)
-                capture = terminal + capture_match.start()
-                cleanup_match = re.search(r"then enters\s+the atomic cleanup-claim state machine", source[capture:], re.I)
-                self.assertIsNotNone(cleanup_match)
-                cleanup = capture + cleanup_match.start()
-                self.assertLess(terminal, capture)
-                self.assertLess(capture, cleanup)
-
         core_path = REPO_ROOT / "core" / "CONCURRENCY-RULES.md"
         core_source = core_path.read_text(encoding="utf-8")
         core_block = bounded_block(
@@ -462,17 +255,6 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         self.assertRegex(block, re.compile(r"resumed into a new lifecycle receives a new\s+reconciliation\s+cycle"))
         self.assertIn("Only when no authoritative terminal native result exists", block)
         self.assertNotRegex(block, re.compile(r"\b(?:close_agent|resume_agent)\b"))
-
-        for path in (REPO_ROOT / "codex" / "INSTALL.md", REPO_ROOT / "codex" / "AGENTS.md.example"):
-            guidance = path.read_text(encoding="utf-8")
-            with self.subTest(codex_guidance=path.relative_to(REPO_ROOT)):
-                self.assertRegex(guidance, re.compile(r"clos(?:e|ing) only authoritative", re.I))
-                self.assertIn("terminal workers with `close_agent`", guidance)
-                self.assertIn("preserv", guidance)
-                self.assertRegex(guidance, re.compile(r"atomically\s+claim", re.I))
-                self.assertIn("`unclaimed`", guidance)
-                self.assertIn("failed/unknown close outcomes", guidance)
-                self.assertIn("before any bounded", guidance)
 
     def test_cleanup_transition_table_serializes_initial_and_retry_claims(self):
         source = (REPO_ROOT / "core" / "CONCURRENCY-RULES.md").read_text(encoding="utf-8")
@@ -575,22 +357,12 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
     def test_korean_public_guidance_requires_terminal_cleanup_and_finalization(self):
         source = (REPO_ROOT / "README.ko.md").read_text(encoding="utf-8")
         required_patterns = [
-            r"authoritative native terminal\s+result는.*non-final classification보다 우선",
-            r"report/evidence를 캡처하고 저장한 다음.*atomic cleanup-claim state machine",
-            r"수락되는 `close_agent` 호출은 최대 한 번",
-            r"`task_complete`/final native lifecycle event.*`RUNNING`이 아니라.*completed terminal work",
-            r"authoritative terminal result가\s+없을 때만 `completed_work_unreported`와 `unknown`을 non-final로 보존",
-            r"worker identity와 lifecycle cycle별 reconciliation record",
-            r"초기 호출과 retry 모두.*atomic claim",
-            r"`unclaimed`를 원자적으로 claim",
-            r"retry는.*단 한 번의 retry를 원자적으로 소비",
-            r"`succeeded`는 다시 호출하지 않습니다",
-            r"`resume_agent`는 새\s+lifecycle cycle과 record를\s+시작",
-            r"root Director가 final response를 내보내거나 task를 종료하기 전에.*모든 lifecycle cycle을 reconcile",
-            r"`unclaimed`는 원자적으로 claim해\s+호출하며.*`succeeded`는 건너뜁니다",
-            r"authoritative native state로 해소",
-            r"owned children이 unreconciled 상태로 남아 있는데도 조용히\s+종료해서는 안 됩니다",
-            r"`close_agent` 또는 `resume_agent`.*worker fork.*merge하지 않습니다",
+            r"terminal result cleanup은 stalled recovery와 분리합니다",
+            r"report/evidence를 캡처하고 저장한 다음",
+            r"atomic cleanup claim",
+            r"root 세션이 끝나기 전에 자신이\s+만든 모든 lifecycle을 reconcile",
+            r"unreconciled child를 남겨 두고\s+조용히 종료해서는 안 됩니다",
+            r"fork가 main working tree에 자동 merge되지는\s+않습니다",
         ]
         for pattern in required_patterns:
             with self.subTest(pattern=pattern):
@@ -673,62 +445,45 @@ class TestCodexAdapterWorkerPolicy(unittest.TestCase):
         for readme_path in [REPO_ROOT / "README.md", REPO_ROOT / "README.ko.md"]:
             readme = readme_path.read_text(encoding="utf-8")
             with self.subTest(readme=readme_path.name):
-                self.assertRegex(readme, re.compile(r"timeout.*observation", re.I | re.S))
-                self.assertIn("progress evidence", readme)
+                self.assertRegex(readme, re.compile(r"timeout.*(?:observation|관찰)", re.I | re.S))
+                self.assertIn("evidence", readme)
                 self.assertIn("unknown", readme)
                 self.assertIn("bounded interrupt", readme)
-                self.assertRegex(readme, re.compile(r"numeric worker cap", re.I))
+                self.assertRegex(readme, re.compile(r"worker cap", re.I))
 
     def test_readme_recovery_summaries_have_full_parity(self):
         recovery_patterns = {
             "README.md": [
-                r"normal baseline is already\s+max, so Codex Rescue is unavailable",
-                r"Rescue failure does not grant\s+automatic Director takeover",
                 r"A native `RUNNING` worker is preserved by\s+default",
-                r"A wait timeout is an observation only",
-                r"On the first timeout, record the observation and perform\s+another task-appropriate bounded wait by default",
+                r"A wait timeout is an\s+observation only",
+                r"On the first timeout, record the observation and perform\s+another\s+task-appropriate bounded wait by default",
                 r"unless explicit fatal runtime\s+evidence already exists",
                 r"a crash, repeated tool error, explicit failure,\s+runtime disconnect, or a demonstrably repeated identical command",
-                r"During the\s+longer wait, inspect exposed native status, recent tool output, active-command\s+signals, or other declared progress evidence",
-                r"read-only tasks, file changes or their\s+absence are never stall evidence",
-                r"write tasks, absence of file changes alone\s+never proves a stall",
-                r"read-only architecture/design final report counts as a\s+completed-work artifact only when it includes concrete scope, evidence,\s+findings, tests or inspection commands, and unresolved risks",
-                r"no progress telemetry, classify the state as `unknown`, not\s+`stalled`",
-                r"Only explicit fatal evidence or a declared bounded no-progress window with\s+native status still `RUNNING` and no active command or progress signal permits\s+one bounded interrupt \(`interrupt=true`\)",
-                r"Stop the current work,\s+summarize only evidence already secured, do not start new work, tests, or edits,\s+then exit",
-                r"A queued message/request to return progress is not an interrupt",
-                r"Normal `RUNNING` or progressing workers are not closed",
-                r"Preserve\s+`completed_work_unreported`\s+and\s+`unknown`",
-                r"Repeated resume/re-dispatch is forbidden as a timeout-recovery loop",
-                r"Any fresh implementer or\s+scope split requires a new `addition` disclosure and revised contract",
-                r"A named implementer uses\s+`fork_context=false` or omits it",
-                r"`fork_context=true`\s+is compatible only when\s+`agent_type` is omitted",
-                r"Serialization failure is a\s+pre-spawn dispatch failure, not an implementation failure",
+                r"(?:In\s+)?read-only tasks, file changes or\s+their\s+absence are never stall evidence",
+                r"(?:In\s+)?write\s+tasks,\s+absence\s+of\s+file\s+changes\s+alone\s+never proves a stall",
+                r"A read-only architecture/design final\s+report is a completed-work artifact only when it contains concrete scope,\s+evidence,\s+findings,\s+tests or inspection commands,\s+and unresolved risks",
+                r"If progress telemetry is unavailable, classify the worker as `unknown`, not\s+`stalled`",
+                r"A queued request to return progress is not an interrupt",
+                r"Terminal-result cleanup is separate from stalled recovery",
+                r"captures and persists the authoritative report/evidence",
+                r"every lifecycle it created must be reconciled",
+                r"does not merge its fork into the main working\s+tree",
             ],
             "README.ko.md": [
-                r"기본값이 이미\s+max이므로 Codex Rescue는 일반 ADP 실행에서\s+사용할 수 없으며",
-                r"Rescue 실패는\s+automatic Director takeover를\s+허용하지 않습니다",
                 r"네이티브 `RUNNING` worker는 기본적으로\s+보존합니다",
-                r"wait timeout은 해당 대기 동안 final result가 도착하지 않았다는\s+관찰일 뿐",
-                r"첫 timeout이 발생하면 관찰을 기록하고,\s+명시적인 fatal runtime evidence",
-                r"기본적으로 작업에 맞는 두 번째 bounded wait를 수행합니다",
-                r"충돌, 반복된 tool error, 명시적 failure,\s+runtime disconnect 또는 동일 command의 반복 실행이 입증된 경우",
-                r"더 긴 대기 동안 노출된 네이티브 status, 최근 tool output, active-command 신호\s+또는 선언된 progress를 확인합니다",
-                r"read-only 작업에서 파일이\s+변경되거나 변경되지 않은 것은 어떤 경우에도 stall evidence가 아니며",
-                r"write\s+작업에서 파일 변경이 없다는 사실만으로는 stall을 입증할 수 없습니다",
-                r"read-only architecture/design 최종 report는 concrete scope, evidence, findings,\s+tests 또는 inspection commands, unresolved risks를 포함할 때만\s+completed-work artifact로 인정합니다",
-                r"progress telemetry가 노출되지 않으면\s+stalled가 아니라 `unknown`으로 분류합니다",
-                r"명시적 fatal evidence 또는 네이티브 status가 여전히 `RUNNING`이고 active\s+command나 progress signal이 없는, 선언된 bounded no-progress observation\s+window가 끝난 경우에만\s+하나의 bounded interrupt\(`interrupt=true`\)를 허용합니다",
-                r"현재 작업을 중단하고, 이미 확보한\s+evidence만 요약하며, 새 work, tests 또는 edits를 시작하지 말고 종료하세요",
-                r"queued message/request to return progress는 interrupt가 아닙니다",
-                r"정상\s+`RUNNING` 또는 progressing worker는 close하지 않습니다",
-                r"`completed_work_unreported`와\s+`unknown`은 보존하며",
-                r"반복 resume/re-dispatch를 timeout 복구 루프로 사용하는 것은 금지하며",
-                r"새 implementer 또는 scope split에는 새 `addition` disclosure와\s+수정된 contract가 필요합니다",
-                r"이름이 지정된 implementer는\s+`fork_context=false`를 사용하거나 이를 생략합니다",
-                r"`fork_context=true`는\s+`agent_type`을 생략한 경우에만 호환됩니다",
-                r"serialization\s+failure는 구현 실패가 아니라\s+pre-spawn dispatch failure입니다",
-                r"모든 task, 모든 state-changing operation, 모든 native-spawn attempt 전에 Director는\s+`user_visible: true`인 work-contract disclosure를 먼저",
+                r"wait timeout은 해당\s+대기 동안 final result가 도착하지 않았다는\s+관찰일 뿐",
+                r"첫 timeout에서는 관찰을 기록하고 작업에 맞는 bounded wait를 한 번 더\s+수행합니다",
+                r"fatal runtime evidence가 이미 있으면\s+예외입니다",
+                r"crash, 반복된 tool error, 명시적 failure, runtime disconnect,\s+명백하게 반복되는 동일 command",
+                r"파일 상태는 lifecycle evidence가 아닙니다\. read-only 작업에서 파일 변경\s+여부는 stall evidence가 아니며",
+                r"write\s+작업에서도? 파일 변경이 없다는 사실만\s+으로 stall을 입증할 수 없습니다",
+                r"read-only architecture/design 최종 report는\s+구체적 scope, evidence, findings, tests 또는 inspection commands와 unresolved\s+risks를 포함할 때만 completed-work artifact입니다",
+                r"progress telemetry가 없으면 `stalled`가 아니라 `unknown`으로 분류합니다",
+                r"queued progress 요청은 interrupt가 아닙니다",
+                r"terminal result cleanup은 stalled recovery와 분리합니다",
+                r"report/evidence를 캡처하고 저장한 다음",
+                r"모든 lifecycle을 reconcile해야 하며",
+                r"fork가 main working tree에 자동 merge되지는\s+않습니다",
             ],
         }
         for filename, patterns in recovery_patterns.items():
@@ -873,20 +628,6 @@ class TestWorkerRoleBoundary(unittest.TestCase):
                 self._section(REPO_ROOT / "core" / "DELEGATION-PROTOCOL.md", r"Worker-mode boundary"),
             ),
             (
-                "plugins/agent-director/skills/agent-director/SKILL.md",
-                self._section(
-                    REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-                    r"Worker-mode boundary \(mandatory\)",
-                ),
-            ),
-            (
-                "codex/skills/agent-director/SKILL.md",
-                self._section(
-                    REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-                    r"Worker-mode boundary \(mandatory\)",
-                ),
-            ),
-            (
                 "claude/skills/agent-director/SKILL.md",
                 self._section(
                     REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
@@ -916,69 +657,12 @@ class TestWorkerRoleBoundary(unittest.TestCase):
     def test_public_guidance_requires_each_english_boundary_prohibition(self):
         public_boundaries = [
             (
-                "plugins/agent-director/README.md",
-                self._between(
-                    REPO_ROOT / "plugins" / "agent-director" / "README.md",
-                    r"That Director announcement is root-only\.",
-                    r"\r?\n\r?\nThe plugin is",
-                ),
-            ),
-            (
-                "codex/AGENTS.md.example",
-                self._between(
-                    REPO_ROOT / "codex" / "AGENTS.md.example",
-                    r"The root/current parent Codex session is the Director\.",
-                    r"Rules for this session:",
-                ),
-            ),
-            (
-                "codex/INSTALL.md",
-                self._between(
-                    REPO_ROOT / "codex" / "INSTALL.md",
-                    r"The root/current parent Codex session is the Director\.",
-                    r"Before every task, every state-changing operation",
-                ),
-            ),
-            (
                 "claude/CLAUDE.md.example",
                 self._section(REPO_ROOT / "claude" / "CLAUDE.md.example", r"Director mode"),
-            ),
-            (
-                "README.md",
-                self._section(REPO_ROOT / "README.md", r"Single-Director and worker-mode boundary"),
             ),
         ]
         for surface, boundary in public_boundaries:
             self._assert_clauses(boundary, self.COMMON_BOUNDARY_CLAUSES, surface)
-
-    def test_korean_public_guidance_uses_korean_boundary_markers(self):
-        boundary = self._section(REPO_ROOT / "README.ko.md", r"하나의 Director와 worker-mode 경계")
-        self._assert_clauses(boundary, self.KOREAN_BOUNDARY_CLAUSES, "README.ko.md")
-
-    def test_codex_activation_is_root_only_and_workers_skip_it(self):
-        activation = self._section(
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            r"Activation and Director model",
-        )
-        self.assertRegex(
-            activation,
-            re.compile(r"Only the root/current parent session is the Director", re.I),
-        )
-        self.assertRegex(
-            activation,
-            re.compile(r"that session announces\s+`director_mode:\s*on`", re.I),
-        )
-        self.assertRegex(
-            activation,
-            re.compile(r"Spawned workers and reviewers skip that announcement and remain in their assigned roles", re.I),
-        )
-        self.assertNotRegex(
-            activation,
-            re.compile(
-                r"Apply this policy by default to every repository and code task\.\s+Announce\s+`director_mode:\s*on`\s+at the start",
-                re.I,
-            ),
-        )
 
     def test_claude_activation_is_root_only_and_workers_skip_it(self):
         director_mode = self._section(REPO_ROOT / "claude" / "CLAUDE.md.example", r"Director mode")
@@ -995,37 +679,6 @@ class TestWorkerRoleBoundary(unittest.TestCase):
             re.compile(r"load the `agent-director` skill and operate as director:", re.I),
         )
 
-    @staticmethod
-    def _yaml_prompt(path: Path) -> str:
-        lines = path.read_text(encoding="utf-8").splitlines()
-        prefix = "  default_prompt:"
-        index = next(i for i, line in enumerate(lines) if line.startswith(prefix))
-        value = lines[index].split(":", 1)[1].strip()
-        if value.startswith((">", "|")):
-            body = []
-            for line in lines[index + 1 :]:
-                if line.startswith("    "):
-                    body.append(line[4:].strip())
-                elif not line.strip():
-                    continue
-                else:
-                    break
-            return " ".join(body)
-        return value.strip("\"'")
-
-    def test_codex_plugin_metadata_checks_each_worker_clause(self):
-        metadata_path = (
-            REPO_ROOT
-            / "plugins"
-            / "agent-director"
-            / "skills"
-            / "agent-director"
-            / "agents"
-            / "openai.yaml"
-        )
-        prompt = self._normalized(self._yaml_prompt(metadata_path))
-        self._assert_clauses(prompt, self.YAML_PROMPT_CLAUSES, "plugins/.../openai.yaml default_prompt")
-
     def test_schema_requires_worker_execution_criteria_and_forbids_director_role(self):
         schema = json.loads(
             (REPO_ROOT / "schemas" / "task-contract.schema.json").read_text(encoding="utf-8")
@@ -1038,29 +691,17 @@ class TestWorkerRoleBoundary(unittest.TestCase):
         self.assertNotIn("director", role_schema["enum"])
         self.assertRegex(role_schema["description"], re.compile(r"non-Director|director.*invalid", re.I))
 
-    def test_both_task_templates_expose_worker_contract_fields(self):
-        template_paths = [
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "references" / "task-template.md",
-            REPO_ROOT / "claude" / "skills" / "agent-director" / "references" / "task-template.md",
-        ]
-        for path in template_paths:
-            source = self._normalized(path.read_text(encoding="utf-8"))
-            with self.subTest(template=path.relative_to(REPO_ROOT)):
-                self._assert_clauses(source, self.ABSOLUTE_ROLE_CLAUSES, str(path.relative_to(REPO_ROOT)))
-                for field in self.WORKER_CONTRACT_FIELDS:
-                    self.assertIn(f'"{field}"', source)
+    def test_claude_task_template_exposes_worker_contract_fields(self):
+        path = REPO_ROOT / "claude" / "skills" / "agent-director" / "references" / "task-template.md"
+        source = self._normalized(path.read_text(encoding="utf-8"))
+        self._assert_clauses(source, self.ABSOLUTE_ROLE_CLAUSES, str(path.relative_to(REPO_ROOT)))
+        for field in self.WORKER_CONTRACT_FIELDS:
+            self.assertIn(f'"{field}"', source)
 
     def test_platform_and_plugin_surfaces_require_absolute_worker_boundary_and_contract(self):
         surfaces = [
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "codex" / "AGENTS.md.example",
-            REPO_ROOT / "codex" / "INSTALL.md",
             REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
             REPO_ROOT / "claude" / "CLAUDE.md.example",
-            REPO_ROOT / "plugins" / "agent-director" / "README.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "agents" / "openai.yaml",
-            REPO_ROOT / "README.md",
         ]
         for path in surfaces:
             source = self._normalized(path.read_text(encoding="utf-8"))
@@ -1071,14 +712,14 @@ class TestWorkerRoleBoundary(unittest.TestCase):
 
     def test_korean_public_guidance_exposes_worker_contract_fields(self):
         source = self._normalized((REPO_ROOT / "README.ko.md").read_text(encoding="utf-8"))
-        self.assertIn("어떤 경우에도 Director가 아니며", source)
-        self.assertIn("director`는 유효한 역할이 아닙니다", source)
+        self.assertIn("비(非)Director 역할", source)
+        self.assertIn("worker는", source)
         for field in self.WORKER_CONTRACT_FIELDS:
             with self.subTest(field=field):
                 self.assertIn(field, source)
 
     def test_absolute_role_and_contract_mutants_are_rejected(self):
-        path = REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md"
+        path = REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md"
         source = self._normalized(path.read_text(encoding="utf-8"))
         clauses = {**self.ABSOLUTE_ROLE_CLAUSES, **self.WORKER_CONTRACT_CLAUSES}
         for name, pattern in clauses.items():

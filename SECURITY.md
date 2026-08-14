@@ -40,8 +40,7 @@ application, but not zero:
 
 - **Prompt-injection-style misuse of templates or examples.** The task
   contract, implementation report, review result, and takeover templates in
-  `claude/skills/agent-director/references/` and
-  `codex/skills/agent-director/references/` are designed to be filled in and
+  `claude/skills/agent-director/references/` are designed to be filled in and
   passed to an AI agent as instructions. A malicious or careless fill-in
   (or a compromised example used as a copy-paste starting point) could smuggle
   instructions intended to make an agent run unintended commands or exfiltrate
