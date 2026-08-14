@@ -495,9 +495,7 @@ class TestDeterministicParallelDispatch(unittest.TestCase):
         policy_files = [
             REPO_ROOT / "core" / "CONCURRENCY-RULES.md",
             REPO_ROOT / "core" / "DELEGATION-PROTOCOL.md",
-            REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md",
             REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md",
-            REPO_ROOT / "plugins" / "agent-director" / "skills" / "agent-director" / "SKILL.md",
             REPO_ROOT / "README.md",
             REPO_ROOT / "README.ko.md",
         ]

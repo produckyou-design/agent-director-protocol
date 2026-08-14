@@ -1,4 +1,4 @@
-"""Cross-platform / cross-schema consistency tests.
+"""Claude adapter / cross-schema consistency tests.
 
 Runnable via `python -m unittest discover -s tests` from the repo root.
 """
@@ -35,7 +35,7 @@ CANONICAL_TEN_CHECK_KEYS = [
 ]
 
 MODEL_NAME_PATTERN = re.compile(
-    r"\b(claude|opus|sonnet|haiku|codex|openai|anthropic|gpt)\b", re.IGNORECASE
+    r"\b(claude|opus|sonnet|haiku|anthropic)\b", re.IGNORECASE
 )
 
 
@@ -43,13 +43,22 @@ def load_schema(name: str) -> dict:
     return json.loads((SCHEMAS_DIR / name).read_text(encoding="utf-8"))
 
 
-class TestReferenceFilenameSets(unittest.TestCase):
-    def test_claude_and_codex_reference_filenames_are_identical(self):
+class TestClaudeReferenceFiles(unittest.TestCase):
+    def test_claude_reference_filenames_are_complete(self):
         claude_refs = REPO_ROOT / "claude" / "skills" / "agent-director" / "references"
-        codex_refs = REPO_ROOT / "codex" / "skills" / "agent-director" / "references"
         claude_files = {p.name for p in claude_refs.iterdir() if p.is_file()}
-        codex_files = {p.name for p in codex_refs.iterdir() if p.is_file()}
-        self.assertEqual(claude_files, codex_files)
+        self.assertEqual(
+            claude_files,
+            {
+                "task-template.md",
+                "review-template.md",
+                "revision-template.md",
+                "takeover-template.md",
+                "escalation-template.md",
+                "rescue-agent-template.md",
+                "agent-briefing-template.md",
+            },
+        )
 
 
 class TestTenCheckKeys(unittest.TestCase):
@@ -83,14 +92,11 @@ class TestCoreDocsHaveNoModelNames(unittest.TestCase):
         self.assertEqual(offenders, [], f"model-name strings found in core/: {offenders}")
 
 
-class TestSkillsLinkToSameCoreDocSet(unittest.TestCase):
-    def test_both_skill_mds_link_to_same_core_doc_filenames(self):
+class TestClaudeSkillLinks(unittest.TestCase):
+    def test_claude_skill_links_to_core_docs(self):
         claude_skill = REPO_ROOT / "claude" / "skills" / "agent-director" / "SKILL.md"
-        codex_skill = REPO_ROOT / "codex" / "skills" / "agent-director" / "SKILL.md"
         claude_links = check_repository.extract_core_doc_filenames(claude_skill)
-        codex_links = check_repository.extract_core_doc_filenames(codex_skill)
         self.assertTrue(claude_links, "claude/SKILL.md has no links into core/")
-        self.assertEqual(claude_links, codex_links)
 
 
 if __name__ == "__main__":

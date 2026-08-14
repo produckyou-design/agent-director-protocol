@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the platform skill trees (claude/, codex/) for agent-director-protocol.
+"""Validate the Claude Code skill tree for agent-director-protocol.
 
 For each platform directory:
   - skills/agent-director/SKILL.md exists
@@ -24,7 +24,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-PLATFORMS = ["claude", "codex"]
+PLATFORMS = ["claude"]
 REQUIRED_REFERENCE_FILES = {
     "task-template.md",
     "review-template.md",

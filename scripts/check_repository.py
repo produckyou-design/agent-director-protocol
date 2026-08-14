@@ -181,7 +181,6 @@ def scan_residue(root: Path) -> list[str]:
 def check_install_docs(root: Path) -> list[str]:
     failures: list[str] = []
     claude_install = root / "claude" / "INSTALL.md"
-    codex_install = root / "codex" / "INSTALL.md"
 
     if not claude_install.is_file():
         failures.append(f"missing {claude_install}")
@@ -189,15 +188,6 @@ def check_install_docs(root: Path) -> list[str]:
         text = claude_install.read_text(encoding="utf-8")
         if ".claude/skills" not in text:
             failures.append(f"{claude_install} must mention '.claude/skills'")
-
-    if not codex_install.is_file():
-        failures.append(f"missing {codex_install}")
-    else:
-        text = codex_install.read_text(encoding="utf-8")
-        if ".agents/skills" not in text:
-            failures.append(f"{codex_install} must mention '.agents/skills'")
-        if "AGENTS.md" not in text:
-            failures.append(f"{codex_install} must mention 'AGENTS.md'")
 
     return failures
 
@@ -216,33 +206,13 @@ def check_platform_consistency(root: Path) -> list[str]:
     failures: list[str] = []
 
     claude_refs = root / "claude" / "skills" / "agent-director" / "references"
-    codex_refs = root / "codex" / "skills" / "agent-director" / "references"
-
     claude_ref_files = {p.name for p in claude_refs.iterdir() if p.is_file()} if claude_refs.is_dir() else set()
-    codex_ref_files = {p.name for p in codex_refs.iterdir() if p.is_file()} if codex_refs.is_dir() else set()
-
-    if claude_ref_files != codex_ref_files:
-        failures.append(
-            "claude/ and codex/ references/ filename sets differ: "
-            f"claude-only={sorted(claude_ref_files - codex_ref_files)}, "
-            f"codex-only={sorted(codex_ref_files - claude_ref_files)}"
-        )
 
     claude_skill = root / "claude" / "skills" / "agent-director" / "SKILL.md"
-    codex_skill = root / "codex" / "skills" / "agent-director" / "SKILL.md"
     claude_core_links = extract_core_doc_filenames(claude_skill)
-    codex_core_links = extract_core_doc_filenames(codex_skill)
 
     if not claude_core_links:
         failures.append(f"{claude_skill} has no links into core/ (expected the core doc set)")
-    if not codex_core_links:
-        failures.append(f"{codex_skill} has no links into core/ (expected the core doc set)")
-    if claude_core_links and codex_core_links and claude_core_links != codex_core_links:
-        failures.append(
-            "claude/SKILL.md and codex/SKILL.md link to different sets of core/ docs: "
-            f"claude-only={sorted(claude_core_links - codex_core_links)}, "
-            f"codex-only={sorted(codex_core_links - claude_core_links)}"
-        )
 
     return failures
 

@@ -23,14 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integrate the parent task, spawn/manage workers, or declare the overall task
   complete. Contracted deployments and other state-changing operations remain
   allowed when explicitly included in the parent contract.
-- **ADP is now the default for Codex repository and code tasks.** The skill can
-  still be invoked explicitly, but model/effort exceptions remain user-
-  authorized and fail-closed.
-- **Codex worker capacity is runtime-defined.** The adapter no longer invents a
-  concurrent or cumulative numeric cap. Directors disclose the planned worker
-  structure and evidence-based rationale before spawning; native slot-full
-  responses require wait/close, re-scope, or return and never authorize
-  Director takeover.
+- **The distribution is now Claude Code-only.** The unsupported Codex adapter,
+  Codex plugin, marketplace manifest, and Codex-specific validation surfaces
+  were removed; the platform-neutral core and Claude Code plugin remain.
 - **Every task now has an explicit disclosure phase.** `task_start` begins
   every task, `spawn` precedes a worker batch, and `addition` is required for
   later workers, contracts, revisions, rescues, reviewers, or material scope
